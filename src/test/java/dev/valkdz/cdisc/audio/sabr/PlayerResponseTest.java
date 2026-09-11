@@ -57,6 +57,25 @@ class PlayerResponseTest {
             }
             """;
 
+    private static final String LIVE = """
+            {
+              "playabilityStatus": {"status": "OK"},
+              "videoDetails": {"title": "lofi radio", "author": "Lofi Girl",
+                               "lengthSeconds": "0", "isLive": true, "isLiveContent": true},
+              "streamingData": {
+                "serverAbrStreamingUrl": "https://rr5.googlevideo.com/videoplayback?sabr=1",
+                "adaptiveFormats": [
+                  {"itag":140,"mimeType":"audio/mp4; codecs=\\"mp4a.40.2\\"","bitrate":130928,
+                   "lastModified":"1","targetDurationSec":5,
+                   "url":"https://rr5.googlevideo.com/videoplayback?itag=140&live=1"},
+                  {"itag":251,"mimeType":"audio/webm; codecs=\\"opus\\"","bitrate":160000,
+                   "lastModified":"2","targetDurationSec":5,
+                   "url":"https://rr5.googlevideo.com/videoplayback?itag=251&live=1"}
+                ]
+              }
+            }
+            """;
+
     private static final String REFUSED = """
             {"playabilityStatus": {"status": "LOGIN_REQUIRED", "reason": "This video requires login."},
              "streamingData": {}, "videoDetails": {}}
@@ -146,6 +165,41 @@ class PlayerResponseTest {
         @DisplayName("content length is carried, so the stream can be sized")
         void contentLength() throws Exception {
             assertEquals(2869349L, parse(SABR_ONLY).bestAudio().orElseThrow().contentLength());
+        }
+    }
+
+    @Nested
+    @DisplayName("a live broadcast")
+    class Live {
+
+        @Test
+        @DisplayName("it is recognised as live, and has no length to speak of")
+        void recognised() throws Exception {
+            InnerTubePlayer.PlayerResponse response = parse(LIVE);
+
+            assertTrue(response.live());
+            assertEquals(0L, response.durationMs());
+        }
+
+        @Test
+        @DisplayName("an ordinary video is not live")
+        void notLive() throws Exception {
+            assertFalse(parse(CLASSIC).live());
+        }
+
+        @Test
+        @DisplayName("mp4 is taken for live even though opus is richer")
+        void prefersMp4() throws Exception {
+            InnerTubePlayer.AudioFormat best = parse(LIVE).bestLiveAudio().orElseThrow();
+
+            assertEquals(140, best.itag());
+            assertTrue(best.hasDirectUrl());
+        }
+
+        @Test
+        @DisplayName("a stream with nothing but opus is left to the other sources")
+        void opusOnlyIsRefused() throws Exception {
+            assertTrue(parse(CLASSIC).bestLiveAudio().isEmpty());
         }
     }
 

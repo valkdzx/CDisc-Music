@@ -1,6 +1,44 @@
 # Changelog
 
-## 1.8.1-hotfix-2
+## 1.8.2
+
+### 🔴 YouTube live streams stopped after five seconds
+
+A live broadcast played for exactly five seconds and then stopped, with nothing
+in the console to say why.
+
+Live has no length and no size: it is handed out as a chain of five-second
+segments, and the address in the player response serves the one segment that is
+current. CDisc read that address the way it reads an ordinary video, got its
+five seconds, reached the end of the stream and finished the track. As far as
+the player was concerned the song was over, so there was nothing to report.
+
+Live is now recognised as live and read segment by segment for as long as the
+broadcast runs. The address is fetched afresh on every start, so a stream that
+drops comes back on a current link rather than an expired one, and the audio is
+taken from an MP4 format because that is what the segment reader can parse. The
+track is finally marked as a stream, which brings with it everything the plugin
+already does for streams: reconnection, `LIVE` in place of a running time, no
+downloading, and the `allow-live` permission.
+
+Writing a disc from an ordinary YouTube video could fail outright on servers
+that check a track before writing it: the check plays a copy, and a track read
+straight from YouTube could not be copied. It can now.
+
+### 🟣 Twitch channels loaded but played nothing
+
+A channel came up with its title and its name on the disc, and then silence.
+
+Two things were wrong. Links to twitch.tv were being sent to an address on the
+backend that answers 404 for every channel, live or not. And Twitch has since
+moved its streams to fragmented MP4, which the library's reader, written for
+MPEG-TS, finds no audio in.
+
+Twitch links now go to the plugin's own reader. It takes the initialisation
+segment named in the stream's playlist, which is where the description of the
+audio lives, plays the fragments that follow it, and falls back to the old
+MPEG-TS path for a channel that is still served that way. Choosing the quality
+and waiting on new segments is left to the library, which is sound.
 
 ### 🔊 Both voice plugins at once
 

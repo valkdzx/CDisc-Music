@@ -18,7 +18,6 @@ import com.sedmelluq.discord.lavaplayer.source.AudioSourceManagers;
 import com.sedmelluq.discord.lavaplayer.source.bandcamp.BandcampAudioSourceManager;
 import com.sedmelluq.discord.lavaplayer.source.http.HttpAudioSourceManager;
 import com.sedmelluq.discord.lavaplayer.source.soundcloud.SoundCloudAudioSourceManager;
-import com.sedmelluq.discord.lavaplayer.source.twitch.TwitchStreamAudioSourceManager;
 import com.sedmelluq.discord.lavaplayer.source.vimeo.VimeoAudioSourceManager;
 import com.sedmelluq.discord.lavaplayer.tools.FriendlyException;
 import com.sedmelluq.discord.lavaplayer.track.AudioItem;
@@ -47,8 +46,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class TrackLoader {
-
-    private static final String TWITCH_BACKEND_BASE = "https://2281273.xyz/twitch/";
 
     private static final String BACKEND_BASE = "https://2281273.xyz/";
     private static final Pattern TWITCH_URL = Pattern.compile(
@@ -204,8 +201,7 @@ public class TrackLoader {
         }
 
         if (config.isTwitchEnabled()) {
-            TwitchStreamAudioSourceManager twitch = new TwitchStreamAudioSourceManager();
-            lavaPlayer.registerSourceManager(twitch);
+            lavaPlayer.registerSourceManager(new dev.valkdz.cdisc.audio.twitch.TwitchSourceManager());
         }
 
         if (config.isBandcampEnabled()) {
@@ -223,7 +219,6 @@ public class TrackLoader {
         } else {
 
             List<String> allowed = new ArrayList<>();
-            if (config.isTwitchEnabled()) allowed.add(TWITCH_BACKEND_BASE);
             if (config.isDiscordEnabled()) {
                 allowed.addAll(List.of(dev.valkdz.cdisc.audio.DiscordSource.URL_PREFIXES));
             }
@@ -777,7 +772,7 @@ public class TrackLoader {
         if (q.startsWith("tt:")) return "ttsearch:" + q.substring(3);
 
         if (q.startsWith("http")) {
-            String twitch = twitchBackendUrl(q);
+            String twitch = twitchChannelUrl(q);
             if (twitch != null) return twitch;
             return normalizeYoutubeUrl(q);
         }
@@ -785,11 +780,13 @@ public class TrackLoader {
         return "ytsearch:" + q;
     }
 
-    private String twitchBackendUrl(String url) {
+    private String twitchChannelUrl(String url) {
         if (!plugin.cdiscConfig().isTwitchEnabled()) return null;
         Matcher m = TWITCH_URL.matcher(url.trim());
         if (!m.matches()) return null;
-        return TWITCH_BACKEND_BASE + m.group(1);
+
+        // The Twitch source matches this one spelling only: no http, no trailing slash, no query.
+        return "https://www.twitch.tv/" + m.group(1);
     }
 
     public String twitchChannelOf(String query) {

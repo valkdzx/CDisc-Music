@@ -78,7 +78,7 @@ public final class InnerTubePlayer {
     }
 
     public record PlayerResponse(String playabilityStatus, String playabilityReason,
-                                 String title, String author, long durationMs,
+                                 String title, String author, long durationMs, boolean live,
                                  String serverAbrStreamingUrl, byte[] ustreamerConfig,
                                  List<AudioFormat> audioFormats, List<AudioFormat> videoFormats) {
 
@@ -98,6 +98,15 @@ public final class InnerTubePlayer {
             return audioFormats.stream().max(
                     Comparator.comparing(AudioFormat::isOpus)
                             .thenComparingInt(AudioFormat::bitrate));
+        }
+
+        public Optional<AudioFormat> bestLiveAudio() {
+            // Live is read as MP4 fragments, so a WebM/Opus format is no use here.
+            return audioFormats.stream()
+                    .filter(AudioFormat::hasDirectUrl)
+                    .filter(format -> format.mimeType() != null
+                            && format.mimeType().startsWith("audio/mp4"))
+                    .max(Comparator.comparingInt(AudioFormat::bitrate));
         }
     }
 
@@ -189,6 +198,7 @@ public final class InnerTubePlayer {
         }
 
         long durationMs = details.path("lengthSeconds").asLong(0) * 1000L;
+        boolean live = details.path("isLive").asBoolean(false);
 
         List<AudioFormat> audio = new ArrayList<>();
         List<AudioFormat> video = new ArrayList<>();
@@ -214,6 +224,7 @@ public final class InnerTubePlayer {
                 details.path("title").asText(null),
                 details.path("author").asText(null),
                 durationMs,
+                live,
                 streaming.path("serverAbrStreamingUrl").asText(null),
                 ustreamerConfig,
                 audio, video);

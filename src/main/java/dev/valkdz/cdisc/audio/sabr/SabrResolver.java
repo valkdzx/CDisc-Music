@@ -1,5 +1,6 @@
 package dev.valkdz.cdisc.audio.sabr;
 
+import com.sedmelluq.discord.lavaplayer.tools.Units;
 import com.sedmelluq.discord.lavaplayer.tools.io.HttpClientTools;
 import com.sedmelluq.discord.lavaplayer.tools.io.HttpInterface;
 import com.sedmelluq.discord.lavaplayer.tools.io.HttpInterfaceManager;
@@ -12,9 +13,11 @@ import dev.lavalink.youtube.track.format.StreamFormat;
 import org.apache.http.entity.ContentType;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.net.http.HttpClient;
 import java.time.Duration;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -79,6 +82,10 @@ public final class SabrResolver {
                     + (response.playabilityReason() == null ? "" : " — " + response.playabilityReason()));
         }
 
+        if (response.live()) {
+            return liveTrack(videoId, response, identity, discTitle, discAuthor, namesWin);
+        }
+
         if (isBlank(response.serverAbrStreamingUrl()) || response.ustreamerConfig() == null) {
             return null;
         }
@@ -104,6 +111,11 @@ public final class SabrResolver {
 
             if (!response.isPlayable()) return null;
 
+            if (response.live()) {
+                return liveTrack(videoId, response, this::visionIdentity,
+                        discTitle, discAuthor, namesWin);
+            }
+
             Optional<InnerTubePlayer.AudioFormat> best = response.bestAudio();
             if (best.isEmpty() || !best.get().hasDirectUrl()) return null;
 
@@ -116,6 +128,40 @@ public final class SabrResolver {
                     format.mimeType(), format.contentLength());
         } catch (Exception e) {
             return null;
+        }
+    }
+
+    private InnerTubePlayer.ClientIdentity visionIdentity() {
+        return InnerTubePlayer.ClientIdentity.visionOs(visitorDataOrNull());
+    }
+
+    private AudioTrack liveTrack(String videoId, InnerTubePlayer.PlayerResponse response,
+                                 Supplier<InnerTubePlayer.ClientIdentity> who,
+                                 String discTitle, String discAuthor, boolean namesWin) {
+        Optional<InnerTubePlayer.AudioFormat> best = response.bestLiveAudio();
+        if (best.isEmpty()) return null;
+
+        AtomicReference<String> known = new AtomicReference<>(
+                descramble(best.get().directUrl(), best.get()));
+
+        return new LiveAudioTrack(
+                trackInfo(videoId, response, discTitle, discAuthor, 0, namesWin),
+                sourceManager, cipherInterfaces,
+                () -> {
+                    String first = known.getAndSet(null);
+                    return first != null ? first : freshLiveUrl(videoId, who.get());
+                });
+    }
+
+    private String freshLiveUrl(String videoId, InnerTubePlayer.ClientIdentity who) {
+        try {
+            InnerTubePlayer.PlayerResponse response = new InnerTubePlayer(http, who).fetch(videoId);
+            InnerTubePlayer.AudioFormat format = response.bestLiveAudio().orElseThrow(
+                    () -> new IOException("YouTube no longer offers an MP4 audio stream for " + videoId));
+
+            return descramble(format.directUrl(), format);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
         }
     }
 
@@ -144,9 +190,9 @@ public final class SabrResolver {
                         : pick(response.title(), discTitle, "Unknown title"),
                 namesWin ? pick(discAuthor, response.author(), "Unknown artist")
                         : pick(response.author(), discAuthor, "Unknown artist"),
-                durationMs,
+                response.live() ? Units.DURATION_MS_UNKNOWN : durationMs,
                 videoId,
-                false,
+                response.live(),
                 "https://www.youtube.com/watch?v=" + videoId);
     }
 

@@ -12,6 +12,7 @@ import com.sedmelluq.discord.lavaplayer.tools.io.HttpInterfaceManager;
 import com.sedmelluq.discord.lavaplayer.tools.io.PersistentHttpStream;
 import com.sedmelluq.discord.lavaplayer.tools.io.SeekableInputStream;
 import com.sedmelluq.discord.lavaplayer.track.AudioReference;
+import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrackInfo;
 import com.sedmelluq.discord.lavaplayer.track.DelegatedAudioTrack;
 import com.sedmelluq.discord.lavaplayer.track.InternalAudioTrack;
@@ -87,5 +88,10 @@ public final class DirectAudioTrack extends DelegatedAudioTrack {
     @Override
     public AudioSourceManager getSourceManager() {
         return sourceManager;
+    }
+
+    @Override
+    protected AudioTrack makeShallowClone() {
+        return new DirectAudioTrack(trackInfo, sourceManager, interfaces, url, mimeType, contentLength);
     }
 }
