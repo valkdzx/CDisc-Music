@@ -1,0 +1,135 @@
+# CDisc — where the music comes from. Keys live in tokens.yml, behaviour in config.yml.
+# A source that needs a key and hasn't got one is skipped at startup, and named in the console.
+
+### Which sources are available
+# Turning one off unregisters it: its links stop resolving and its search prefix stops working.
+enabled:
+  youtube: true
+  soundcloud: true
+  spotify: true
+  yandex-music: true
+  vk-music: true
+  twitch: true
+  mixcloud: true
+  tiktok: true
+  reddit: true
+  # Files attached to a Discord message. Separate from `http` on purpose: one host
+  # rather than the whole internet. Discord's links expire about a day after copying.
+  discord: true
+  vimeo: false
+  bandcamp: false
+  ocremix: false
+  soundgasm: false
+  pornhub: false
+  # Any direct link to an audio file. Off by default: it lets a player point the
+  # server at an arbitrary URL. Links into this server's own network are always refused.
+  http: false
+  # Audio files you put on the server yourself — see "Local files" below.
+  local: true
+
+### Search
+# A search query opens a list to choose from; a link is written straight to the disc.
+# Ask for a different count with a trailing :N — /cdisc create yt:some song:10
+search:
+  default-results: 5
+  # 10 is the hard ceiling.
+  max-results: 10
+  # Per-source ceilings for a slow or rate-limited search, keyed by the names above.
+  per-source: {}
+
+### Local files
+# Played from disk with nothing fetched. Reached as local:rain.mp3, subfolders included.
+# Discs store the path relative to this folder, and nothing outside it is reachable.
+local:
+  # Relative paths are read from the plugin folder; absolute paths work too.
+  folder: 'local'
+
+  # Anything else in the folder is ignored, cover art and playlists included.
+  extensions: [mp3, ogg, flac, wav, m4a, aac, opus, webm]
+
+  # /cdisc admin download <search or link> [name] keeps a copy on disk, so it stops
+  # mattering whether the link still works. Operators only — see cdisc.download.
+  download:
+    enabled: true
+    # Counted as the bytes arrive rather than trusting the declared size.
+    max-size-mb: 100
+    timeout-seconds: 120
+
+  # Files past this limit can't be found by name or completion. A guard against
+  # pointing `folder` at an entire media drive by accident.
+  max-files: 5000
+
+### YouTube
+youtube:
+  # Asked in order; the first to return a stream wins. They do not fail the same way,
+  # so this is the setting to try first when YouTube stops playing.
+  #
+  #   android-vr    no po-token; can't serve "made for kids" videos
+  #   tv            no po-token; formats often DRM'd without cookies
+  #   web-embedded  no po-token; only videos that allow embedding
+  #   web           needs a po-token, serves almost anything
+  #   mweb          needs a po-token for the stream itself
+  #   music         YouTube Music
+  #   android, android-music, ios
+  #
+  # ios answers 400 to everything at present and is the first worth removing.
+  clients: [android-vr, ios, music, web, tv, web-embedded, mweb]
+
+  # Off because these loggers dump the JSON of every rejected format. On, they are the
+  # only thing separating "needs a token", "needs a login" and "undecodable format".
+  log-client-failures: false
+
+  # Fetch through the backend API instead of asking YouTube from here. THE FIRST THING
+  # TO TRY WHEN YOUTUBE STOPS PLAYING: it asks from its own address and mints its own
+  # token, so nothing else here needs configuring. Both paths race, so it costs nothing
+  # on a working server. Age-restricted tracks use it even when this is off.
+
+  # Where operators are pointed when YouTube fails and nothing here gets past it.
+  # Blank names the page without linking to it. A Russian client is sent to the Russian page.
+  setup-guide-url: 'https://wiki.2281273.xyz/#/youtube'
+
+  fallback-api: false
+
+  # Have the backend read the bytes too, rather than handing back a link. Turn this on with
+  # fallback-api unless both are the same machine: a stream URL is bound to the address that
+  # asked for it and answers anyone else with 403. Costs about a megabyte per minute.
+  proxy: false
+
+  # Read SABR streams rather than treating them as a dead track. YouTube answers some
+  # requests with formats but no direct links, which youtube-source reports as "no audio".
+  # Needs po-token and visitor-data in tokens.yml; unused when ordinary links still work.
+  sabr: true
+
+  # Client version claimed when asking for a player response, which SABR has to do itself.
+  # Bump it if SABR starts being refused: read INNERTUBE_CLIENT_VERSION out of youtube.com.
+  web-client-version: '2.20260828.01.00'
+
+  # NOT optional. A player request that cannot name it is answered UNPLAYABLE for every
+  # video, which reads as "the video is gone". Read signatureTimestamp out of base.js, and
+  # change it together with web-client-version.
+  signature-timestamp: 20684
+
+  # Skip the playability probe when creating a disc and choose the fetch strategy on first
+  # playback instead. Several times faster; set false to check playability up front.
+  fast-create: true
+
+  # Seconds to wait for the first decoded frame during that probe. Only used when
+  # fast-create is false.
+  probe-timeout-seconds: 4
+
+  # Signature cipher solver. Its password, if it needs one, goes in tokens.yml.
+  # Blank the URL to not use a remote cipher at all.
+  remote-cipher:
+    url: 'https://cipher.kikkia.dev/'
+
+  # Proof-of-origin tokens, fetched automatically. Earning a visitor identity YouTube has
+  # attested takes a real browser, which is what this service does; CDisc keeps the identity
+  # signed by itself afterwards and comes back only when it stops being honoured.
+  #
+  # Used in order: tokens.yml, then the pair CDisc last used, then this server. Nothing is
+  # shipped as a fallback, so with this blank and tokens.yml empty YouTube cuts every track
+  # short after about a minute. Its password, if you gave it one, goes in tokens.yml.
+  po-token-backend:
+    url: 'https://2281273.xyz/cdisc/public-youtube-data'
+    # Minting runs a JavaScript VM at the other end, so several seconds is normal.
+    timeout-seconds: 60

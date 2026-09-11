@@ -1,0 +1,160 @@
+# CDisc — plugin behaviour. Services live in sources.yml, credentials in tokens.yml.
+# Upgrading from 1.6 or older: the old combined file is kept as config-before-split.yml.bak.
+
+### Language
+# auto (per-player client language), or one of ar_SA, de_DE, en_US, es_ES, he_IL, ru_RU, uk_UA.
+# Any other languages/<name>.yml works too; missing keys fall back to English.
+language: auto
+
+### Voice backend
+# auto | multi | simplevoicechat | plasmovoice.
+# multi broadcasts through every installed voice plugin at once, at one extra Opus encode each.
+voice-backend: auto
+
+### Simple Voice Chat
+svc-config:
+  voicecategory:
+    id: "cdisc"
+    name: "CDisc Music"
+    description: "Custom music"
+  distance: 32.0
+
+### Beacon range boost
+# Extra hearing distance in blocks when a jukebox sits on a beacon.
+# The selectable level is capped by the beacon's pyramid tier.
+beacon-range-boost:
+  level-1: 16
+  level-2: 32
+  level-3: 64
+
+### Plasmo Voice
+pv-config:
+  sourceline:
+    name: "CDisc Music"
+
+volume: 80
+
+### Sound anchor
+# Audio is emitted from an entity so it can follow a carried jukebox.
+# block_display (recommended) | marker (cheapest, may never reach the client) | armor_stand.
+sound-anchor:
+  entity: block_display
+
+### Portable jukeboxes
+# Picks a jukebox up without stopping the track; placing it back restores the block.
+portable-jukebox:
+  enabled: true
+  # Each carried jukebox is a separate track playing from the player.
+  max-per-player: 1
+  particle-interval-ticks: 50
+
+### Speaker groups
+# Several jukeboxes playing one track in sync. The main holds the discs and decodes;
+# speakers emit the same audio from their own position.
+speaker-group:
+  enabled: true
+  # A speaker emits from an entity in its own chunk, so a distant one only plays
+  # while somebody keeps that chunk loaded.
+  max-distance: 64
+  # Each speaker is a separate audio source for every nearby listener.
+  max-per-group: 8
+  # Operators may always change a group, so an owner leaving never locks it.
+  protect-members: true
+
+### Lyrics
+# Timed words over the jukebox and in its GUI paper, from the free databases below.
+# Per-jukebox and per-player overrides take precedence over everything here.
+lyrics:
+  enabled: true
+  # What a jukebox nobody has decided about does.
+  default-on: false
+
+  # Asked in order until one has the song. lrclib is one request and more accurate;
+  # netease needs two but has a different catalogue.
+  providers:
+    - lrclib
+    - netease
+
+  # Ticks between hologram updates.
+  update-ticks: 4
+
+  # Blocks above the jukebox.
+  height: 1.6
+
+  # 1 to 10; 5 is nameplate size. Bigger text stands taller, so raise `height` with it.
+  # Server-wide: scale belongs to the entity, so everyone sees one hologram the same size.
+  size: 5
+
+  # Lines kept visible around the one being sung.
+  lines-before: 1
+  lines-after: 2
+
+  color:
+    current: "&f"
+    other: "&7"
+
+  animation:
+    # Ticks a line takes to travel between the two colours. 0 turns it off.
+    # Keep it short: a fade still running when the next line lands reads as lag.
+    fade-ticks: 6
+    slide: true
+
+  countdown:
+    # One dot per second before the first line, so a singer sees the entry coming.
+    enabled: true
+    seconds: 3
+    # Minecraft's own font; change them for a resource pack or a different look.
+    filled: "●"
+    empty: "○"
+
+  # Pixels before a long line wraps.
+  line-width: 220
+  # Plate behind the text: 0 none, 255 solid, 60 roughly a nametag.
+  background-opacity: 60
+
+  # How solid the words are, 0 to 255. Parted per jukebox in its settings screen.
+  text-opacity: 255
+
+  # 0 to 15. -1 leaves the words lit by the world, so they go dark at night.
+  brightness: -1
+  shadow: false
+  see-through: false
+  view-range: 1.0
+
+  gui:
+    # The paper whose lore scrolls the words; it fits more lines than the hologram.
+    enabled: true
+    lines-before: 2
+    lines-after: 4
+
+  # Seconds to wait on the database for one lookup.
+  timeout-seconds: 6
+  # Most tracks that show nothing simply aren't in the database, so this is off.
+  debug: false
+
+### Resuming after a restart
+# A playing jukebox starts again from where it got to, once its chunk loads.
+# A paused one stays paused, and a live stream resumes at whatever is broadcast now.
+resume-playback: true
+
+### Player screen as a dialog
+# 1.21.6+ only, ignored on Spigot. Buttons say what they do in words, but the
+# progress bar stops being live: a dialog is a snapshot, redrawn on each press.
+player-dialog: true
+
+# Ticks between redraws. A dialog cannot be edited, so each refresh rebuilds and
+# resends the whole screen — which is why this is not 1.
+player-dialog-refresh-ticks: 10
+
+### Update checker
+# Asks Modrinth for the newest release and reports it in the console and to operators.
+update-checker:
+  enabled: true
+  notify-ops: true
+  # 0 checks once at startup only, which misses a release published while running.
+  interval-hours: 6
+
+### Anonymous statistics (bStats)
+# Server-level facts only: player count, server and Java version, feature counters.
+# No player names, UUIDs, IPs, track titles or search queries are ever sent.
+metrics: true

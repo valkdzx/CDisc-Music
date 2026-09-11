@@ -1,0 +1,35 @@
+# Everything at the top level is ignored, and the few things the public
+# repository actually holds are listed back in below. A new folder is private
+# by default, which is the way round that keeps things from leaking by accident.
+
+/*
+
+!/.gitignore
+!/LICENSE
+!/README.md
+!/CHANGELOG.md
+!/modrinth-description-en.md
+!/pom.xml
+!/src/
+
+# Never publish, wherever it turns up.
+.claude/
+CLAUDE.md
+INSTRUCTION.md
+.idea/
+*.iml
+/target/
+dependency-reduced-pom.xml
+*.class
+node_modules/
+
+# Credentials and TLS material.
+*.pem
+*.key
+*.crt
+*.pfx
+
+# Local runtime leftovers.
+*.log
+Thumbs.db
+.DS_Store

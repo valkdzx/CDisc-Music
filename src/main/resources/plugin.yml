@@ -1,0 +1,9 @@
+name: CDisc
+version: 1.8.1-hotfix-2
+main: dev.valkdz.cdisc.Main
+api-version: 1.20
+author: valkdz
+softdepend: [voicechat, PlasmoVoice]
+commands:
+  cdisc:
+    usage: /<command> [create|download|doctor|create-playlist|clear|convert|pair|player|reload] [args]

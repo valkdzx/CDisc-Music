@@ -1,0 +1,48 @@
+# CDisc — who may do what.
+#
+# Every node is registered at startup, so LuckPerms and friends can grant them by name.
+# true = everyone, op = operators only, false = nobody until granted.
+# cdisc.admin covers every node and ignores every limit below it.
+
+defaults:
+  # /cdisc create, and /cdisc convert for a pv-addon-discs disc
+  cdisc.create: true
+  # /cdisc create-playlist
+  cdisc.create.playlist: true
+  # /cdisc clear
+  cdisc.clear: true
+  # /cdisc admin download. Operators only: it writes to the disk and spends bandwidth.
+  cdisc.download: op
+  # /cdisc doctor
+  cdisc.doctor: op
+  # The player GUI and /cdisc player
+  cdisc.player: true
+  # Build and manage speaker groups
+  cdisc.pair: true
+  # Pick a playing jukebox up and carry it
+  cdisc.portable: true
+  # Toggle your own now-playing messages
+  cdisc.messages: true
+  # /cdisc preset. Someone who sets one is drawn their own copy of every hologram,
+  # so this is the one node here with a per-player entity behind it.
+  cdisc.preset: true
+  # /cdisc reload, /cdisc ytsetup, and editing anyone's speaker group
+  cdisc.admin: op
+
+### Limits
+# Applied to everyone without cdisc.admin. /cdisc create makes the SERVER fetch a URL
+# a player chose, so without a limit one player can spend your bandwidth as fast as they type.
+limits:
+  # Seconds between two /cdisc create by the same player. 0 turns the wait off.
+  create-cooldown-seconds: 5
+
+  # Longest track that may be written to a disc, in seconds. 0 means no limit.
+  max-track-seconds: 0
+
+  # A live stream has no length, so max-track-seconds cannot bound it.
+  allow-live: true
+
+  # Empty allowed-hosts permits anything not blocked; filled in, ONLY those hosts pass.
+  # A leading www. is ignored and subdomains count. Search queries are not URLs and are unaffected.
+  allowed-hosts: []
+  blocked-hosts: []

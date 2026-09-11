@@ -1,0 +1,224 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>dev.valkdz</groupId>
+    <artifactId>cdisc</artifactId>
+    <version>1.8.1-hotfix-2</version>
+    <packaging>jar</packaging>
+
+    <name>cdisc</name>
+
+    <properties>
+        <java.version>21</java.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <lavaplayer.version>2.2.7</lavaplayer.version>
+        <youtube.source.version>1.18.2</youtube.source.version>
+    </properties>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.5.0</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <createDependencyReducedPom>true</createDependencyReducedPom>
+
+                            <relocations>
+                                <relocation>
+                                    <pattern>de.tr7zw.changeme.nbtapi</pattern>
+                                    <shadedPattern>dev.valkdz.cdisc.util.nbtapi</shadedPattern>
+                                </relocation>
+                                <!-- bStats REQUIRES relocation: an unrelocated
+                                     org.bstats would clash with whichever copy
+                                     another plugin loaded first. -->
+                                <relocation>
+                                    <pattern>org.bstats</pattern>
+                                    <shadedPattern>dev.valkdz.cdisc.util.bstats</shadedPattern>
+                                </relocation>
+                            </relocations>
+
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>dev.valkdz.cdisc.Main</mainClass>
+                                </transformer>
+                            </transformers>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
+                <configuration>
+                    <source>16</source>
+                    <target>16</target>
+                </configuration>
+            </plugin>
+
+            <!-- Runs the tests under src/test on every `mvn package`, so a
+                 build that produces a jar is a build whose tests passed. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.2.5</version>
+            </plugin>
+        </plugins>
+    </build>
+
+    <repositories>
+        <repository>
+            <id>spigotmc-repo</id>
+            <url>https://hub.spigotmc.org/nexus/content/repositories/snapshots/</url>
+        </repository>
+        <repository>
+            <id>maxhenkel-repo</id>
+            <url>https://maven.maxhenkel.de/releases/</url>
+        </repository>
+        <repository>
+            <id>lavalink-repo</id>
+            <url>https://maven.lavalink.dev/releases</url>
+        </repository>
+        <repository>
+            <id>dmulloy2-repo</id>
+            <url>https://repo.dmulloy2.net/repository/public/</url>
+        </repository>
+        <repository>
+            <id>codemc-repo</id>
+            <url>https://repo.codemc.io/repository/maven-public/</url>
+        </repository>
+        <repository>
+            <id>TopiWTF-releases</id>
+            <url>https://maven.topi.wtf/releases</url>
+        </repository>
+        <repository>
+            <id>DuncteBot</id>
+            <url>https://m2.duncte123.dev/releases</url>
+        </repository>
+        <repository>
+            <id>papermc</id>
+            <url>https://repo.papermc.io/repository/maven-public/</url>
+        </repository>
+        <repository>
+            <id>plasmoverse-releases</id>
+            <url>https://repo.plasmoverse.com/releases</url>
+        </repository>
+    </repositories>
+
+    <dependencies>
+        <!-- Tests only. Most of what is worth testing here is pure: parsing
+             lyrics, folding a colour, reading a stored style back. None of it
+             needs a running server, and none of these leave the test scope. -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>5.10.2</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.spigotmc</groupId>
+            <artifactId>spigot-api</artifactId>
+            <!-- Compile against the OLDEST supported server API (1.20) so any
+                 newer-only Bukkit method fails the build here instead of
+                 throwing NoSuchMethodError on a 1.20 server at runtime.
+                 1.19 is deliberately NOT supported: disc duping, Adventure
+                 failing to render components, and Simple Voice Chat issues. -->
+            <version>1.20-R0.1-SNAPSHOT</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <!-- Dialogs. Paper only, and only from 1.21.6, so this is here
+                 purely for dev.valkdz.cdisc.gui.dialog - which is never
+                 loaded on a server that has not got them. Declared AFTER
+                 spigot-api on purpose: Maven keeps the classpath in this
+                 order, so org.bukkit.* still resolves out of the 1.20 jar
+                 above, so the rule that jar is here to enforce still holds.
+                 Pinned to the oldest release that has dialogs, for the same
+                 reason the one above is pinned to 1.20. -->
+            <groupId>io.papermc.paper</groupId>
+            <artifactId>paper-api</artifactId>
+            <!-- 1.21.8 rather than 1.21.6: the dialog API this compiles against
+                 landed in 1.21.7, and a 1.21.6 jar has none of it. Provided
+                 scope, and every use of it is behind a runtime probe, so the
+                 plugin still loads on servers that have no dialogs at all. -->
+            <version>1.21.8-R0.1-SNAPSHOT</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>dev.arbjerg</groupId>
+            <artifactId>lavaplayer</artifactId>
+            <version>${lavaplayer.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>dev.lavalink.youtube</groupId>
+            <artifactId>common</artifactId>
+            <version>${youtube.source.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.github.topi314.lavasrc</groupId>
+            <artifactId>lavasrc</artifactId>
+            <version>4.8.1</version>
+        </dependency>
+        <dependency>
+            <groupId>de.maxhenkel.voicechat</groupId>
+            <artifactId>voicechat-api</artifactId>
+            <version>2.6.0</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>su.plo.voice.api</groupId>
+            <artifactId>server</artifactId>
+            <version>2.1.13</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>su.plo.slib</groupId>
+            <artifactId>api-server</artifactId>
+            <version>1.5.4</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-all</artifactId>
+            <version>4.1.97.Final</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>de.tr7zw</groupId>
+            <artifactId>item-nbt-api</artifactId>
+            <version>2.15.7</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-core</artifactId>
+            <version>2.20.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jetbrains</groupId>
+            <artifactId>annotations</artifactId>
+            <version>23.0.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.bstats</groupId>
+            <artifactId>bstats-bukkit</artifactId>
+            <version>3.1.0</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.dunctebot</groupId>
+            <artifactId>sourcemanagers</artifactId>
+            <version>1.9.0</version>
+        </dependency>
+    </dependencies>
+</project>
