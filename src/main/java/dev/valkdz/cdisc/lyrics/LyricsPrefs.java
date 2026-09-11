@@ -23,18 +23,16 @@ public final class LyricsPrefs {
     public static boolean isEnabled(Block block) {
         if (!Main.getInstance().cdiscConfig().isLyricsEnabled()) return false;
 
-        Byte stored = read(block);
-        if (stored != null) {
-            boolean on = stored != 0;
-            lastKnown.put(block, on);
-            return on;
-        }
+        Boolean remembered = lastKnown.get(block);
+        if (remembered != null) return remembered;
 
-        if (!(block.getState() instanceof TileState)) {
-            Boolean remembered = lastKnown.get(block);
-            if (remembered != null) return remembered;
-        }
-        return Main.getInstance().cdiscConfig().isLyricsDefaultOn();
+        // Reading the jukebox costs a full block-entity snapshot, and this is asked on the
+        // main thread every few ticks per jukebox, so the answer is kept until it changes.
+        Boolean stored = readStored(block);
+        if (stored == null) return Main.getInstance().cdiscConfig().isLyricsDefaultOn();
+
+        lastKnown.put(block, stored);
+        return stored;
     }
 
     public static void setEnabled(Block block, boolean enabled) {
@@ -51,14 +49,20 @@ public final class LyricsPrefs {
         lastKnown.remove(block);
     }
 
+    public static void forgetAll() {
+        lastKnown.clear();
+    }
+
     public static boolean toggle(Block block) {
         boolean next = !isEnabled(block);
         setEnabled(block, next);
         return next;
     }
 
-    private static Byte read(Block block) {
+    private static Boolean readStored(Block block) {
         if (!(block.getState() instanceof TileState state)) return null;
-        return state.getPersistentDataContainer().get(ENABLED_KEY, PersistentDataType.BYTE);
+
+        Byte value = state.getPersistentDataContainer().get(ENABLED_KEY, PersistentDataType.BYTE);
+        return value == null ? Main.getInstance().cdiscConfig().isLyricsDefaultOn() : value != 0;
     }
 }

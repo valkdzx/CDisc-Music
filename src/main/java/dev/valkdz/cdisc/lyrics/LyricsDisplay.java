@@ -316,15 +316,18 @@ public final class LyricsDisplay {
         LavaPlayerManager apm = plugin.getAudioPlayerManager();
         Set<Block> active = apm.activeBlocks();
 
-        states.keySet().stream()
-                .filter(block -> !active.contains(block))
-                .toList()
-                .forEach(this::clear);
+        if (!states.isEmpty()) {
+            states.keySet().stream()
+                    .filter(block -> !active.contains(block))
+                    .toList()
+                    .forEach(this::clear);
+        }
 
-        HologramStyle defaults = HologramStyle.fromConfig(config);
-
-        for (Block block : active) {
-            update(block, apm, config, defaults);
+        if (!active.isEmpty()) {
+            HologramStyle defaults = HologramStyle.fromConfig(config);
+            for (Block block : active) {
+                update(block, apm, config, defaults);
+            }
         }
 
         if (--sweepIn <= 0) {

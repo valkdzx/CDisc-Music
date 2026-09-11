@@ -110,6 +110,7 @@ public record SpeakerSettings(String tag, Channel channel, int volume, boolean p
         lastKnown.remove(block);
     }
 
+
     public static int clampVolume(int volume) {
         return Math.max(MIN_VOLUME, Math.min(MAX_VOLUME, volume));
     }
@@ -124,10 +125,13 @@ public record SpeakerSettings(String tag, Channel channel, int volume, boolean p
     private static final Map<Block, SpeakerSettings> lastKnown = new ConcurrentHashMap<>();
 
     public static SpeakerSettings of(Block block) {
-        if (!(block.getState() instanceof TileState state)) {
-            SpeakerSettings remembered = lastKnown.get(block);
-            return remembered != null ? remembered : DEFAULT;
-        }
+        SpeakerSettings remembered = lastKnown.get(block);
+        if (remembered != null) return remembered;
+
+        // Every read here is a block-entity snapshot, and this is asked once a tick per
+        // speaker while music plays, so it is read once and kept until it is written again.
+        if (!(block.getState() instanceof TileState state)) return DEFAULT;
+
         PersistentDataContainer pdc = state.getPersistentDataContainer();
 
         String tag = pdc.get(TAG_KEY, PersistentDataType.STRING);

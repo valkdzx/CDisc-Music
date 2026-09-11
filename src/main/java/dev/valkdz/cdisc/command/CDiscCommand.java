@@ -204,6 +204,8 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
         plugin.getPoTokenService().start();
 
         plugin.getLyricsService().clearCache();
+        dev.valkdz.cdisc.lyrics.LyricsPrefs.forgetAll();
+        dev.valkdz.cdisc.lyrics.LyricsLook.forgetAll();
         plugin.getLyricsDisplay().clearAll();
         plugin.getLyricsDisplay().start();
         sender.sendMessage("§a" + message(sender, "cdisc.reloaded"));

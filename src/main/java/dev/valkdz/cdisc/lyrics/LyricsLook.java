@@ -64,6 +64,10 @@ public final class LyricsLook {
         lastKnown.remove(block);
     }
 
+    public static void forgetAll() {
+        lastKnown.clear();
+    }
+
     private static Entry read(Block block) {
         Entry remembered = lastKnown.get(block);
         if (remembered != null) return remembered;
