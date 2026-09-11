@@ -4,6 +4,7 @@ import dev.valkdz.cdisc.Main;
 import dev.valkdz.cdisc.lyrics.HologramStyle;
 import dev.valkdz.cdisc.lyrics.LyricsLook;
 import dev.valkdz.cdisc.lyrics.LyricsStyle;
+import dev.valkdz.cdisc.permission.Action;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
@@ -87,10 +88,14 @@ public class LyricsGuiManager {
     }
 
     public void open(Player player, Block block) {
+        if (!plugin.getPermissions().allows(player, Action.LYRICS_LOOK)) return;
+
         open(player, LyricsGuiHolder.forJukebox(block, 0));
     }
 
     public void openPreset(Player player) {
+        if (!plugin.getPermissions().allows(player, Action.LYRICS_PRESET)) return;
+
         open(player, LyricsGuiHolder.forPreset(player.getUniqueId(), 0));
     }
 

@@ -1,6 +1,7 @@
 package dev.valkdz.cdisc.gui;
 
 import dev.valkdz.cdisc.Main;
+import dev.valkdz.cdisc.permission.Action;
 import dev.valkdz.cdisc.speaker.SpeakerGroup;
 import dev.valkdz.cdisc.speaker.SpeakerGroupManager;
 import dev.valkdz.cdisc.speaker.SpeakerSettings;
@@ -57,6 +58,8 @@ public final class PairGuiManager {
     }
 
     public void promptForName(Player player, Block block) {
+        if (!plugin.getPermissions().allows(player, Action.PAIR_CREATE)) return;
+
         awaitingName.put(player.getUniqueId(), block);
         player.closeInventory();
         player.sendMessage(plugin.getMessageManager().get(player, "gui.pair.name_prompt"));
@@ -82,6 +85,8 @@ public final class PairGuiManager {
     }
 
     public void openManage(Player player, Block block) {
+        if (!plugin.getPermissions().allows(player, Action.PAIR_MANAGE)) return;
+
         SpeakerGroup group = plugin.getSpeakerGroupManager().groupAt(block);
         if (group == null) return;
 
@@ -117,6 +122,8 @@ public final class PairGuiManager {
     }
 
     public void openPicker(Player player, Block main) {
+        if (!plugin.getPermissions().allows(player, Action.PAIR_MANAGE)) return;
+
         SpeakerGroup group = plugin.getSpeakerGroupManager().groupAt(main);
         if (group == null) return;
 
@@ -144,6 +151,8 @@ public final class PairGuiManager {
     }
 
     public void openSettings(Player player, Block main, Block subject) {
+        if (!plugin.getPermissions().allows(player, Action.PAIR_SETTINGS)) return;
+
         SpeakerGroup group = plugin.getSpeakerGroupManager().groupAt(main);
         boolean standalone = group == null;
 

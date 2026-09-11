@@ -21,6 +21,7 @@ public final class Config {
         this.tokens = new Tokens(plugin);
         this.sources = new SourcesConfig(plugin);
         ConfigSplitMigration.run(plugin, tokens, sources);
+        dev.valkdz.cdisc.permission.PermissionsMigration.run(plugin);
 
         // After the split, never before: the upgrade drops keys this version no
         // longer reads, and the split still has to find the old ones to move them.

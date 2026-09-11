@@ -2,6 +2,7 @@ package dev.valkdz.cdisc.permission;
 
 import dev.valkdz.cdisc.Main;
 import org.bukkit.Bukkit;
+import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
@@ -13,6 +14,9 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.util.EnumMap;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -23,9 +27,13 @@ public final class PermissionsConfig {
 
     public static final String FILE_NAME = "permissions.yml";
 
+    private static final Map<String, List<Action>> LEGACY_NODES = legacyNodes();
+
     private final Main plugin;
     private final File file;
     private FileConfiguration cfg;
+
+    private final Map<Action, PermissionRule> rules = new EnumMap<>(Action.class);
 
     private final Map<UUID, Long> lastCreate = new ConcurrentHashMap<>();
 
@@ -46,17 +54,32 @@ public final class PermissionsConfig {
             cfg.setDefaults(YamlConfiguration.loadConfiguration(
                     new InputStreamReader(bundled, StandardCharsets.UTF_8)));
         }
+        readRules();
         register();
     }
 
+    private void readRules() {
+        rules.clear();
+        for (Action action : Action.values()) {
+            PermissionRule rule = PermissionRule.parse(cfg.get("actions." + action.path()));
+            rules.put(action, rule.isEmpty() ? PermissionRule.parse(action.fallback()) : rule);
+        }
+    }
+
     private void register() {
-        for (String node : Perms.ALL) {
-            Permission existing = Bukkit.getPluginManager().getPermission(node);
-            if (existing != null) {
-                Bukkit.getPluginManager().removePermission(existing);
+        for (Action action : Action.values()) {
+            PermissionDefault fromRule = rules.get(action).asDefault();
+            replace(new Permission(action.node(),
+                    fromRule == null ? PermissionDefault.FALSE : fromRule));
+        }
+        replace(new Permission(Perms.ADMIN, PermissionDefault.OP));
+
+        for (Map.Entry<String, List<Action>> legacy : LEGACY_NODES.entrySet()) {
+            Map<String, Boolean> children = new HashMap<>();
+            for (Action action : legacy.getValue()) {
+                children.put(action.node(), true);
             }
-            Bukkit.getPluginManager().addPermission(
-                    new Permission(node, defaultOf(node)));
+            replace(new Permission(legacy.getKey(), PermissionDefault.FALSE, children));
         }
 
         for (Player online : Bukkit.getOnlinePlayers()) {
@@ -64,14 +87,63 @@ public final class PermissionsConfig {
         }
     }
 
-    private PermissionDefault defaultOf(String node) {
-        String raw = cfg.getString("defaults." + node, node.equals(Perms.ADMIN) ? "op" : "true");
-        return switch (raw == null ? "" : raw.trim().toLowerCase(Locale.ROOT)) {
-            case "op", "operator" -> PermissionDefault.OP;
-            case "false", "none", "no" -> PermissionDefault.FALSE;
-            case "notop", "not_op" -> PermissionDefault.NOT_OP;
-            default -> PermissionDefault.TRUE;
-        };
+    private void replace(Permission permission) {
+        Permission existing = Bukkit.getPluginManager().getPermission(permission.getName());
+        if (existing != null) {
+            Bukkit.getPluginManager().removePermission(existing);
+        }
+        Bukkit.getPluginManager().addPermission(permission);
+    }
+
+    public boolean allows(CommandSender sender, Action action) {
+        if (Perms.isAdmin(sender)) return true;
+
+        PermissionRule rule = rules.get(action);
+        if (rule == null) return sender.hasPermission(action.node());
+
+        // A plain true/op/false is the default of the node itself, so a permission plugin can
+        // still overrule it per player. A named right is a second way in, never a way out.
+        if (rule.asDefault() != null) return sender.hasPermission(action.node());
+        return rule.test(sender) || sender.hasPermission(action.node());
+    }
+
+    public boolean require(CommandSender sender, Action action) {
+        if (allows(sender, action)) return true;
+
+        sender.sendMessage("§c" + plugin.getMessageManager().get(
+                sender instanceof Player player ? player : null, "perms.denied", action.node()));
+        return false;
+    }
+
+    public PermissionRule ruleOf(Action action) {
+        return rules.get(action);
+    }
+
+    static Map<String, List<Action>> legacyNodes() {
+        Map<String, List<Action>> legacy = new LinkedHashMap<>();
+
+        legacy.put("cdisc.create", List.of(Action.DISC_CREATE, Action.DISC_CONVERT));
+        legacy.put("cdisc.create.playlist", List.of(Action.DISC_PLAYLIST));
+        legacy.put("cdisc.clear", List.of(Action.DISC_CLEAR));
+        legacy.put("cdisc.download", List.of(Action.DISC_DOWNLOAD));
+        legacy.put("cdisc.doctor", List.of(Action.ADMIN_DOCTOR));
+        legacy.put("cdisc.portable", List.of(Action.PLAYER_PORTABLE));
+        legacy.put("cdisc.messages", List.of(Action.PLAYER_MESSAGES));
+        legacy.put("cdisc.preset", List.of(Action.LYRICS_PRESET, Action.LYRICS_SHARE));
+
+        legacy.put("cdisc.player", List.of(
+                Action.PLAYER_GUI, Action.PLAYER_PLAY, Action.PLAYER_PAUSE, Action.PLAYER_NEXT,
+                Action.PLAYER_PREVIOUS, Action.PLAYER_SEEK, Action.PLAYER_REPEAT,
+                Action.PLAYER_SHUFFLE, Action.PLAYER_VOLUME, Action.PLAYER_LOCAL_VOLUME,
+                Action.PLAYER_BEACON, Action.PLAYER_CHANNELS, Action.PLAYER_SCREEN,
+                Action.PLAYER_INFO, Action.QUEUE_OPEN, Action.QUEUE_ADD, Action.QUEUE_REMOVE,
+                Action.QUEUE_PLAY, Action.QUEUE_POLICY, Action.LYRICS_TOGGLE,
+                Action.LYRICS_LOOK, Action.LYRICS_SCOREBOARD));
+
+        legacy.put("cdisc.pair", List.of(Action.PAIR_CREATE, Action.PAIR_MANAGE,
+                Action.PAIR_SETTINGS, Action.PAIR_DISSOLVE, Action.PAIR_LIST));
+
+        return Map.copyOf(legacy);
     }
 
     public int createCooldownSeconds() {

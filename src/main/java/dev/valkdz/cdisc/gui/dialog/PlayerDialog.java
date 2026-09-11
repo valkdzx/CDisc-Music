@@ -4,6 +4,7 @@ import dev.valkdz.cdisc.Main;
 import dev.valkdz.cdisc.audio.LavaPlayerManager;
 import dev.valkdz.cdisc.audio.queue.RepeatMode;
 import dev.valkdz.cdisc.gui.PlayerActions;
+import dev.valkdz.cdisc.permission.Action;
 import dev.valkdz.cdisc.speaker.SpeakerSettings;
 import dev.valkdz.cdisc.util.BeaconUtils;
 import dev.valkdz.cdisc.util.PlayerPrefs;
@@ -112,6 +113,10 @@ final class PlayerDialog {
         return true;
     }
 
+    private static boolean may(Main plugin, Player player, Action action) {
+        return plugin.getPermissions().allows(player, action);
+    }
+
     private static Component title(Main plugin, Player player,
                                    LavaPlayerManager.PlaybackInfo info) {
         if (info == null) return text(plugin, player, "gui.title");
@@ -168,29 +173,39 @@ final class PlayerDialog {
         boolean playing = info != null;
         boolean seekable = playing && !info.live();
 
-        buttons.add(act(plugin, player, block, "prev", () -> {
-            if (playing) actions.skipToPrevious(block); else actions.startFromIdle(block, -1);
-        }));
-        buttons.add(act(plugin, player, block,
-                playing && !info.paused() ? "pause" : "play", () -> {
-                    if (playing) actions.togglePause(block); else actions.startFromIdle(block, 0);
-                }));
-        buttons.add(act(plugin, player, block, "next", () -> {
-            if (playing) actions.skipToNext(block); else actions.startFromIdle(block, 1);
-        }));
+        if (may(plugin, player, playing ? Action.PLAYER_PREVIOUS : Action.PLAYER_PLAY)) {
+            buttons.add(act(plugin, player, block, "prev", () -> {
+                if (playing) actions.skipToPrevious(block); else actions.startFromIdle(block, -1);
+            }));
+        }
+        if (may(plugin, player, playing ? Action.PLAYER_PAUSE : Action.PLAYER_PLAY)) {
+            buttons.add(act(plugin, player, block,
+                    playing && !info.paused() ? "pause" : "play", () -> {
+                        if (playing) actions.togglePause(block); else actions.startFromIdle(block, 0);
+                    }));
+        }
+        if (may(plugin, player, playing ? Action.PLAYER_NEXT : Action.PLAYER_PLAY)) {
+            buttons.add(act(plugin, player, block, "next", () -> {
+                if (playing) actions.skipToNext(block); else actions.startFromIdle(block, 1);
+            }));
+        }
 
-        if (seekable) {
+        if (seekable && may(plugin, player, Action.PLAYER_SEEK)) {
             buttons.add(act(plugin, player, block, "seek_back",
                     () -> actions.seek(player, block, false)));
             buttons.add(act(plugin, player, block, "seek_forward",
                     () -> actions.seek(player, block, true)));
         }
 
-        buttons.add(act(plugin, player, block, repeatIcon(apm.getRepeatMode(block)),
-                () -> actions.cycleRepeat(block)));
-        buttons.add(act(plugin, player, block,
-                apm.isShuffle(block) ? "shuffle_on" : "shuffle_off",
-                () -> actions.toggleShuffle(player, block)));
+        if (may(plugin, player, Action.PLAYER_REPEAT)) {
+            buttons.add(act(plugin, player, block, repeatIcon(apm.getRepeatMode(block)),
+                    () -> actions.cycleRepeat(block)));
+        }
+        if (may(plugin, player, Action.PLAYER_SHUFFLE)) {
+            buttons.add(act(plugin, player, block,
+                    apm.isShuffle(block) ? "shuffle_on" : "shuffle_off",
+                    () -> actions.toggleShuffle(player, block)));
+        }
 
         buttons.add(button(plugin, player, "options", (view, listener) ->
                 onMainThread(plugin, () -> {
@@ -199,32 +214,46 @@ final class PlayerDialog {
                     OptionsDialog.open(plugin, player, block);
                 })));
 
-        buttons.add(leaving(plugin, player, "classic", () -> {
-            Dialogs.choose(plugin, player, false);
-            plugin.getPlayerGuiManager().open(player, block);
-        }));
+        if (may(plugin, player, Action.PLAYER_SCREEN)) {
+            buttons.add(leaving(plugin, player, "classic", () -> {
+                Dialogs.choose(plugin, player, false);
+                plugin.getPlayerGuiManager().open(player, block);
+            }));
+        }
 
-        buttons.add(leaving(plugin, player, "queue",
-                () -> actions.openQueue(player, block)));
-        buttons.add(leaving(plugin, player, "sound",
-                () -> actions.openSpeakerSettings(player, block)));
-        if (plugin.cdiscConfig().isSpeakerGroupEnabled()) {
+        if (may(plugin, player, Action.QUEUE_OPEN)) {
+            buttons.add(leaving(plugin, player, "queue",
+                    () -> actions.openQueue(player, block)));
+        }
+        if (may(plugin, player, Action.PLAYER_CHANNELS)) {
+            buttons.add(leaving(plugin, player, "sound",
+                    () -> actions.openSpeakerSettings(player, block)));
+        }
+        if (plugin.cdiscConfig().isSpeakerGroupEnabled()
+                && may(plugin, player, Action.PAIR_CREATE)) {
             buttons.add(leaving(plugin, player, "speakers",
                     () -> actions.openPair(player, block)));
         }
         if (plugin.cdiscConfig().isLyricsEnabled()) {
 
-            buttons.add(leaving(plugin, player, "look_shared",
-                    () -> actions.openLyricsLook(player, block)));
-            buttons.add(leaving(plugin, player, "look_mine",
-                    () -> actions.openMyLyricsLook(player)));
+            if (may(plugin, player, Action.LYRICS_LOOK)) {
+                buttons.add(leaving(plugin, player, "look_shared",
+                        () -> actions.openLyricsLook(player, block)));
+            }
+            if (may(plugin, player, Action.LYRICS_PRESET)) {
+                buttons.add(leaving(plugin, player, "look_mine",
+                        () -> actions.openMyLyricsLook(player)));
+            }
         }
-        if (BeaconUtils.maxRangeLevel(BeaconUtils.beaconTierBelow(block)) >= 1) {
+        if (BeaconUtils.maxRangeLevel(BeaconUtils.beaconTierBelow(block)) >= 1
+                && may(plugin, player, Action.PLAYER_BEACON)) {
             buttons.add(act(plugin, player, block, "beacon",
                     () -> actions.cycleBeaconLevel(block)));
         }
-        buttons.add(leaving(plugin, player, "portable",
-                () -> actions.pickUp(player, block)));
+        if (may(plugin, player, Action.PLAYER_PORTABLE)) {
+            buttons.add(leaving(plugin, player, "portable",
+                    () -> actions.pickUp(player, block)));
+        }
         return buttons;
     }
 

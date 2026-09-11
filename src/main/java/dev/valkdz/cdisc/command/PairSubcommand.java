@@ -1,6 +1,7 @@
 package dev.valkdz.cdisc.command;
 
 import dev.valkdz.cdisc.Main;
+import dev.valkdz.cdisc.permission.Action;
 import dev.valkdz.cdisc.speaker.SpeakerGroup;
 import dev.valkdz.cdisc.speaker.SpeakerGroupManager;
 import dev.valkdz.cdisc.speaker.SpeakerSettings;
@@ -31,6 +32,8 @@ public final class PairSubcommand {
     public void handle(Player player, String[] args) {
         String sub = args.length < 2 ? "info" : args[1].toLowerCase(Locale.ROOT);
 
+        if (!allowed(player, sub)) return;
+
         switch (sub) {
             case "gui" -> gui(player);
             case "create" -> create(player, args);
@@ -45,6 +48,17 @@ public final class PairSubcommand {
             case "volume" -> volume(player, args);
             default -> msg(player, "§c", "command.pair.usage");
         }
+    }
+
+    private boolean allowed(Player player, String sub) {
+        Action action = switch (sub) {
+            case "create" -> Action.PAIR_CREATE;
+            case "dissolve" -> Action.PAIR_DISSOLVE;
+            case "gui", "add", "remove", "unlink" -> Action.PAIR_MANAGE;
+            case "tag", "channel", "volume" -> Action.PAIR_SETTINGS;
+            default -> Action.PAIR_LIST;
+        };
+        return plugin.getPermissions().require(player, action);
     }
 
     private void gui(Player player) {

@@ -3,6 +3,7 @@ package dev.valkdz.cdisc.command;
 import dev.valkdz.cdisc.Main;
 import dev.valkdz.cdisc.lyrics.HologramStyle;
 import dev.valkdz.cdisc.lyrics.PresetOffers;
+import dev.valkdz.cdisc.permission.Action;
 import dev.valkdz.cdisc.util.Chat;
 import org.bukkit.entity.Player;
 
@@ -31,7 +32,11 @@ public final class PresetSubcommand {
         }
 
         switch (args[1].toLowerCase(Locale.ROOT)) {
-            case "share" -> share(player, args);
+            case "share" -> {
+                if (plugin.getPermissions().require(player, Action.LYRICS_SHARE)) {
+                    share(player, args);
+                }
+            }
             case "accept" -> accept(player);
             case "deny" -> deny(player);
             default -> player.sendMessage("§c" + message(player, "command.preset.usage"));

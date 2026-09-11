@@ -2,6 +2,7 @@ package dev.valkdz.cdisc.command;
 
 import dev.valkdz.cdisc.Main;
 import dev.valkdz.cdisc.audio.LocalMusicLibrary;
+import dev.valkdz.cdisc.permission.Action;
 import dev.valkdz.cdisc.permission.Perms;
 import dev.valkdz.cdisc.util.ItemUtils;
 import dev.valkdz.cdisc.util.PvDiscs;
@@ -62,15 +63,9 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
         switch (group) {
             case "create" -> create(p, parts);
             case "disc" -> disc(p, sub, parts);
-            case "preset" -> {
-                if (allowed(p, Perms.PRESET)) presetSub.handle(p, parts);
-            }
-            case "player" -> {
-                if (allowed(p, Perms.PLAYER)) playerSub.handle(p, parts);
-            }
-            case "pair" -> {
-                if (allowed(p, Perms.PAIR)) pairSub.handle(p, parts);
-            }
+            case "preset" -> presetSub.handle(p, parts);
+            case "player" -> playerSub.handle(p, parts);
+            case "pair" -> pairSub.handle(p, parts);
             case "messages" -> messages(p, parts);
             default -> p.sendMessage("§c" + message(p, "cdisc.unknown", parts[0]));
         }
@@ -102,7 +97,7 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
     }
 
     private void create(Player p, String[] parts) {
-        if (!allowed(p, Perms.CREATE)) return;
+        if (!allowed(p, Action.DISC_CREATE)) return;
         if (parts.length < 2) {
             p.sendMessage("§c" + message(p, "cdisc.create_usage"));
             return;
@@ -124,7 +119,7 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
     private void disc(Player p, String sub, String[] parts) {
         switch (sub) {
             case "clear" -> {
-                if (!allowed(p, Perms.CLEAR)) return;
+                if (!allowed(p, Action.DISC_CLEAR)) return;
                 ItemStack item = ItemUtils.getDiscInHand(p);
                 if (item == null) {
                     p.sendMessage("§c" + message(p, "cdisc.hold_disc"));
@@ -134,10 +129,10 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
                 p.sendMessage("§a" + message(p, "cdisc.cleared"));
             }
             case "convert" -> {
-                if (allowed(p, Perms.CREATE)) convert(p);
+                if (allowed(p, Action.DISC_CREATE)) convert(p);
             }
             case "playlist" -> {
-                if (!allowed(p, Perms.CREATE_PLAYLIST)) return;
+                if (!allowed(p, Action.DISC_PLAYLIST)) return;
                 if (parts.length < 3) {
                     p.sendMessage("§c" + message(p, "playlist.usage"));
                     return;
@@ -151,7 +146,7 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
     }
 
     private void messages(Player p, String[] parts) {
-        if (!allowed(p, Perms.MESSAGES)) return;
+        if (!allowed(p, Action.PLAYER_MESSAGES)) return;
 
         boolean on = parts.length > 1
                 ? parseToggle(parts[1], dev.valkdz.cdisc.util.PlayerPrefs.showsTrackMessages(p))
@@ -165,19 +160,19 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
     private void admin(CommandSender sender, String sub, String[] parts) {
         switch (sub) {
             case "doctor" -> {
-                if (!allowed(sender, Perms.DOCTOR)) return;
+                if (!allowed(sender, Action.ADMIN_DOCTOR)) return;
                 for (String line : Diagnostics.report(plugin)) {
                     sender.sendMessage(line.replace('&', '§'));
                 }
             }
             case "download" -> {
-                if (allowed(sender, Perms.DOWNLOAD)) download(sender, shift(parts));
+                if (allowed(sender, Action.DISC_DOWNLOAD)) download(sender, shift(parts));
             }
             case "reload" -> {
-                if (allowed(sender, Perms.ADMIN)) reload(sender);
+                if (allowed(sender, Action.ADMIN_RELOAD)) reload(sender);
             }
             case "ytsetup" -> {
-                if (!allowed(sender, Perms.ADMIN)) return;
+                if (!allowed(sender, Action.ADMIN_YTSETUP)) return;
                 if (sender instanceof Player p) {
                     plugin.getYouTubeOAuthSetup().startSetup(p);
                 } else {
@@ -185,7 +180,7 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
                 }
             }
             default -> {
-                if (allowed(sender, Perms.ADMIN)) {
+                if (Perms.isAdmin(sender)) {
                     sender.sendMessage("§c" + message(sender, "cdisc.admin_usage"));
                 }
             }
@@ -249,7 +244,7 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
         }
 
         if (picked.kind() == dev.valkdz.cdisc.audio.SearchResults.Kind.DOWNLOAD) {
-            if (!allowed(sender, Perms.DOWNLOAD)) return;
+            if (!allowed(sender, Action.DISC_DOWNLOAD)) return;
             plugin.getTrackDownloader().pick(sender, picked.track(), picked.address(), null);
             return;
         }
@@ -258,7 +253,7 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
             sender.sendMessage("§c" + message(sender, "cdisc.player_only", "/cdisc admin"));
             return;
         }
-        if (!allowed(player, Perms.CREATE)) return;
+        if (!allowed(player, Action.DISC_CREATE)) return;
 
         ItemStack item = ItemUtils.getDiscInHand(player);
         if (item == null) {
@@ -317,12 +312,6 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
 
         ItemUtils.saveTrackToDisc(item, identifier, title, author);
         player.sendMessage("§a" + plugin.getMessageManager().get(player, "convert.done", title));
-    }
-
-    private boolean allowed(CommandSender sender, String node) {
-        if (Perms.has(sender, node)) return true;
-        sender.sendMessage("§c" + message(sender, "perms.denied", node));
-        return false;
     }
 
     private String message(CommandSender sender, String path, Object... args) {
@@ -394,12 +383,20 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
         return true;
     }
 
-    private static String entry(String name, String node, CommandSender sender) {
-        return Perms.has(sender, node) ? name : null;
+    private String adminEntry(String name, CommandSender sender) {
+        return Perms.isAdmin(sender) ? name : null;
     }
 
-    private static String playerEntry(String name, String node, CommandSender sender) {
-        return sender instanceof Player ? entry(name, node, sender) : null;
+    private String entry(String name, Action action, CommandSender sender) {
+        return plugin.getPermissions().allows(sender, action) ? name : null;
+    }
+
+    private String playerEntry(String name, Action action, CommandSender sender) {
+        return sender instanceof Player ? entry(name, action, sender) : null;
+    }
+
+    private boolean allowed(CommandSender sender, Action action) {
+        return plugin.getPermissions().require(sender, action);
     }
 
     private static boolean parseToggle(String raw, boolean current) {
@@ -415,13 +412,13 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
         if (args.length == 1) {
 
             Stream<String> subs = Stream.of(
-                    playerEntry("create", Perms.CREATE, sender),
-                    playerEntry("disc", Perms.CREATE, sender),
-                    playerEntry("preset", Perms.PRESET, sender),
-                    playerEntry("player", Perms.PLAYER, sender),
-                    playerEntry("pair", Perms.PAIR, sender),
-                    playerEntry("messages", Perms.MESSAGES, sender),
-                    entry("admin", Perms.ADMIN, sender)
+                    playerEntry("create", Action.DISC_CREATE, sender),
+                    playerEntry("disc", Action.DISC_CREATE, sender),
+                    playerEntry("preset", Action.LYRICS_PRESET, sender),
+                    playerEntry("player", Action.PLAYER_GUI, sender),
+                    playerEntry("pair", Action.PAIR_LIST, sender),
+                    playerEntry("messages", Action.PLAYER_MESSAGES, sender),
+                    adminEntry("admin", sender)
             ).filter(java.util.Objects::nonNull);
 
             return subs.filter(s -> s.startsWith(args[0].toLowerCase(Locale.ROOT)))
@@ -436,17 +433,17 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
         }
         if (args[0].equalsIgnoreCase("admin") && args.length == 2) {
             return Stream.of(
-                            entry("reload", Perms.ADMIN, sender),
-                            entry("doctor", Perms.DOCTOR, sender),
-                            entry("download", Perms.DOWNLOAD, sender),
-                            playerEntry("ytsetup", Perms.ADMIN, sender))
+                            entry("reload", Action.ADMIN_RELOAD, sender),
+                            entry("doctor", Action.ADMIN_DOCTOR, sender),
+                            entry("download", Action.DISC_DOWNLOAD, sender),
+                            playerEntry("ytsetup", Action.ADMIN_YTSETUP, sender))
                     .filter(java.util.Objects::nonNull)
                     .filter(s -> s.startsWith(args[1].toLowerCase(Locale.ROOT)))
                     .sorted()
                     .toList();
         }
         if (args[0].equalsIgnoreCase("preset") && sender instanceof Player player
-                && Perms.has(sender, Perms.PRESET)) {
+                && plugin.getPermissions().allows(sender, Action.LYRICS_PRESET)) {
             return presetSub.complete(player, args);
         }
         if (args[0].equalsIgnoreCase("player")) {
@@ -461,7 +458,7 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
             return pairSub.complete(args);
         }
         if (args[0].equalsIgnoreCase("create") && sender instanceof Player
-                && Perms.has(sender, Perms.CREATE)) {
+                && plugin.getPermissions().allows(sender, Action.DISC_CREATE)) {
             return completeLocalFile(args);
         }
         return Collections.emptyList();

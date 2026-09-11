@@ -4,6 +4,7 @@ import dev.valkdz.cdisc.Main;
 import dev.valkdz.cdisc.audio.LavaPlayerManager;
 import dev.valkdz.cdisc.audio.queue.DiscQueue;
 import dev.valkdz.cdisc.audio.queue.PlayedPolicy;
+import dev.valkdz.cdisc.permission.Action;
 import dev.valkdz.cdisc.speaker.SpeakerGroup;
 import dev.valkdz.cdisc.util.HeadUtils;
 import org.bukkit.Bukkit;
@@ -65,6 +66,8 @@ public class QueueGuiManager {
     }
 
     public void open(Player player, Block block) {
+        if (!plugin.getPermissions().allows(player, Action.QUEUE_OPEN)) return;
+
         LavaPlayerManager apm = plugin.getAudioPlayerManager();
 
         if (!apm.hasActiveSession(block)
@@ -172,6 +175,8 @@ public class QueueGuiManager {
     }
 
     public void openPlayConfirm(Player player, Block block, int queueIndex) {
+        if (!plugin.getPermissions().allows(player, Action.QUEUE_PLAY)) return;
+
         LavaPlayerManager apm = plugin.getAudioPlayerManager();
 
         DiscQueue queue = apm.getQueue(block);

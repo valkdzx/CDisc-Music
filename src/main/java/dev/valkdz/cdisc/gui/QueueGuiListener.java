@@ -3,6 +3,7 @@ package dev.valkdz.cdisc.gui;
 import dev.valkdz.cdisc.Main;
 import dev.valkdz.cdisc.audio.LavaPlayerManager;
 import dev.valkdz.cdisc.audio.queue.DiscQueue;
+import dev.valkdz.cdisc.permission.Action;
 import dev.valkdz.cdisc.util.ItemUtils;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
@@ -69,7 +70,7 @@ public class QueueGuiListener implements Listener {
             ItemStack cell = e.getCurrentItem();
 
             if (ItemUtils.isCdiscDisc(cursor)) {
-                if (isPlaceAction(e.getAction())) {
+                if (isPlaceAction(e.getAction()) && may(player, Action.QUEUE_ADD)) {
                     plugin.getQueueGuiManager().schedulePersist(block, e.getView().getTopInventory());
                 } else {
                     e.setCancelled(true);
@@ -84,7 +85,8 @@ public class QueueGuiListener implements Listener {
                     if (qIndex >= 0) plugin.getQueueGuiManager().openPlayConfirm(player, block, qIndex);
                     return;
                 }
-                if (e.getClick() == ClickType.RIGHT || e.getClick().isShiftClick()) {
+                if ((e.getClick() == ClickType.RIGHT || e.getClick().isShiftClick())
+                        && may(player, Action.QUEUE_REMOVE)) {
 
                     plugin.getQueueGuiManager().schedulePersist(block, e.getView().getTopInventory());
                     return;
@@ -102,6 +104,7 @@ public class QueueGuiListener implements Listener {
 
         if (e.getClick().isShiftClick()) {
             e.setCancelled(true);
+            if (!may(player, Action.QUEUE_ADD)) return;
             shiftDiscIntoQueue(e, player);
             plugin.getQueueGuiManager().schedulePersist(block, e.getView().getTopInventory());
         }
@@ -134,7 +137,9 @@ public class QueueGuiListener implements Listener {
         }
         if (touchesTop) {
 
-            if (!ItemUtils.isCdiscDisc(e.getOldCursor())) {
+            if (!ItemUtils.isCdiscDisc(e.getOldCursor())
+                    || !(e.getWhoClicked() instanceof Player dragger)
+                    || !may(dragger, Action.QUEUE_ADD)) {
                 e.setCancelled(true);
                 return;
             }
@@ -152,6 +157,10 @@ public class QueueGuiListener implements Listener {
         }
     }
 
+    private boolean may(Player player, Action action) {
+        return plugin.getPermissions().allows(player, action);
+    }
+
     private void handleControl(int rawSlot, Player player, Block block) {
         switch (rawSlot) {
             case QueueGuiManager.SLOT_EXIT -> {
@@ -159,6 +168,8 @@ public class QueueGuiListener implements Listener {
                 plugin.getPlayerGuiManager().open(player, block);
             }
             case QueueGuiManager.SLOT_POLICY -> {
+                if (!may(player, Action.QUEUE_POLICY)) return;
+
                 DiscQueue queue = plugin.getAudioPlayerManager().getOrCreateQueue(block);
                 queue.cyclePolicy();
                 plugin.getQueueGuiManager().refreshControls(player, block);

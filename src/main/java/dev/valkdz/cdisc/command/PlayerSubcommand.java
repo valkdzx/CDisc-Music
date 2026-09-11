@@ -3,6 +3,7 @@ package dev.valkdz.cdisc.command;
 import dev.valkdz.cdisc.Main;
 import dev.valkdz.cdisc.audio.LavaPlayerManager;
 import dev.valkdz.cdisc.audio.queue.RepeatMode;
+import dev.valkdz.cdisc.permission.Action;
 import dev.valkdz.cdisc.portable.PortableJukeboxManager;
 import dev.valkdz.cdisc.util.TimeUtils;
 import org.bukkit.Material;
@@ -42,6 +43,8 @@ public final class PlayerSubcommand {
             msg(player, "§c", "command.player.not_playing");
             return;
         }
+        if (!allowed(player, sub)) return;
+
         switch (sub) {
 
             case "gui" -> plugin.getPlayerGuiManager().open(player, block);
@@ -66,6 +69,22 @@ public final class PlayerSubcommand {
             case "scoreboard" -> scoreboard(player, args);
             default -> msg(player, "§c", "command.player.usage");
         }
+    }
+
+    private boolean allowed(Player player, String sub) {
+        Action action = switch (sub) {
+            case "gui" -> Action.PLAYER_GUI;
+            case "queue" -> Action.QUEUE_OPEN;
+            case "pause" -> Action.PLAYER_PAUSE;
+            case "play" -> Action.PLAYER_PLAY;
+            case "next" -> Action.PLAYER_NEXT;
+            case "previous", "previos", "prev" -> Action.PLAYER_PREVIOUS;
+            case "seek" -> Action.PLAYER_SEEK;
+            case "repeat" -> Action.PLAYER_REPEAT;
+            case "scoreboard" -> Action.LYRICS_SCOREBOARD;
+            default -> Action.PLAYER_INFO;
+        };
+        return plugin.getPermissions().require(player, action);
     }
 
     private Block targetJukebox(Player player) {

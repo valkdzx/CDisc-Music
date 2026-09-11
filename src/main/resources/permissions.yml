@@ -1,33 +1,113 @@
 # CDisc — who may do what.
 #
-# Every node is registered at startup, so LuckPerms and friends can grant them by name.
-# true = everyone, op = operators only, false = nobody until granted.
-# cdisc.admin covers every node and ignores every limit below it.
+# Every action below is a permission node of its own: actions.player.pause is the node
+# cdisc.player.pause, and so on. The screens are built from these, so a button a player
+# may not press is not drawn for them at all.
+#
+# A value is one rule, or a list of rules — and any one rule in the list is enough:
+#   true             everyone
+#   false            nobody, until a permission plugin grants the node
+#   op               operators
+#   notop            everyone who is not an operator
+#   somegroup.vip    whoever has that permission
+#   '!somegroup.mute' whoever has NOT got it — the quotes are required, ! starts a YAML tag
+#   [admin, mod]     admin or mod
+#
+# true, false and op set the default of the node itself, so LuckPerms and friends can still
+# overrule them for one player. A rule that names other permissions is a second way in:
+# whoever matches it gets through, and so does anyone granted the node directly.
+#
+# cdisc.admin covers every node here and ignores every limit below it.
+# The old node names still work: cdisc.player grants the player screen, cdisc.create the
+# creating of discs, cdisc.pair the speaker groups, and so on.
 
-defaults:
-  # /cdisc create, and /cdisc convert for a pv-addon-discs disc
-  cdisc.create: true
-  # /cdisc create-playlist
-  cdisc.create.playlist: true
-  # /cdisc clear
-  cdisc.clear: true
-  # /cdisc admin download. Operators only: it writes to the disk and spends bandwidth.
-  cdisc.download: op
-  # /cdisc doctor
-  cdisc.doctor: op
-  # The player GUI and /cdisc player
-  cdisc.player: true
-  # Build and manage speaker groups
-  cdisc.pair: true
-  # Pick a playing jukebox up and carry it
-  cdisc.portable: true
-  # Toggle your own now-playing messages
-  cdisc.messages: true
-  # /cdisc preset. Someone who sets one is drawn their own copy of every hologram,
-  # so this is the one node here with a per-player entity behind it.
-  cdisc.preset: true
-  # /cdisc reload, /cdisc ytsetup, and editing anyone's speaker group
-  cdisc.admin: op
+actions:
+
+  ### The disc in your hand
+  disc:
+    # /cdisc create
+    create: true
+    # /cdisc disc playlist
+    playlist: true
+    # /cdisc disc clear
+    clear: true
+    # /cdisc disc convert, for a pv-addon-discs disc
+    convert: true
+    # /cdisc admin download. Operators only: it writes to the disk and spends bandwidth.
+    download: op
+
+  ### The player screen, and /cdisc player
+  player:
+    # Opening the screen at all. Everything below is a button on it.
+    gui: true
+    # Starting a jukebox that is standing idle
+    play: true
+    pause: true
+    next: true
+    previous: true
+    # The two seek buttons, the chat timecode, and the seek slider in the dialog
+    seek: true
+    # Cycling off / track / queue
+    repeat: true
+    shuffle: true
+    # The volume of the jukebox itself, heard by everyone
+    volume: true
+    # Your own volume while you carry a jukebox
+    local-volume: true
+    # Range levels over a beacon
+    beacon: true
+    # Picking a playing jukebox up and carrying it
+    portable: true
+    # Channel and volume of a single jukebox, without a group
+    channels: true
+    # Your own now-playing messages, and /cdisc messages
+    messages: true
+    # Switching between the classic screen and the 1.21.6+ dialog
+    screen: true
+    # /cdisc player info and status, which only read
+    info: true
+
+  ### The queue behind the jukebox
+  queue:
+    open: true
+    # Putting a disc into the queue
+    add: true
+    # Taking one back out
+    remove: true
+    # Clicking a disc in the queue to play it now
+    play: true
+    # What happens to a disc once it has played
+    policy: true
+
+  ### Words over the jukebox
+  lyrics:
+    # Showing and hiding them
+    toggle: true
+    # How they look over this jukebox — everyone standing there sees the same
+    look: true
+    # Your own look, drawn for you alone. /cdisc preset
+    preset: true
+    # /cdisc preset share, which offers your look to someone else
+    share: true
+    # The words on your screen while you carry a jukebox
+    scoreboard: true
+
+  ### Speaker groups
+  pair:
+    create: true
+    # Adding, removing and renaming speakers
+    manage: true
+    # Channel, volume and particles of one speaker
+    settings: true
+    dissolve: true
+    # /cdisc pair list and info, which only read
+    list: true
+
+  ### The server itself
+  admin:
+    reload: op
+    doctor: op
+    ytsetup: op
 
 ### Limits
 # Applied to everyone without cdisc.admin. /cdisc create makes the SERVER fetch a URL

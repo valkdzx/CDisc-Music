@@ -4,6 +4,7 @@ import dev.valkdz.cdisc.Main;
 import dev.valkdz.cdisc.audio.LavaPlayerManager;
 import dev.valkdz.cdisc.gui.PlayerActions;
 import dev.valkdz.cdisc.lyrics.LyricsPrefs;
+import dev.valkdz.cdisc.permission.Action;
 import dev.valkdz.cdisc.speaker.SpeakerSettings;
 import dev.valkdz.cdisc.util.PlayerPrefs;
 import io.papermc.paper.dialog.Dialog;
@@ -53,7 +54,8 @@ final class OptionsDialog {
 
         List<DialogInput> inputs = new ArrayList<>();
 
-        if (info != null && !info.live() && info.duration() > 0) {
+        if (info != null && !info.live() && info.duration() > 0
+                && may(plugin, player, Action.PLAYER_SEEK)) {
             float seconds = Math.max(1f, info.duration() / 1000f);
             inputs.add(DialogInput.numberRange(KEY_POSITION,
                             PlayerDialog.text(plugin, player, "gui.dialog.input_position"),
@@ -71,32 +73,38 @@ final class OptionsDialog {
                     .build());
         }
 
-        inputs.add(DialogInput.numberRange(KEY_VOLUME,
-                        PlayerDialog.text(plugin, player, "gui.dialog.input_volume"), 0f, 100f)
-                .initial((float) shown.volume())
-                .step(VOLUME_STEP)
-                .width(INPUT_WIDTH)
-                .labelFormat("%s: %s")
-                .build());
+        if (may(plugin, player, Action.PLAYER_VOLUME)) {
+            inputs.add(DialogInput.numberRange(KEY_VOLUME,
+                            PlayerDialog.text(plugin, player, "gui.dialog.input_volume"), 0f, 100f)
+                    .initial((float) shown.volume())
+                    .step(VOLUME_STEP)
+                    .width(INPUT_WIDTH)
+                    .labelFormat("%s: %s")
+                    .build());
+        }
 
-        inputs.add(DialogInput.numberRange(KEY_MINE,
-                        PlayerDialog.text(plugin, player, "gui.dialog.input_mine"), 0f, 100f)
-                .initial((float) shown.mine())
-                .step(VOLUME_STEP)
-                .width(INPUT_WIDTH)
-                .labelFormat("%s: %s")
-                .build());
+        if (may(plugin, player, Action.PLAYER_LOCAL_VOLUME)) {
+            inputs.add(DialogInput.numberRange(KEY_MINE,
+                            PlayerDialog.text(plugin, player, "gui.dialog.input_mine"), 0f, 100f)
+                    .initial((float) shown.mine())
+                    .step(VOLUME_STEP)
+                    .width(INPUT_WIDTH)
+                    .labelFormat("%s: %s")
+                    .build());
+        }
 
-        if (plugin.cdiscConfig().isLyricsEnabled()) {
+        if (plugin.cdiscConfig().isLyricsEnabled() && may(plugin, player, Action.LYRICS_TOGGLE)) {
             inputs.add(DialogInput.bool(KEY_LYRICS,
                             PlayerDialog.text(plugin, player, "gui.dialog.input_lyrics"))
                     .initial(shown.lyrics())
                     .build());
         }
-        inputs.add(DialogInput.bool(KEY_MESSAGES,
-                        PlayerDialog.text(plugin, player, "gui.dialog.input_messages"))
-                .initial(shown.messages())
-                .build());
+        if (may(plugin, player, Action.PLAYER_MESSAGES)) {
+            inputs.add(DialogInput.bool(KEY_MESSAGES,
+                            PlayerDialog.text(plugin, player, "gui.dialog.input_messages"))
+                    .initial(shown.messages())
+                    .build());
+        }
 
         List<DialogBody> body = new ArrayList<>();
         if (info != null) {
@@ -130,6 +138,10 @@ final class OptionsDialog {
                         .exitAction(back)
                         .columns(1)
                         .build())));
+    }
+
+    private static boolean may(Main plugin, Player player, Action action) {
+        return plugin.getPermissions().allows(player, action);
     }
 
     private static void apply(Main plugin, Player player, Block block,

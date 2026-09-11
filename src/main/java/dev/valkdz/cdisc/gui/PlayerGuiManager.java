@@ -9,6 +9,7 @@ import dev.valkdz.cdisc.lyrics.LyricsQuery;
 import dev.valkdz.cdisc.lyrics.LyricsRenderer;
 import dev.valkdz.cdisc.lyrics.LyricsService;
 import dev.valkdz.cdisc.lyrics.LyricsStyle;
+import dev.valkdz.cdisc.permission.Action;
 import dev.valkdz.cdisc.util.BeaconUtils;
 import dev.valkdz.cdisc.util.Config;
 import dev.valkdz.cdisc.util.HeadUtils;
@@ -131,8 +132,7 @@ public class PlayerGuiManager {
 
     public void open(Player player, Block block) {
 
-        if (!dev.valkdz.cdisc.permission.Perms.has(player,
-                dev.valkdz.cdisc.permission.Perms.PLAYER)) return;
+        if (!plugin.getPermissions().allows(player, Action.PLAYER_GUI)) return;
 
         LavaPlayerManager apm = plugin.getAudioPlayerManager();
         if (!canOpen(apm, block)) {
@@ -214,7 +214,7 @@ public class PlayerGuiManager {
             inventory.setItem(slot, filler);
         }
 
-        if (inventory.getSize() > GUI_SIZE) {
+        if (inventory.getSize() > GUI_SIZE && may(player, Action.PLAYER_SCREEN)) {
             inventory.setItem(SLOT_VIEW, buildViewItem(player));
         }
 
@@ -222,39 +222,70 @@ public class PlayerGuiManager {
 
         inventory.setItem(SLOT_INFO, playing
                 ? buildInfoItem(player, info) : buildIdleItem(player, block));
-        inventory.setItem(SLOT_QUEUE, buildQueueButton(player));
-        inventory.setItem(SLOT_SEEK_BACK, playing ? buildSeekItem(player, false) : inert(player));
-        inventory.setItem(SLOT_PREV, buildTrackNavItem(player, false));
-        inventory.setItem(SLOT_PAUSE, buildPauseItem(player, info));
-        inventory.setItem(SLOT_NEXT, buildTrackNavItem(player, true));
-        inventory.setItem(SLOT_SEEK_FORWARD, playing ? buildSeekItem(player, true) : inert(player));
-        inventory.setItem(SLOT_REPEAT, buildRepeatItem(player, block, info));
+        inventory.setItem(SLOT_QUEUE, may(player, Action.QUEUE_OPEN)
+                ? buildQueueButton(player) : filler);
+
+        boolean seekable = may(player, Action.PLAYER_SEEK);
+        inventory.setItem(SLOT_SEEK_BACK, !seekable ? filler
+                : playing ? buildSeekItem(player, false) : inert(player));
+        inventory.setItem(SLOT_SEEK_FORWARD, !seekable ? filler
+                : playing ? buildSeekItem(player, true) : inert(player));
+
+        inventory.setItem(SLOT_PREV, mayControl(player, playing, Action.PLAYER_PREVIOUS)
+                ? buildTrackNavItem(player, false) : filler);
+        inventory.setItem(SLOT_PAUSE, mayControl(player, playing, Action.PLAYER_PAUSE)
+                ? buildPauseItem(player, info) : filler);
+        inventory.setItem(SLOT_NEXT, mayControl(player, playing, Action.PLAYER_NEXT)
+                ? buildTrackNavItem(player, true) : filler);
+        inventory.setItem(SLOT_REPEAT, may(player, Action.PLAYER_REPEAT)
+                ? buildRepeatItem(player, block, info) : filler);
         inventory.setItem(SLOT_EXIT, buildExitItem(player));
 
-        ItemStack beacon = buildBeaconItem(player, block);
+        ItemStack beacon = may(player, Action.PLAYER_BEACON)
+                ? buildBeaconItem(player, block) : null;
         inventory.setItem(SLOT_BEACON, beacon != null ? beacon : filler);
 
-        ItemStack portable = buildPortableItem(player, block);
+        ItemStack portable = may(player, Action.PLAYER_PORTABLE)
+                ? buildPortableItem(player, block) : null;
         inventory.setItem(SLOT_PORTABLE, portable != null ? portable : filler);
 
-        ItemStack channels = buildChannelItem(player, block);
+        ItemStack channels = may(player, Action.PLAYER_CHANNELS)
+                ? buildChannelItem(player, block) : null;
         inventory.setItem(SLOT_CHANNELS, channels != null ? channels : filler);
 
-        ItemStack pair = buildPairItem(player, block);
+        ItemStack pair = mayPair(player, block) ? buildPairItem(player, block) : null;
         inventory.setItem(SLOT_PAIR, pair != null ? pair : filler);
 
-        ItemStack lyrics = buildLyricsItem(player, block, info);
+        ItemStack lyrics = may(player, Action.LYRICS_TOGGLE) || may(player, Action.LYRICS_LOOK)
+                ? buildLyricsItem(player, block, info) : null;
         inventory.setItem(SLOT_LYRICS, lyrics != null ? lyrics : filler);
 
         rememberLyrics(player, lyrics);
 
-        inventory.setItem(SLOT_TRACK_MESSAGES, buildTrackMessagesItem(player));
+        inventory.setItem(SLOT_TRACK_MESSAGES, may(player, Action.PLAYER_MESSAGES)
+                ? buildTrackMessagesItem(player) : filler);
 
-        inventory.setItem(SLOT_SHUFFLE, buildShuffleItem(player, block));
-        inventory.setItem(SLOT_VOLUME, buildVolumeItem(player, block));
+        inventory.setItem(SLOT_SHUFFLE, may(player, Action.PLAYER_SHUFFLE)
+                ? buildShuffleItem(player, block) : filler);
+        inventory.setItem(SLOT_VOLUME, may(player, Action.PLAYER_VOLUME)
+                ? buildVolumeItem(player, block) : filler);
 
-        ItemStack local = buildLocalVolumeItem(player, block);
+        ItemStack local = may(player, Action.PLAYER_LOCAL_VOLUME)
+                ? buildLocalVolumeItem(player, block) : null;
         inventory.setItem(SLOT_LOCAL_VOLUME, local != null ? local : filler);
+    }
+
+    private boolean may(Player player, Action action) {
+        return plugin.getPermissions().allows(player, action);
+    }
+
+    private boolean mayControl(Player player, boolean playing, Action action) {
+        return may(player, playing ? action : Action.PLAYER_PLAY);
+    }
+
+    private boolean mayPair(Player player, Block block) {
+        return may(player, plugin.getSpeakerGroupManager().groupAt(block) != null
+                ? Action.PAIR_MANAGE : Action.PAIR_CREATE);
     }
 
     private ItemStack buildVolumeItem(Player player, Block block) {

@@ -127,8 +127,9 @@ public final class PortableJukeboxManager {
 
     public boolean pickUp(Player player, Block block) {
         if (!isEnabled() || !hasRoom(player)) return false;
-        if (!dev.valkdz.cdisc.permission.Perms.has(player,
-                dev.valkdz.cdisc.permission.Perms.PORTABLE)) return false;
+        if (!plugin.getPermissions().allows(player, dev.valkdz.cdisc.permission.Action.PLAYER_PORTABLE)) {
+            return false;
+        }
         if (carriesOf(player).size() >= plugin.cdiscConfig().getPortableMaxPerPlayer()) return false;
 
         if (plugin.getSpeakerGroupManager().groupAt(block) != null) return false;

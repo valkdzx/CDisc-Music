@@ -2,6 +2,7 @@ package dev.valkdz.cdisc.gui;
 
 import dev.valkdz.cdisc.Main;
 import dev.valkdz.cdisc.audio.LavaPlayerManager;
+import dev.valkdz.cdisc.permission.Action;
 import dev.valkdz.cdisc.util.TimeUtils;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
@@ -42,6 +43,9 @@ public class PlayerGuiListener implements Listener {
             player.closeInventory();
             return;
         }
+
+        Action needed = actionFor(e.getSlot(), playing, e.isRightClick());
+        if (needed != null && !plugin.getPermissions().allows(player, needed)) return;
 
         PlayerActions actions = plugin.getPlayerActions();
         if (!playing) {
@@ -141,6 +145,32 @@ public class PlayerGuiListener implements Listener {
         if (stateChanged && e.getSlot() != PlayerGuiManager.SLOT_EXIT) {
             plugin.getPlayerGuiManager().refresh(player, block);
         }
+    }
+
+    private static Action actionFor(int slot, boolean playing, boolean rightClick) {
+        return switch (slot) {
+            case PlayerGuiManager.SLOT_QUEUE -> Action.QUEUE_OPEN;
+            case PlayerGuiManager.SLOT_INFO, PlayerGuiManager.SLOT_SEEK_BACK,
+                 PlayerGuiManager.SLOT_SEEK_FORWARD -> Action.PLAYER_SEEK;
+            case PlayerGuiManager.SLOT_PREV ->
+                    playing ? Action.PLAYER_PREVIOUS : Action.PLAYER_PLAY;
+            case PlayerGuiManager.SLOT_NEXT -> playing ? Action.PLAYER_NEXT : Action.PLAYER_PLAY;
+            case PlayerGuiManager.SLOT_PAUSE -> playing ? Action.PLAYER_PAUSE : Action.PLAYER_PLAY;
+            case PlayerGuiManager.SLOT_REPEAT -> Action.PLAYER_REPEAT;
+            case PlayerGuiManager.SLOT_SHUFFLE -> Action.PLAYER_SHUFFLE;
+            case PlayerGuiManager.SLOT_VOLUME -> Action.PLAYER_VOLUME;
+            case PlayerGuiManager.SLOT_LOCAL_VOLUME -> Action.PLAYER_LOCAL_VOLUME;
+            case PlayerGuiManager.SLOT_BEACON -> Action.PLAYER_BEACON;
+            case PlayerGuiManager.SLOT_PORTABLE -> Action.PLAYER_PORTABLE;
+            case PlayerGuiManager.SLOT_CHANNELS -> Action.PLAYER_CHANNELS;
+            case PlayerGuiManager.SLOT_TRACK_MESSAGES -> Action.PLAYER_MESSAGES;
+            case PlayerGuiManager.SLOT_LYRICS ->
+                    rightClick ? Action.LYRICS_LOOK : Action.LYRICS_TOGGLE;
+            case PlayerGuiManager.SLOT_VIEW -> Action.PLAYER_SCREEN;
+
+            // Exit closes the screen, and the pair button is judged by the screen it opens.
+            default -> null;
+        };
     }
 
     @EventHandler
