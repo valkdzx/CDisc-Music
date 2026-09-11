@@ -16,8 +16,12 @@ public final class SoundAnchor {
         }
     }
 
+    private static final double MOVED_ENOUGH = 1.0E-4;
+
     private final Entity entity;
     private final AnchorType type;
+
+    private Location sentTo;
 
     SoundAnchor(Entity entity, AnchorType type) {
         this.entity = entity;
@@ -41,6 +45,7 @@ public final class SoundAnchor {
         if (entity.getVehicle() != null) {
             entity.leaveVehicle();
         }
+        sentTo = location.clone();
         entity.teleport(location);
     }
 
@@ -50,6 +55,7 @@ public final class SoundAnchor {
         if (entity.getVehicle() != null) {
             entity.leaveVehicle();
         }
+        sentTo = null;
         carrier.addPassenger(entity);
     }
 
@@ -57,8 +63,22 @@ public final class SoundAnchor {
         if (!isAlive()) return;
         if (entity.getVehicle() != null) {
             entity.leaveVehicle();
+            sentTo = null;
         }
+
+        // A teleport is a tracker update for every player nearby, and this is called every
+        // tick, so a carrier who is standing still must not pay for one.
+        if (!moved(location)) return;
+
+        sentTo = location.clone();
         entity.teleport(location);
+    }
+
+    private boolean moved(Location to) {
+        if (sentTo == null) return true;
+
+        org.bukkit.World from = sentTo.getWorld();
+        return from == null || from != to.getWorld() || sentTo.distanceSquared(to) > MOVED_ENOUGH;
     }
 
     public void setTeleportSmoothing(int ticks) {
@@ -73,6 +93,7 @@ public final class SoundAnchor {
         if (entity.getVehicle() != null) {
             entity.leaveVehicle();
         }
+        sentTo = null;
         entity.remove();
     }
 }

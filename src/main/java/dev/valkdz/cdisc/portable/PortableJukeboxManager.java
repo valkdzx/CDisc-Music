@@ -43,6 +43,8 @@ public final class PortableJukeboxManager {
     private final Main plugin;
 
     private final Map<UUID, List<Carry>> carries = new ConcurrentHashMap<>();
+
+    private final Map<UUID, Integer> handleSlots = new ConcurrentHashMap<>();
     private BukkitTask particleTask;
     private BukkitTask followTask;
 
@@ -171,7 +173,9 @@ public final class PortableJukeboxManager {
             Player carrier = Bukkit.getPlayer(carry.carrier());
             if (carrier == null || !carrier.isOnline()) continue;
             endIfHandleGone(carrier, carry);
-            if (!carriesOf(carrier).contains(carry)) continue;
+
+            List<Carry> held = carries.get(carry.carrier());
+            if (held == null || !held.contains(carry)) continue;
 
             SoundAnchor anchor = carry.anchor();
             if (anchor != null && anchor.isAlive()) {
@@ -187,6 +191,7 @@ public final class PortableJukeboxManager {
             held.remove(carry);
             if (held.isEmpty()) carries.remove(carry.carrier());
         }
+        handleSlots.remove(carry.id());
 
         SoundAnchor anchor = carry.anchor();
         if (anchor != null && anchor.isAlive()) {
@@ -236,6 +241,7 @@ public final class PortableJukeboxManager {
         List<Carry> held = carries.get(carry.carrier());
         if (held == null || !held.remove(carry)) return;
         if (held.isEmpty()) carries.remove(carry.carrier());
+        handleSlots.remove(carry.id());
 
         LavaPlayerManager apm = plugin.getAudioPlayerManager();
         Block origin = carry.origin();
@@ -286,7 +292,27 @@ public final class PortableJukeboxManager {
 
     public ItemStack findHandle(Player player, Carry carry) {
         if (player == null) return null;
-        return findHandleIn(player.getInventory().getContents(), carry);
+
+        String wanted = carry.id().toString();
+        Integer lastSeen = handleSlots.get(carry.id());
+
+        // Reading the whole inventory copies every slot, and this runs every tick per
+        // carrier, so the slot it was found in last time is tried on its own first.
+        if (lastSeen != null) {
+            ItemStack there = player.getInventory().getItem(lastSeen);
+            if (wanted.equals(handleIdOf(there))) return there;
+        }
+
+        ItemStack[] contents = player.getInventory().getContents();
+        for (int slot = 0; slot < contents.length; slot++) {
+            if (!wanted.equals(handleIdOf(contents[slot]))) continue;
+
+            handleSlots.put(carry.id(), slot);
+            return contents[slot];
+        }
+
+        handleSlots.remove(carry.id());
+        return null;
     }
 
     private ItemStack findHandleIn(ItemStack[] contents, Carry carry) {
