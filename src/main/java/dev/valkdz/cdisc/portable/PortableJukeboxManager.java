@@ -163,6 +163,18 @@ public final class PortableJukeboxManager {
         return true;
     }
 
+    private void followIntoWorld(Carry carry, Player carrier) {
+        LavaPlayerManager apm = plugin.getAudioPlayerManager();
+
+        apm.rebindAnchor(carry.origin(), audioPointFor(carrier));
+
+        // The rebuilt channel starts out heard by everyone, and a carried jukebox is not.
+        apm.setPrivateListener(carry.origin(), carrier.getUniqueId());
+
+        SoundAnchor anchor = carry.anchor();
+        if (anchor != null) anchor.setTeleportSmoothing(2);
+    }
+
     private Location audioPointFor(Player carrier) {
         return carrier.getLocation();
     }
@@ -178,9 +190,13 @@ public final class PortableJukeboxManager {
             if (held == null || !held.contains(carry)) continue;
 
             SoundAnchor anchor = carry.anchor();
-            if (anchor != null && anchor.isAlive()) {
-                anchor.followAt(audioPointFor(carrier));
+            if (anchor == null || !anchor.isAlive()) continue;
+
+            if (!anchor.inWorld(carrier.getWorld())) {
+                followIntoWorld(carry, carrier);
+                continue;
             }
+            anchor.followAt(audioPointFor(carrier));
         }
     }
 
@@ -193,11 +209,14 @@ public final class PortableJukeboxManager {
         }
         handleSlots.remove(carry.id());
 
+        Location at = target.getLocation().add(0.5, 0.5, 0.5);
+        plugin.getAudioPlayerManager().rebindAnchor(carry.origin(), at);
+
         SoundAnchor anchor = carry.anchor();
         if (anchor != null && anchor.isAlive()) {
 
             anchor.setTeleportSmoothing(0);
-            anchor.parkAt(target.getLocation().add(0.5, 0.5, 0.5));
+            anchor.parkAt(at);
         }
 
         plugin.getJukeboxListener().markCustomDisc(target);

@@ -26,6 +26,7 @@ import dev.valkdz.cdisc.voice.VoiceSession;
 import dev.valkdz.cdisc.voice.anchor.AnchorManager;
 import dev.valkdz.cdisc.voice.anchor.SoundAnchor;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.Jukebox;
@@ -1238,6 +1239,29 @@ public class LavaPlayerManager {
         int prev = queue.prevFilledBefore(queue.getCurrentIndex());
         if (prev < 0) prev = queue.lastFilled();
         if (prev >= 0) playQueueEntry(block, prev);
+    }
+
+    public void rebindAnchor(Block block, Location where) {
+        if (where == null || where.getWorld() == null || voiceBackend == null) return;
+
+        SoundAnchor anchor = anchors.get(block);
+        List<AudioSession> playing = sessions.get(block);
+        if (anchor == null || playing == null || playing.isEmpty()) return;
+        if (anchor.inWorld(where.getWorld())) return;
+
+        // The voice channel is tied to the anchor entity, and an entity cannot follow a
+        // player into another world, so both are built again on the other side.
+        anchorManager.moveTo(anchor, where);
+
+        boolean synced = plugin.getSpeakerGroupManager().isMain(block);
+        for (AudioSession session : playing) {
+            VoiceSession fresh = synced
+                    ? voiceBackend.createSyncedEntitySession(anchor.entity(), effectiveDistance(block))
+                    : voiceBackend.createEntitySession(anchor.entity(), effectiveDistance(block));
+
+            session.replaceVoiceSession(fresh);
+        }
+        applySpeakerSettings(block);
     }
 
     public void relocateSession(Block from, Block to) {

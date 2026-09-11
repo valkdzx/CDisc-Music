@@ -13,7 +13,7 @@ import java.util.concurrent.TimeUnit;
 
 public class AudioSession {
     private final AudioPlayer player;
-    private final VoiceSession voiceSession;
+    private volatile VoiceSession voiceSession;
 
     private final java.util.List<VoiceSession> speakerOutputs = new java.util.concurrent.CopyOnWriteArrayList<>();
 
@@ -131,6 +131,14 @@ public class AudioSession {
 
     public VoiceSession getVoiceSession() {
         return voiceSession;
+    }
+
+    public void replaceVoiceSession(VoiceSession fresh) {
+        if (fresh == null || fresh == voiceSession) return;
+
+        VoiceSession old = voiceSession;
+        voiceSession = fresh;
+        old.close();
     }
 
     public void addSpeakerOutput(VoiceSession output) {

@@ -18,7 +18,7 @@ public final class SoundAnchor {
 
     private static final double MOVED_ENOUGH = 1.0E-4;
 
-    private final Entity entity;
+    private Entity entity;
     private final AnchorType type;
 
     private Location sentTo;
@@ -30,6 +30,23 @@ public final class SoundAnchor {
 
     public Entity entity() {
         return entity;
+    }
+
+    public org.bukkit.World world() {
+        return entity.getWorld();
+    }
+
+    public boolean inWorld(org.bukkit.World world) {
+        return world != null && entity.getWorld().equals(world);
+    }
+
+    void replaceEntity(Entity fresh) {
+        Entity old = entity;
+        entity = fresh;
+        sentTo = null;
+
+        if (old.getVehicle() != null) old.leaveVehicle();
+        old.remove();
     }
 
     public AnchorType type() {

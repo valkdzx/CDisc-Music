@@ -25,11 +25,22 @@ public final class AnchorManager {
     }
 
     public SoundAnchor createFor(Block block) {
-        AnchorType type = plugin.cdiscConfig().getAnchorType();
-        Location location = block.getLocation().add(0.5, 0.5, 0.5);
-        World world = block.getWorld();
+        return createAt(block.getLocation().add(0.5, 0.5, 0.5));
+    }
 
-        Entity entity = switch (type) {
+    public SoundAnchor createAt(Location location) {
+        AnchorType type = plugin.cdiscConfig().getAnchorType();
+        return new SoundAnchor(spawn(type, location), type);
+    }
+
+    public void moveTo(SoundAnchor anchor, Location location) {
+        anchor.replaceEntity(spawn(anchor.type(), location));
+    }
+
+    private Entity spawn(AnchorType type, Location location) {
+        World world = location.getWorld();
+
+        return switch (type) {
             case BLOCK_DISPLAY -> world.spawn(location, BlockDisplay.class, display -> {
 
                 display.setBlock(Material.AIR.createBlockData());
@@ -44,8 +55,6 @@ public final class AnchorManager {
                 prepare(stand);
             });
         };
-
-        return new SoundAnchor(entity, type);
     }
 
     private void prepare(Entity entity) {
