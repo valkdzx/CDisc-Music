@@ -101,7 +101,7 @@ public final class PresetSubcommand {
         }
 
         plugin.getHologramPresets().set(player.getUniqueId(), offer.style());
-        plugin.getLyricsDisplay().presetChanged(player);
+        plugin.presetChanged(player);
 
         player.sendMessage("§a" + message(player, "command.preset.accepted", offer.fromName()));
 

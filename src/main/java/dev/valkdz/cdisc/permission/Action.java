@@ -34,7 +34,6 @@ public enum Action {
     QUEUE_POLICY("queue.policy", "true"),
 
     LYRICS_TOGGLE("lyrics.toggle", "true"),
-    LYRICS_LOOK("lyrics.look", "true"),
     LYRICS_PRESET("lyrics.preset", "true"),
     LYRICS_SHARE("lyrics.share", "true"),
     LYRICS_SCOREBOARD("lyrics.scoreboard", "true"),

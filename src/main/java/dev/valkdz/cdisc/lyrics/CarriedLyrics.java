@@ -28,9 +28,11 @@ import org.joml.Vector3f;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 public final class CarriedLyrics {
@@ -40,6 +42,13 @@ public final class CarriedLyrics {
     private static final double HEIGHT = 2.5;
 
     private static final double MOVED_ENOUGH = 1.0E-4;
+
+    private static final double MIN_AUDIENCE_RANGE = 80;
+
+    private static final double VIEW_RANGE_BLOCKS = 64;
+
+    // Passes of this task, which itself runs every 5 ticks.
+    private static final int AUDIENCE_PASSES = 2;
 
     private static final String OBJECTIVE = "cdisc_lyrics";
 
@@ -56,18 +65,44 @@ public final class CarriedLyrics {
     private BukkitTask task;
     private BukkitTask followTask;
 
+    private double audienceRangeSquared = MIN_AUDIENCE_RANGE * MIN_AUDIENCE_RANGE;
+
     public CarriedLyrics(Main plugin, LyricsService service) {
         this.plugin = plugin;
         this.service = service;
         this.displayKey = new NamespacedKey(plugin, "cdisc_carried_lyrics");
     }
 
-    private static final class Shown {
-        Scoreboard board;
-        Objective objective;
+    private static final class Overhead {
+
+        final HologramStyle style;
+
+        final Set<UUID> viewers = new HashSet<>();
+
+        final Set<UUID> shownTo = new HashSet<>();
+
         TextDisplay entity;
 
         Location sentTo;
+
+        String lastText;
+
+        boolean viewersChanged;
+
+        Overhead(HologramStyle style) {
+            this.style = style;
+        }
+    }
+
+    private static final class Shown {
+        Scoreboard board;
+        Objective objective;
+
+        final Map<HologramStyle, Overhead> overhead = new HashMap<>();
+
+        final Map<UUID, Overhead> seats = new HashMap<>();
+
+        int audienceIn;
 
         List<String> lastLines = List.of();
     }
@@ -98,32 +133,34 @@ public final class CarriedLyrics {
 
         for (Map.Entry<UUID, Shown> entry : shown.entrySet()) {
             Shown state = entry.getValue();
-            if (gone(state.entity)) continue;
+            if (state.overhead.isEmpty()) continue;
 
             Player player = Bukkit.getPlayer(entry.getKey());
             if (player == null) continue;
 
-            moveTo(state, player.getLocation().add(0, HEIGHT, 0));
+            Location at = player.getLocation().add(0, HEIGHT, 0);
+            for (Overhead group : state.overhead.values()) {
+                if (gone(group.entity)) continue;
+                moveTo(group, at);
+            }
         }
     }
 
-    private void moveTo(Shown state, Location at) {
-        if (!state.entity.getWorld().equals(at.getWorld())) {
+    private void moveTo(Overhead group, Location at) {
+        if (!group.entity.getWorld().equals(at.getWorld())) {
 
-            state.entity.remove();
-            state.entity = null;
-            state.sentTo = null;
+            dropEntity(group);
             return;
         }
 
-        Location sent = state.sentTo;
+        Location sent = group.sentTo;
         if (sent != null && sent.getWorld() == at.getWorld()
                 && sent.distanceSquared(at) <= MOVED_ENOUGH) {
             return;
         }
 
-        state.sentTo = at;
-        state.entity.teleport(at);
+        group.sentTo = at;
+        group.entity.teleport(at);
     }
 
     public void clearAll() {
@@ -165,9 +202,14 @@ public final class CarriedLyrics {
             }
         }
 
+        double range = Math.max(MIN_AUDIENCE_RANGE,
+                config.getLyricsViewRange() * VIEW_RANGE_BLOCKS);
+        audienceRangeSquared = range * range;
+
+        HologramStyle defaults = HologramStyle.fromConfig(config);
         for (Player player : Bukkit.getOnlinePlayers()) {
             if (!wants(player, portable)) continue;
-            draw(player, portable, config);
+            draw(player, portable, config, defaults);
         }
     }
 
@@ -175,7 +217,8 @@ public final class CarriedLyrics {
         return PlayerPrefs.showsLyricsScoreboard(player) && portable.carryOf(player) != null;
     }
 
-    private void draw(Player player, PortableJukeboxManager portable, Config config) {
+    private void draw(Player player, PortableJukeboxManager portable, Config config,
+                      HologramStyle defaults) {
         PortableJukeboxManager.Carry carry = portable.carryOf(player);
         Block origin = carry.origin();
 
@@ -193,14 +236,10 @@ public final class CarriedLyrics {
             return;
         }
 
-        HologramStyle style = LyricsLook.resolve(origin, HologramStyle.fromConfig(config));
-        List<String> lines = LyricsRenderer.window(result.lyrics(), info.position(),
-                new LyricsRenderer.Options(style.linesBefore(), style.linesAfter(),
-                        style.lyricsStyle(),
-                        style.countdown() ? config.getLyricsCountdownSeconds() * 1000L : 0L,
-                        config.getLyricsCountdownFilled(), config.getLyricsCountdownEmpty(),
-                        1f));
+        HologramStyle mine = plugin.getHologramPresets()
+                .orDefault(player.getUniqueId(), defaults);
 
+        List<String> lines = window(result.lyrics(), info.position(), mine, config);
         if (lines.isEmpty()) {
             hide(player);
             return;
@@ -211,7 +250,17 @@ public final class CarriedLyrics {
             writeSidebar(player, state, lines, info);
             state.lastLines = lines;
         }
-        writeOverhead(player, state, style, lines, config);
+        writeOverhead(player, state, result.lyrics(), info.position(), config, defaults);
+    }
+
+    private List<String> window(SyncedLyrics lyrics, long position, HologramStyle style,
+                                Config config) {
+        return LyricsRenderer.window(lyrics, position,
+                new LyricsRenderer.Options(style.linesBefore(), style.linesAfter(),
+                        style.lyricsStyle(),
+                        style.countdown() ? config.getLyricsCountdownSeconds() * 1000L : 0L,
+                        config.getLyricsCountdownFilled(), config.getLyricsCountdownEmpty(),
+                        1f));
     }
 
     private void writeSidebar(Player player, Shown state, List<String> lines,
@@ -247,25 +296,121 @@ public final class CarriedLyrics {
         }
     }
 
-    private void writeOverhead(Player player, Shown state, HologramStyle style,
-                               List<String> lines, Config config) {
-        Location at = player.getLocation().add(0, HEIGHT, 0);
+    private void writeOverhead(Player carrier, Shown state, SyncedLyrics lyrics, long position,
+                               Config config, HologramStyle defaults) {
+        if (--state.audienceIn <= 0) {
+            state.audienceIn = AUDIENCE_PASSES;
+            seatAudience(carrier, state, defaults);
+        }
+        if (state.overhead.isEmpty()) return;
 
-        if (gone(state.entity)) {
+        Location at = carrier.getLocation().add(0, HEIGHT, 0);
 
-            if (state.entity != null) state.entity.remove();
+        for (Overhead group : state.overhead.values()) {
+            if (gone(group.entity)) {
 
-            state.entity = spawn(at, style, config);
-            if (state.entity == null) return;
-            state.sentTo = at;
-            player.hideEntity(plugin, state.entity);
-        } else {
-            moveTo(state, at);
-            if (state.entity == null) return;
+                dropEntity(group);
+
+                group.entity = spawn(at, group.style, config);
+                if (group.entity == null) continue;
+
+                group.sentTo = at;
+                group.viewersChanged = true;
+            } else {
+                moveTo(group, at);
+                if (group.entity == null) continue;
+            }
+
+            if (group.viewersChanged) showToViewers(group);
+
+            String text = String.join("\n", window(lyrics, position, group.style, config));
+            if (!text.equals(group.lastText)) {
+                group.entity.setText(text);
+                group.lastText = text;
+            }
+        }
+    }
+
+    private void seatAudience(Player carrier, Shown state, HologramStyle defaults) {
+        HologramPresets presets = plugin.getHologramPresets();
+
+        Iterator<Map.Entry<UUID, Overhead>> seated = state.seats.entrySet().iterator();
+        while (seated.hasNext()) {
+            Map.Entry<UUID, Overhead> entry = seated.next();
+            Player viewer = Bukkit.getPlayer(entry.getKey());
+
+            if (viewer != null && inRange(viewer, carrier) && entry.getValue().style
+                    .equals(presets.orDefault(entry.getKey(), defaults))) {
+                continue;
+            }
+
+            leave(entry.getValue(), entry.getKey(), viewer);
+            seated.remove();
         }
 
-        String text = String.join("\n", lines);
-        if (!text.equals(state.entity.getText())) state.entity.setText(text);
+        for (Player online : Bukkit.getOnlinePlayers()) {
+            UUID id = online.getUniqueId();
+            if (state.seats.containsKey(id) || !inRange(online, carrier)) continue;
+
+            Overhead group = state.overhead
+                    .computeIfAbsent(presets.orDefault(id, defaults), Overhead::new);
+
+            group.viewers.add(id);
+            group.viewersChanged = true;
+            state.seats.put(id, group);
+        }
+
+        state.overhead.values().removeIf(group -> {
+            if (!group.viewers.isEmpty()) return false;
+
+            dropEntity(group);
+            return true;
+        });
+    }
+
+    private boolean inRange(Player viewer, Player carrier) {
+        return !viewer.getUniqueId().equals(carrier.getUniqueId())
+                && viewer.getWorld().equals(carrier.getWorld())
+                && viewer.getLocation().distanceSquared(carrier.getLocation())
+                <= audienceRangeSquared;
+    }
+
+    private void leave(Overhead group, UUID id, Player viewer) {
+        group.viewers.remove(id);
+
+        if (group.shownTo.remove(id) && viewer != null && !gone(group.entity)) {
+            viewer.hideEntity(plugin, group.entity);
+        }
+    }
+
+    private void showToViewers(Overhead group) {
+        group.viewersChanged = false;
+
+        for (UUID id : group.viewers) {
+            if (group.shownTo.contains(id)) continue;
+
+            Player viewer = Bukkit.getPlayer(id);
+            if (viewer == null) continue;
+
+            viewer.showEntity(plugin, group.entity);
+            group.shownTo.add(id);
+        }
+    }
+
+    private void dropEntity(Overhead group) {
+        if (group.entity != null) {
+
+            for (UUID id : group.shownTo) {
+                Player viewer = Bukkit.getPlayer(id);
+                if (viewer != null) viewer.hideEntity(plugin, group.entity);
+            }
+
+            group.entity.remove();
+            group.entity = null;
+        }
+        group.shownTo.clear();
+        group.sentTo = null;
+        group.lastText = null;
     }
 
     private TextDisplay spawn(Location at, HologramStyle style, Config config) {
@@ -297,6 +442,10 @@ public final class CarriedLyrics {
 
                 DisplayCompat.setTeleportDuration(display, 3);
                 display.setPersistent(false);
+
+                // The carrier reads the sidebar, and everyone else reads their own preset,
+                // so this copy stays invisible until its group is shown it by hand.
+                display.setVisibleByDefault(false);
                 display.getPersistentDataContainer()
                         .set(displayKey, PersistentDataType.STRING, TAG_VALUE);
             });
@@ -315,14 +464,26 @@ public final class CarriedLyrics {
         if (state != null) take(state, Bukkit.getPlayer(id));
     }
 
+    public void presetChanged(Player player) {
+        UUID id = player.getUniqueId();
+
+        for (Shown state : shown.values()) {
+            Overhead seat = state.seats.remove(id);
+            if (seat != null) leave(seat, id, player);
+
+            state.audienceIn = 0;
+        }
+    }
+
     private void take(Shown state, Player player) {
         if (state == null) return;
 
-        if (state.entity != null) {
-
-            state.entity.remove();
-            state.entity = null;
+        for (Overhead group : state.overhead.values()) {
+            dropEntity(group);
         }
+        state.overhead.clear();
+        state.seats.clear();
+        state.audienceIn = 0;
 
         if (player != null && player.isOnline() && state.board != null
                 && player.getScoreboard().equals(state.board)) {

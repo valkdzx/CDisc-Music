@@ -33,29 +33,13 @@ public class LyricsGuiListener implements Listener {
         boolean forward = !e.isRightClick();
 
         if (slot == LyricsGuiManager.SLOT_BACK) {
-            if (holder.isPreset()) {
-                player.closeInventory();
-            } else {
-                plugin.getPlayerGuiManager().open(player, holder.getBlock());
-            }
+            player.closeInventory();
             return;
         }
 
         if (slot == LyricsGuiManager.SLOT_PAGE) {
             gui.openPage(player, holder,
                     (holder.getPage() + 1) % LyricsGuiManager.PAGES);
-            return;
-        }
-
-        if (slot == LyricsGuiManager.SLOT_TAKE_PRESET && !holder.isPreset()) {
-            HologramStyle mine = plugin.getHologramPresets().get(player.getUniqueId());
-            if (mine == null) {
-                player.sendMessage("§c" + plugin.getMessageManager()
-                        .get(player, "command.preset.none_of_yours"));
-                return;
-            }
-            gui.apply(player, holder, mine);
-            gui.refresh(player);
             return;
         }
 
@@ -69,7 +53,7 @@ public class LyricsGuiListener implements Listener {
         HologramStyle style = gui.styleOf(holder);
         HologramStyle edited = holder.getPage() == 0
                 ? editColors(style, slot, forward)
-                : editLayout(style, slot, forward, holder.isPreset());
+                : editLayout(style, slot, forward);
 
         if (edited == null || edited.equals(style)) return;
 
@@ -121,7 +105,7 @@ public class LyricsGuiListener implements Listener {
         return null;
     }
 
-    private HologramStyle editLayout(HologramStyle style, int slot, boolean forward, boolean preset) {
+    private HologramStyle editLayout(HologramStyle style, int slot, boolean forward) {
         if (slot == LyricsGuiManager.SLOT_SIZE) {
             return style.withSize(wrap(style.size() + (forward ? 1 : -1), 1, 10));
         }
@@ -146,8 +130,6 @@ public class LyricsGuiListener implements Listener {
         if (slot == LyricsGuiManager.SLOT_COUNTDOWN) {
             return style.withCountdown(!style.countdown());
         }
-
-        if (preset) return null;
 
         if (slot == LyricsGuiManager.SLOT_FADE_TICKS) {
             return style.withFadeTicks(step(style.fadeTicks(), forward, 1));

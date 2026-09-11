@@ -2,12 +2,10 @@ package dev.valkdz.cdisc.gui;
 
 import dev.valkdz.cdisc.Main;
 import dev.valkdz.cdisc.lyrics.HologramStyle;
-import dev.valkdz.cdisc.lyrics.LyricsLook;
 import dev.valkdz.cdisc.lyrics.LyricsStyle;
 import dev.valkdz.cdisc.permission.Action;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
-import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -57,7 +55,6 @@ public class LyricsGuiManager {
 
     public static final int SLOT_RESET = 45;
 
-    public static final int SLOT_TAKE_PRESET = 47;
     public static final int SLOT_PAGE = 49;
     public static final int SLOT_BACK = 53;
 
@@ -87,28 +84,19 @@ public class LyricsGuiManager {
         this.plugin = plugin;
     }
 
-    public void open(Player player, Block block) {
-        if (!plugin.getPermissions().allows(player, Action.LYRICS_LOOK)) return;
-
-        open(player, LyricsGuiHolder.forJukebox(block, 0));
-    }
-
     public void openPreset(Player player) {
         if (!plugin.getPermissions().allows(player, Action.LYRICS_PRESET)) return;
 
-        open(player, LyricsGuiHolder.forPreset(player.getUniqueId(), 0));
+        open(player, new LyricsGuiHolder(player.getUniqueId(), 0));
     }
 
     public void openPage(Player player, LyricsGuiHolder from, int page) {
-        open(player, from.isPreset()
-                ? LyricsGuiHolder.forPreset(from.getOwner(), page)
-                : LyricsGuiHolder.forJukebox(from.getBlock(), page));
+        open(player, new LyricsGuiHolder(from.getOwner(), page));
     }
 
     private void open(Player player, LyricsGuiHolder holder) {
         Inventory inventory = Bukkit.createInventory(holder, SIZE,
-                plugin.getMessageManager().get(player,
-                        holder.isPreset() ? "gui.lyrics_look.preset_title" : "gui.lyrics_look.title"));
+                plugin.getMessageManager().get(player, "gui.lyrics_look.preset_title"));
         holder.setInventory(inventory);
 
         fill(player, holder, inventory);
@@ -126,21 +114,8 @@ public class LyricsGuiManager {
         updatePreview(player, holder);
     }
 
-    public void forceCloseFor(Block block) {
-        for (Player online : Bukkit.getOnlinePlayers()) {
-            if (online.getOpenInventory().getTopInventory().getHolder() instanceof LyricsGuiHolder holder
-                    && block.equals(holder.getBlock())) {
-                online.closeInventory();
-            }
-        }
-    }
-
     private void updatePreview(Player player, LyricsGuiHolder holder) {
-        boolean alreadyInView = holder.isPreset()
-                ? plugin.getLyricsDisplay().showsOwnStyleTo(player)
-                : plugin.getLyricsDisplay().showsJukeboxStyleTo(player, holder.getBlock());
-
-        if (alreadyInView) {
+        if (plugin.getLyricsDisplay().showsOwnStyleTo(player)) {
             plugin.getHologramPreview().hide(player);
             return;
         }
@@ -148,42 +123,21 @@ public class LyricsGuiManager {
     }
 
     public HologramStyle styleOf(LyricsGuiHolder holder) {
-        if (holder.isPreset()) {
-            return plugin.getHologramPresets().getOrDefault(holder.getOwner());
-        }
-        return LyricsLook.resolve(holder.getBlock(), plugin.cdiscConfig());
+        return plugin.getHologramPresets().getOrDefault(holder.getOwner());
     }
 
     public void apply(Player player, LyricsGuiHolder holder, HologramStyle style) {
-        if (holder.isPreset()) {
-            boolean had = plugin.getHologramPresets().has(holder.getOwner());
-            plugin.getHologramPresets().set(holder.getOwner(), style);
-
-            if (had) {
-                plugin.getLyricsDisplay().presetRestyled(player);
-            } else {
-                plugin.getLyricsDisplay().presetChanged(player);
-            }
-        } else {
-            LyricsLook.set(holder.getBlock(), style);
-            plugin.getLyricsDisplay().restyle(holder.getBlock());
-        }
+        plugin.getHologramPresets().set(holder.getOwner(), style);
+        plugin.presetChanged(player);
     }
 
     public boolean isCustomised(LyricsGuiHolder holder) {
-        return holder.isPreset()
-                ? plugin.getHologramPresets().has(holder.getOwner())
-                : LyricsLook.isCustomised(holder.getBlock());
+        return plugin.getHologramPresets().has(holder.getOwner());
     }
 
     public void reset(Player player, LyricsGuiHolder holder) {
-        if (holder.isPreset()) {
-            plugin.getHologramPresets().clear(holder.getOwner());
-            plugin.getLyricsDisplay().presetChanged(player);
-        } else {
-            LyricsLook.reset(holder.getBlock());
-            plugin.getLyricsDisplay().restyle(holder.getBlock());
-        }
+        plugin.getHologramPresets().clear(holder.getOwner());
+        plugin.presetChanged(player);
     }
 
     private void fill(Player player, LyricsGuiHolder holder, Inventory inventory) {
@@ -194,23 +148,18 @@ public class LyricsGuiManager {
             inventory.setItem(slot, filler);
         }
 
-        inventory.setItem(SLOT_TITLE, titleItem(player, holder, style));
+        inventory.setItem(SLOT_TITLE, titleItem(player, style));
 
         if (holder.getPage() == 0) {
             fillColors(player, inventory, style);
         } else {
-            fillLayout(player, holder, inventory, style);
+            fillLayout(player, inventory, style);
         }
 
         inventory.setItem(SLOT_RESET, resetItem(player, holder));
-        if (!holder.isPreset()) {
-            inventory.setItem(SLOT_TAKE_PRESET, takePresetItem(player));
-        }
         inventory.setItem(SLOT_PAGE, pageItem(player, holder));
         inventory.setItem(SLOT_BACK, simple(Material.ARROW,
-                plugin.getMessageManager().get(player,
-                        holder.isPreset() ? "gui.lyrics_look.close" : "gui.lyrics_look.back"),
-                List.of()));
+                plugin.getMessageManager().get(player, "gui.lyrics_look.close"), List.of()));
     }
 
     private void fillColors(Player player, Inventory inventory, HologramStyle style) {
@@ -240,8 +189,7 @@ public class LyricsGuiManager {
         }
     }
 
-    private void fillLayout(Player player, LyricsGuiHolder holder,
-                            Inventory inventory, HologramStyle style) {
+    private void fillLayout(Player player, Inventory inventory, HologramStyle style) {
         inventory.setItem(SLOT_PLACEMENT_HEADER, header(player, Material.SCAFFOLDING,
                 "gui.lyrics_look.header_placement"));
         inventory.setItem(SLOT_SIZE, numberItem(player, Material.SPYGLASS,
@@ -265,35 +213,26 @@ public class LyricsGuiManager {
         inventory.setItem(SLOT_ANIMATION_HEADER, header(player, Material.CLOCK,
                 "gui.lyrics_look.header_animation"));
 
-        String note = holder.isPreset() ? "gui.lyrics_look.from_jukebox" : null;
-        inventory.setItem(SLOT_FADE_TICKS, holder.isPreset()
-                ? lockedItem(player, Material.CLOCK, "gui.lyrics_look.fade_ticks",
-                String.valueOf(style.fadeTicks()), note)
-                : numberItem(player, Material.CLOCK, "gui.lyrics_look.fade_ticks",
-                String.valueOf(style.fadeTicks()), "hint_adjust"));
-        inventory.setItem(SLOT_SLIDE, holder.isPreset()
-                ? lockedItem(player, Material.PISTON, "gui.lyrics_look.slide",
-                onOff(player, style.slide()), note)
-                : toggleItem(player, "gui.lyrics_look.slide", style.slide(), null));
+        inventory.setItem(SLOT_FADE_TICKS, numberItem(player, Material.CLOCK,
+                "gui.lyrics_look.fade_ticks", String.valueOf(style.fadeTicks()), "hint_adjust"));
+        inventory.setItem(SLOT_SLIDE, toggleItem(player, "gui.lyrics_look.slide",
+                style.slide(), null));
         inventory.setItem(SLOT_COUNTDOWN, toggleItem(player, "gui.lyrics_look.countdown",
                 style.countdown(), null));
     }
 
-    private ItemStack titleItem(Player player, LyricsGuiHolder holder, HologramStyle style) {
+    private ItemStack titleItem(Player player, HologramStyle style) {
         LyricsStyle colours = style.lyricsStyle();
 
         List<String> lore = new ArrayList<>();
-        lore.add("§7" + plugin.getMessageManager().get(player, holder.isPreset()
-                ? "gui.lyrics_look.preset_lore" : "gui.lyrics_look.jukebox_lore"));
+        lore.add("§7" + plugin.getMessageManager().get(player, "gui.lyrics_look.preset_lore"));
         lore.add("");
         lore.add(colours.other() + plugin.getMessageManager().get(player, "gui.lyrics_look.sample_other"));
         lore.add(colours.current() + plugin.getMessageManager().get(player, "gui.lyrics_look.sample_current"));
         lore.add(colours.other() + plugin.getMessageManager().get(player, "gui.lyrics_look.sample_other"));
 
-        return simple(holder.isPreset() ? Material.PLAYER_HEAD : Material.JUKEBOX,
-                plugin.getMessageManager().get(player,
-                        holder.isPreset() ? "gui.lyrics_look.preset_title" : "gui.lyrics_look.title"),
-                lore);
+        return simple(Material.PLAYER_HEAD,
+                plugin.getMessageManager().get(player, "gui.lyrics_look.preset_title"), lore);
     }
 
     private ItemStack pageItem(Player player, LyricsGuiHolder holder) {
@@ -327,16 +266,6 @@ public class LyricsGuiManager {
                 "§8" + plugin.getMessageManager().get(player, "gui.lyrics_look." + hint));
 
         return simple(material, "§f" + plugin.getMessageManager().get(player, key), lore);
-    }
-
-    private ItemStack lockedItem(Player player, Material material, String key,
-                                 String value, String noteKey) {
-        List<String> lore = List.of(
-                "§7" + plugin.getMessageManager().get(player, "gui.lyrics_look.value_plain", value),
-                "",
-                "§8" + plugin.getMessageManager().get(player, noteKey));
-
-        return simple(material, "§8" + plugin.getMessageManager().get(player, key), lore);
     }
 
     private ItemStack toggleItem(Player player, String key, boolean on, String noteKey) {
@@ -419,17 +348,6 @@ public class LyricsGuiManager {
 
         String worn = on && code != 'k' ? "§a§" + code : (on ? "§a" : "§8");
         return simple(on ? Material.LIME_DYE : Material.GRAY_DYE, worn + label, lore);
-    }
-
-    private ItemStack takePresetItem(Player player) {
-        boolean has = plugin.getHologramPresets().has(player.getUniqueId());
-
-        List<String> lore = List.of("§7" + plugin.getMessageManager().get(player,
-                has ? "gui.lyrics_look.take_preset_lore" : "gui.lyrics_look.take_preset_none"));
-
-        return simple(has ? Material.PLAYER_HEAD : Material.STRUCTURE_VOID,
-                (has ? "§f" : "§8") + plugin.getMessageManager()
-                        .get(player, "gui.lyrics_look.take_preset"), lore);
     }
 
     private ItemStack resetItem(Player player, LyricsGuiHolder holder) {

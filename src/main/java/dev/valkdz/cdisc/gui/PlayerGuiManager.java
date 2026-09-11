@@ -256,7 +256,7 @@ public class PlayerGuiManager {
         ItemStack pair = mayPair(player, block) ? buildPairItem(player, block) : null;
         inventory.setItem(SLOT_PAIR, pair != null ? pair : filler);
 
-        ItemStack lyrics = may(player, Action.LYRICS_TOGGLE) || may(player, Action.LYRICS_LOOK)
+        ItemStack lyrics = may(player, Action.LYRICS_TOGGLE) || may(player, Action.LYRICS_PRESET)
                 ? buildLyricsItem(player, block, info) : null;
         inventory.setItem(SLOT_LYRICS, lyrics != null ? lyrics : filler);
 

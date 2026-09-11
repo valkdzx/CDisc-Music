@@ -200,7 +200,6 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
 
         plugin.getLyricsService().clearCache();
         dev.valkdz.cdisc.lyrics.LyricsPrefs.forgetAll();
-        dev.valkdz.cdisc.lyrics.LyricsLook.forgetAll();
         plugin.getLyricsDisplay().clearAll();
         plugin.getLyricsDisplay().start();
         sender.sendMessage("§a" + message(sender, "cdisc.reloaded"));
@@ -223,7 +222,7 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
             return;
         }
 
-        plugin.getLyricsDisplay().presetChanged(p);
+        plugin.presetChanged(p);
         p.sendMessage("§a" + message(p, "command.hologram.copied", from.getName()));
     }
 

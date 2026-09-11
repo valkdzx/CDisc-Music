@@ -68,8 +68,12 @@ public final class HologramPresets {
     }
 
     public HologramStyle getOrDefault(UUID player) {
+        return orDefault(player, HologramStyle.fromConfig(plugin.cdiscConfig()));
+    }
+
+    public HologramStyle orDefault(UUID player, HologramStyle defaults) {
         HologramStyle own = presets.get(player);
-        return own != null ? own : HologramStyle.fromConfig(plugin.cdiscConfig());
+        return own != null ? own : defaults;
     }
 
     public void set(UUID player, HologramStyle style) {

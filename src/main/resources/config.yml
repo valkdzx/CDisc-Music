@@ -63,7 +63,8 @@ speaker-group:
 
 ### Lyrics
 # Timed words over the jukebox and in its GUI paper, from the free databases below.
-# Per-jukebox and per-player overrides take precedence over everything here.
+# Everyone reads their own copy: these are the defaults for a player who has not
+# set one up in /cdisc preset, and that preset wins over everything here.
 lyrics:
   enabled: true
   # What a jukebox nobody has decided about does.
@@ -82,7 +83,6 @@ lyrics:
   height: 1.6
 
   # 1 to 10; 5 is nameplate size. Bigger text stands taller, so raise `height` with it.
-  # Server-wide: scale belongs to the entity, so everyone sees one hologram the same size.
   size: 5
 
   # Lines kept visible around the one being sung.
@@ -112,7 +112,7 @@ lyrics:
   # Plate behind the text: 0 none, 255 solid, 60 roughly a nametag.
   background-opacity: 60
 
-  # How solid the words are, 0 to 255. Parted per jukebox in its settings screen.
+  # How solid the words are, 0 to 255. Parted for the sung line in /cdisc preset.
   text-opacity: 255
 
   # 0 to 15. -1 leaves the words lit by the world, so they go dark at night.

@@ -159,7 +159,7 @@ final class PlayerDialog {
         return plugin.getMessageManager().get(player, "gui.dialog.state",
                 plugin.getMessageManager().get(player, repeatKey(apm.getRepeatMode(block))),
                 plugin.getMessageManager().get(player, apm.isShuffle(block)
-                        ? "gui.dialog.shuffle_on" : "gui.dialog.shuffle_off"),
+                        ? "gui.dialog.state_shuffle_on" : "gui.dialog.state_shuffle_off"),
                 String.valueOf(speaker.volume()),
                 String.valueOf(PlayerPrefs.effectiveLocalVolume(player, speaker.volume())));
     }
@@ -236,10 +236,6 @@ final class PlayerDialog {
         }
         if (plugin.cdiscConfig().isLyricsEnabled()) {
 
-            if (may(plugin, player, Action.LYRICS_LOOK)) {
-                buttons.add(leaving(plugin, player, "look_shared",
-                        () -> actions.openLyricsLook(player, block)));
-            }
             if (may(plugin, player, Action.LYRICS_PRESET)) {
                 buttons.add(leaving(plugin, player, "look_mine",
                         () -> actions.openMyLyricsLook(player)));
@@ -263,9 +259,9 @@ final class PlayerDialog {
 
     private static String repeatKey(RepeatMode mode) {
         return switch (mode) {
-            case QUEUE -> "gui.dialog.repeat_queue";
-            case TRACK -> "gui.dialog.repeat_track";
-            default -> "gui.dialog.repeat_off";
+            case QUEUE -> "gui.dialog.state_repeat_queue";
+            case TRACK -> "gui.dialog.state_repeat_track";
+            default -> "gui.dialog.state_repeat_off";
         };
     }
 

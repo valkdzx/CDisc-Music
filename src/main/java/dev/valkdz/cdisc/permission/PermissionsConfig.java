@@ -138,7 +138,7 @@ public final class PermissionsConfig {
                 Action.PLAYER_BEACON, Action.PLAYER_CHANNELS, Action.PLAYER_SCREEN,
                 Action.PLAYER_INFO, Action.QUEUE_OPEN, Action.QUEUE_ADD, Action.QUEUE_REMOVE,
                 Action.QUEUE_PLAY, Action.QUEUE_POLICY, Action.LYRICS_TOGGLE,
-                Action.LYRICS_LOOK, Action.LYRICS_SCOREBOARD));
+                Action.LYRICS_PRESET, Action.LYRICS_SCOREBOARD));
 
         legacy.put("cdisc.pair", List.of(Action.PAIR_CREATE, Action.PAIR_MANAGE,
                 Action.PAIR_SETTINGS, Action.PAIR_DISSOLVE, Action.PAIR_LIST));

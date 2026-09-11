@@ -19,7 +19,6 @@ import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Transformation;
 import org.joml.Vector3f;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -32,7 +31,11 @@ public final class LyricsDisplay {
 
     private static final String TAG_VALUE = "cdisc-lyrics-display";
 
-    private static final double PERSONAL_RANGE_SQUARED = 80 * 80;
+    private static final double MIN_AUDIENCE_RANGE = 80;
+
+    private static final double VIEW_RANGE_BLOCKS = 64;
+
+    private static final int AUDIENCE_TICKS = 10;
 
     private static final float[] SIZE_SCALE = {
             0.5f, 0.6f, 0.7f, 0.85f, 1.0f, 1.2f, 1.4f, 1.6f, 1.8f, 2.0f
@@ -57,6 +60,8 @@ public final class LyricsDisplay {
 
     private int sweepIn = SWEEP_TICKS;
 
+    private double audienceRangeSquared = MIN_AUDIENCE_RANGE * MIN_AUDIENCE_RANGE;
+
     public LyricsDisplay(Main plugin, LyricsService service) {
         this.plugin = plugin;
         this.service = service;
@@ -64,27 +69,18 @@ public final class LyricsDisplay {
     }
 
     private static final class Variant {
+
+        final HologramStyle style;
+
+        final Set<UUID> viewers = new HashSet<>();
+
+        final Set<UUID> shownTo = new HashSet<>();
+
         TextDisplay entity;
 
         String lastText;
 
-        HologramStyle applied;
-    }
-
-    private static final class Hologram {
-
-        final Variant shared = new Variant();
-
-        final Map<UUID, Variant> personal = new HashMap<>();
-
-        final Set<UUID> hiddenFromShared = new HashSet<>();
-
-        String trackTitle;
-        long trackDuration = Long.MIN_VALUE;
-
-        int recheckIn;
-
-        SyncedLyrics lyrics;
+        boolean viewersChanged;
 
         long lastFrame = Long.MIN_VALUE;
 
@@ -98,26 +94,43 @@ public final class LyricsDisplay {
 
         boolean pendingRelease;
 
-        void resetForNewTrack() {
-            lyrics = null;
+        Variant(HologramStyle style) {
+            this.style = style;
+        }
+
+        void rewind() {
+            lastText = null;
             lastFrame = Long.MIN_VALUE;
             lastIndex = Integer.MIN_VALUE;
             lastFirst = Integer.MIN_VALUE;
             fadeLeft = 0;
             slidePending = false;
             pendingRelease = false;
+        }
+    }
+
+    private static final class Hologram {
+
+        final Map<HologramStyle, Variant> variants = new HashMap<>();
+
+        final Map<UUID, Variant> seats = new HashMap<>();
+
+        String trackTitle;
+        long trackDuration = Long.MIN_VALUE;
+
+        int recheckIn;
+
+        int audienceIn;
+
+        SyncedLyrics lyrics;
+
+        void resetForNewTrack() {
+            lyrics = null;
             recheckIn = 0;
 
-            for (Variant variant : drawn()) {
-                variant.lastText = null;
+            for (Variant variant : variants.values()) {
+                variant.rewind();
             }
-        }
-
-        List<Variant> drawn() {
-            List<Variant> all = new ArrayList<>(personal.size() + 1);
-            all.add(shared);
-            all.addAll(personal.values());
-            return all;
         }
     }
 
@@ -136,14 +149,14 @@ public final class LyricsDisplay {
 
     public void clearAll() {
         for (Hologram state : states.values()) {
-            removeEntity(state);
+            clearVariants(state);
         }
         states.clear();
     }
 
     public void clear(Block block) {
         Hologram state = states.remove(block);
-        if (state != null) removeEntity(state);
+        if (state != null) clearVariants(state);
     }
 
     private static final long ANSWER_POLL_TICKS = 10L;
@@ -252,7 +265,7 @@ public final class LyricsDisplay {
 
     private boolean isMine(Entity entity) {
         for (Hologram state : states.values()) {
-            for (Variant variant : state.drawn()) {
+            for (Variant variant : state.variants.values()) {
                 if (entity.equals(variant.entity)) return true;
             }
         }
@@ -261,20 +274,20 @@ public final class LyricsDisplay {
 
     public Drawn drawn() {
         int total = 0;
-        int personal = 0;
+        int watching = 0;
 
         for (Hologram state : states.values()) {
-            if (alive(state.shared)) total++;
-            for (Variant variant : state.personal.values()) {
+            for (Variant variant : state.variants.values()) {
                 if (!alive(variant)) continue;
+
                 total++;
-                personal++;
+                watching += variant.viewers.size();
             }
         }
-        return new Drawn(total, personal);
+        return new Drawn(total, watching);
     }
 
-    public record Drawn(int total, int personal) {
+    public record Drawn(int total, int watching) {
     }
 
     private static boolean alive(Variant variant) {
@@ -285,25 +298,29 @@ public final class LyricsDisplay {
         return entity == null || entity.isDead();
     }
 
-    private void removeEntity(Hologram state) {
-        for (Variant variant : state.drawn()) {
+    private void clearVariants(Hologram state) {
+        for (Variant variant : state.variants.values()) {
             dropEntity(variant);
         }
-        state.personal.clear();
-
-        state.lastFrame = Long.MIN_VALUE;
-        state.slidePending = false;
-        state.pendingRelease = false;
+        state.variants.clear();
+        state.seats.clear();
+        state.audienceIn = 0;
     }
 
-    private static void dropEntity(Variant variant) {
+    private void dropEntity(Variant variant) {
         if (variant.entity != null) {
+
+            for (UUID id : variant.shownTo) {
+                Player viewer = Bukkit.getPlayer(id);
+                if (viewer != null) viewer.hideEntity(plugin, variant.entity);
+            }
 
             variant.entity.remove();
             variant.entity = null;
         }
+        variant.shownTo.clear();
         variant.lastText = null;
-        variant.applied = null;
+        variant.lastFrame = Long.MIN_VALUE;
     }
 
     private void tick() {
@@ -324,6 +341,10 @@ public final class LyricsDisplay {
         }
 
         if (!active.isEmpty()) {
+            double range = Math.max(MIN_AUDIENCE_RANGE,
+                    config.getLyricsViewRange() * VIEW_RANGE_BLOCKS);
+            audienceRangeSquared = range * range;
+
             HologramStyle defaults = HologramStyle.fromConfig(config);
             for (Block block : active) {
                 update(block, apm, config, defaults);
@@ -364,7 +385,7 @@ public final class LyricsDisplay {
         LavaPlayerManager.PlaybackInfo info = apm.getPlaybackInfo(block);
 
         if (info == null || info.live()) {
-            removeEntity(state);
+            clearVariants(state);
             return;
         }
 
@@ -381,7 +402,7 @@ public final class LyricsDisplay {
 
         if (state.lyrics == null) {
 
-            removeEntity(state);
+            clearVariants(state);
             return;
         }
 
@@ -404,71 +425,120 @@ public final class LyricsDisplay {
 
     private void render(Block block, Hologram state, LavaPlayerManager.PlaybackInfo info,
                         Config config, HologramStyle defaults) {
+        if (--state.audienceIn <= 0) {
+            state.audienceIn = AUDIENCE_TICKS;
+            seatAudience(block, state, defaults);
+        }
+        if (state.variants.isEmpty()) return;
+
         long position = info.position();
         SyncedLyrics lyrics = state.lyrics;
 
-        HologramStyle jukebox = LyricsLook.resolve(block, defaults);
-
-        int fadeTicks = jukebox.fadeTicks();
-
         int index = lyrics.indexAt(position);
-        int first = index < 0 ? 0 : Math.max(0, index - jukebox.linesBefore());
-
-        if (index != state.lastIndex) {
-
-            boolean stepped = state.lastIndex != Integer.MIN_VALUE && index == state.lastIndex + 1;
-
-            state.fadeLeft = stepped ? fadeTicks : 0;
-            boolean scrolled = stepped && state.lastFirst != Integer.MIN_VALUE
-                    && first == state.lastFirst + 1;
-
-            state.lastIndex = index;
-            state.lastFirst = first;
-
-            if (scrolled && fadeTicks > 0 && jukebox.slide()) {
-
-                state.slidePending = true;
-            }
-        }
 
         long fullCountdownMs = config.getLyricsCountdownSeconds() * 1000L;
         int countdownStep = LyricsRenderer.countdownStep(lyrics, position, fullCountdownMs);
 
-        long frame = ((long) index << 32) | ((long) (countdownStep & 0xFFFF) << 16)
-                | (state.fadeLeft & 0xFFFF);
-        boolean sameFrame = frame == state.lastFrame;
+        for (Variant variant : state.variants.values()) {
+            step(variant, index);
 
-        float fade = fadeProgress(state, fadeTicks);
+            long frame = ((long) index << 32) | ((long) (countdownStep & 0xFFFF) << 16)
+                    | (variant.fadeLeft & 0xFFFF);
 
-        boolean drawn = draw(block, state, state.shared, jukebox, lyrics, position,
-                fullCountdownMs, fade, sameFrame, config);
+            if (draw(block, variant, lyrics, position, fullCountdownMs,
+                    frame == variant.lastFrame, config)) {
 
-        syncPersonal(block, state);
-        for (Map.Entry<UUID, Variant> entry : state.personal.entrySet()) {
-            HologramStyle own = plugin.getHologramPresets().get(entry.getKey());
-            if (own == null) continue;
+                variant.lastFrame = frame;
+                advanceSlide(variant);
+            }
 
-            HologramStyle timed = own.withFadeTicks(fadeTicks).withSlide(jukebox.slide());
-            drawn |= draw(block, state, entry.getValue(), timed, lyrics, position,
-                    fullCountdownMs, fade, sameFrame, config);
+            if (variant.fadeLeft > 0) variant.fadeLeft--;
         }
-
-        if (!drawn) {
-
-            if (state.fadeLeft > 0) state.fadeLeft--;
-            return;
-        }
-
-        state.lastFrame = frame;
-
-        advanceSlide(state, jukebox);
-
-        if (state.fadeLeft > 0) state.fadeLeft--;
     }
 
-    private boolean draw(Block block, Hologram state, Variant variant, HologramStyle style,
-                         SyncedLyrics lyrics, long position, long fullCountdownMs, float fade,
-                         boolean sameFrame, Config config) {
+    private void seatAudience(Block block, Hologram state, HologramStyle defaults) {
+        HologramPresets presets = plugin.getHologramPresets();
+
+        Iterator<Map.Entry<UUID, Variant>> seated = state.seats.entrySet().iterator();
+        while (seated.hasNext()) {
+            Map.Entry<UUID, Variant> entry = seated.next();
+            Player viewer = Bukkit.getPlayer(entry.getKey());
+
+            if (viewer != null && inRange(viewer, block) && entry.getValue().style
+                    .equals(presets.orDefault(entry.getKey(), defaults))) {
+                continue;
+            }
+
+            leave(entry.getValue(), entry.getKey(), viewer);
+            seated.remove();
+        }
+
+        for (Player online : Bukkit.getOnlinePlayers()) {
+            UUID id = online.getUniqueId();
+            if (state.seats.containsKey(id) || !inRange(online, block)) continue;
+
+            Variant variant = state.variants
+                    .computeIfAbsent(presets.orDefault(id, defaults), Variant::new);
+
+            variant.viewers.add(id);
+            variant.viewersChanged = true;
+            state.seats.put(id, variant);
+        }
+
+        state.variants.values().removeIf(variant -> {
+            if (!variant.viewers.isEmpty()) return false;
+
+            dropEntity(variant);
+            return true;
+        });
+    }
+
+    private void leave(Variant variant, UUID id, Player viewer) {
+        variant.viewers.remove(id);
+
+        if (variant.shownTo.remove(id) && viewer != null && !gone(variant.entity)) {
+            viewer.hideEntity(plugin, variant.entity);
+        }
+    }
+
+    private void showToViewers(Variant variant) {
+        variant.viewersChanged = false;
+
+        for (UUID id : variant.viewers) {
+            if (variant.shownTo.contains(id)) continue;
+
+            Player viewer = Bukkit.getPlayer(id);
+            if (viewer == null) continue;
+
+            viewer.showEntity(plugin, variant.entity);
+            variant.shownTo.add(id);
+        }
+    }
+
+    private static void step(Variant variant, int index) {
+        if (index == variant.lastIndex) return;
+
+        HologramStyle style = variant.style;
+        int first = index < 0 ? 0 : Math.max(0, index - style.linesBefore());
+
+        boolean stepped = variant.lastIndex != Integer.MIN_VALUE && index == variant.lastIndex + 1;
+        boolean scrolled = stepped && variant.lastFirst != Integer.MIN_VALUE
+                && first == variant.lastFirst + 1;
+
+        variant.fadeLeft = stepped ? style.fadeTicks() : 0;
+        variant.lastIndex = index;
+        variant.lastFirst = first;
+
+        if (scrolled && style.fadeTicks() > 0 && style.slide()) {
+
+            variant.slidePending = true;
+        }
+    }
+
+    private boolean draw(Block block, Variant variant, SyncedLyrics lyrics, long position,
+                         long fullCountdownMs, boolean sameFrame, Config config) {
+        HologramStyle style = variant.style;
+
         Location location = hologramLocation(block, style.height());
         if (location == null) {
 
@@ -483,20 +553,14 @@ public final class LyricsDisplay {
 
             variant.entity = spawn(location, style, config);
             if (variant.entity == null) return false;
-            if (variant == state.shared) state.hiddenFromShared.clear();
 
-            variant.applied = style;
+            variant.viewersChanged = true;
             fresh = true;
-        } else {
-            if (!style.equals(variant.applied)) {
-                applyStyle(variant.entity, style, config);
-                variant.applied = style;
-                variant.lastText = null;
-            }
-            if (moved(variant.entity.getLocation(), location)) {
-                variant.entity.teleport(location);
-            }
+        } else if (moved(variant.entity.getLocation(), location)) {
+            variant.entity.teleport(location);
         }
+
+        if (variant.viewersChanged) showToViewers(variant);
 
         if (sameFrame && !fresh && variant.lastText != null) return true;
 
@@ -505,7 +569,7 @@ public final class LyricsDisplay {
                 style.lyricsStyle(),
                 style.countdown() ? fullCountdownMs : 0L,
                 config.getLyricsCountdownFilled(), config.getLyricsCountdownEmpty(),
-                fade);
+                fadeProgress(variant));
 
         List<String> lines = LyricsRenderer.window(lyrics, position, options);
         if (lines.isEmpty()) {
@@ -521,87 +585,33 @@ public final class LyricsDisplay {
         return true;
     }
 
-    private void syncPersonal(Block block, Hologram state) {
-        HologramPresets presets = plugin.getHologramPresets();
-
-        Iterator<Map.Entry<UUID, Variant>> existing = state.personal.entrySet().iterator();
-        while (existing.hasNext()) {
-            Map.Entry<UUID, Variant> entry = existing.next();
-            Player owner = Bukkit.getPlayer(entry.getKey());
-
-            if (owner == null || !presets.has(entry.getKey()) || !inRange(owner, block)) {
-                dropEntity(entry.getValue());
-                existing.remove();
-                state.hiddenFromShared.remove(entry.getKey());
-                if (owner != null) showShared(owner, state);
-            }
-        }
-
-        if (presets.size() == 0) return;
-
-        for (Player online : Bukkit.getOnlinePlayers()) {
-            UUID id = online.getUniqueId();
-            if (state.personal.containsKey(id)) continue;
-            if (!presets.has(id) || !inRange(online, block)) continue;
-
-            state.personal.put(id, new Variant());
-        }
-
-        for (UUID id : state.personal.keySet()) {
-            if (state.hiddenFromShared.contains(id)) continue;
-
-            Player owner = Bukkit.getPlayer(id);
-            if (owner == null) continue;
-
-            hideShared(owner, state);
-            state.hiddenFromShared.add(id);
-        }
-    }
-
-    private static boolean inRange(Player player, Block block) {
+    private boolean inRange(Player player, Block block) {
         return player.getWorld().equals(block.getWorld())
-                && player.getLocation().distanceSquared(block.getLocation()) <= PERSONAL_RANGE_SQUARED;
+                && player.getLocation().distanceSquared(block.getLocation())
+                <= audienceRangeSquared;
     }
 
-    private void hideShared(Player player, Hologram state) {
-        if (!gone(state.shared.entity)) {
-            player.hideEntity(plugin, state.shared.entity);
-        }
+    private static float fadeProgress(Variant variant) {
+        int fadeTicks = variant.style.fadeTicks();
+        if (fadeTicks <= 0 || variant.fadeLeft <= 0) return 1f;
+
+        return 1f - (variant.fadeLeft / (float) fadeTicks);
     }
 
-    private void showShared(Player player, Hologram state) {
-        if (!gone(state.shared.entity)) {
-            player.showEntity(plugin, state.shared.entity);
-        }
-    }
+    private static void advanceSlide(Variant variant) {
+        float scale = scaleFor(variant.style.size());
 
-    private static float fadeProgress(Hologram state, int fadeTicks) {
-        if (fadeTicks <= 0 || state.fadeLeft <= 0) return 1f;
-        return 1f - (state.fadeLeft / (float) fadeTicks);
-    }
-
-    private void advanceSlide(Hologram state, HologramStyle jukebox) {
-        if (state.slidePending) {
-            for (Variant variant : state.drawn()) {
-                float scale = scaleFor(sizeOf(variant, jukebox));
-                applyTransform(variant.entity, -LINE_HEIGHT * scale, scale, 0);
-            }
-            state.slidePending = false;
-            state.pendingRelease = true;
+        if (variant.slidePending) {
+            applyTransform(variant.entity, -LINE_HEIGHT * scale, scale, 0);
+            variant.slidePending = false;
+            variant.pendingRelease = true;
             return;
         }
 
-        if (state.pendingRelease) {
-            for (Variant variant : state.drawn()) {
-                float scale = scaleFor(sizeOf(variant, jukebox));
-                applyTransform(variant.entity, 0f, scale, jukebox.fadeTicks());
-            }
-            state.pendingRelease = false;
+        if (variant.pendingRelease) {
+            applyTransform(variant.entity, 0f, scale, variant.style.fadeTicks());
+            variant.pendingRelease = false;
         }
-    }
-
-    private static int sizeOf(Variant variant, HologramStyle jukebox) {
-        return variant.applied != null ? variant.applied.size() : jukebox.size();
     }
 
     private Location hologramLocation(Block block, double height) {
@@ -625,13 +635,17 @@ public final class LyricsDisplay {
                 display.setBillboard(Display.Billboard.CENTER);
                 display.setAlignment(TextDisplay.TextAlignment.CENTER);
                 display.setViewRange(config.getLyricsViewRange());
-                applyStyle(display, style, config);
+                applyStyle(display, style);
 
                 display.setText(" ");
 
                 DisplayCompat.setTeleportDuration(display, 3);
 
                 display.setPersistent(false);
+
+                // Each reader gets the copy their own preset asked for, so nobody is shown
+                // this one until seatAudience puts them on it.
+                display.setVisibleByDefault(false);
                 display.getPersistentDataContainer()
                         .set(displayKey, PersistentDataType.STRING, TAG_VALUE);
             });
@@ -641,7 +655,7 @@ public final class LyricsDisplay {
         }
     }
 
-    private static void applyStyle(TextDisplay display, HologramStyle style, Config config) {
+    private static void applyStyle(TextDisplay display, HologramStyle style) {
         display.setLineWidth(style.lineWidth());
         display.setShadowed(style.shadow());
         display.setSeeThrough(style.seeThrough());
@@ -650,60 +664,28 @@ public final class LyricsDisplay {
         applyTransform(display, 0f, scaleFor(style.size()), 0);
     }
 
-    public boolean showsJukeboxStyleTo(Player player, Block block) {
-        if (plugin.getHologramPresets().has(player.getUniqueId())) return false;
-
-        Hologram state = states.get(block);
-        return state != null && alive(state.shared);
-    }
-
     public boolean showsOwnStyleTo(Player player) {
-        if (!plugin.getHologramPresets().has(player.getUniqueId())) return false;
 
+        // Asked right after a preset edit, when the reader is between seats, so it goes by
+        // range rather than by the seat they are about to be given.
         for (Map.Entry<Block, Hologram> entry : states.entrySet()) {
-            Variant theirs = entry.getValue().personal.get(player.getUniqueId());
-            if (theirs != null && alive(theirs) && inRange(player, entry.getKey())) {
-                return true;
+            if (!inRange(player, entry.getKey())) continue;
+
+            for (Variant variant : entry.getValue().variants.values()) {
+                if (alive(variant)) return true;
             }
         }
         return false;
     }
 
-    public void restyle(Block block) {
-        Hologram state = states.get(block);
-        if (state == null) return;
-
-        for (Variant variant : state.drawn()) {
-            variant.lastText = null;
-            variant.applied = null;
-        }
-        state.lastFrame = Long.MIN_VALUE;
-    }
-
     public void presetChanged(Player player) {
         UUID id = player.getUniqueId();
-        boolean has = plugin.getHologramPresets().has(id);
 
         for (Hologram state : states.values()) {
-            Variant variant = state.personal.remove(id);
-            if (variant != null) dropEntity(variant);
+            Variant seat = state.seats.remove(id);
+            if (seat != null) leave(seat, id, player);
 
-            if (has) {
-                hideShared(player, state);
-                state.hiddenFromShared.add(id);
-            } else {
-                showShared(player, state);
-                state.hiddenFromShared.remove(id);
-            }
-            state.lastFrame = Long.MIN_VALUE;
-        }
-    }
-
-    public void presetRestyled(Player player) {
-        for (Hologram state : states.values()) {
-            if (state.personal.containsKey(player.getUniqueId())) {
-                state.lastFrame = Long.MIN_VALUE;
-            }
+            state.audienceIn = 0;
         }
     }
 

@@ -156,15 +156,14 @@ final class Diagnostics {
                     plugin.getLyricsService().cachedCount() + " looked up since startup"));
 
             var drawn = plugin.getLyricsDisplay().drawn();
-            out.add(line(drawn.personal() > 0 ? State.FRAGILE : State.READY, "holograms",
-                    drawn.total() + " floating, " + drawn.personal()
-                            + " of them a player's own copy"));
+            out.add(line(State.READY, "holograms",
+                    drawn.total() + " floating, read by " + drawn.watching() + " player(s)"));
             out.add(line(State.READY, "presets",
                     plugin.getHologramPresets().size() + " player(s) with a look of their own"));
 
             if (!config.isLyricsDefaultOn()) {
                 out.add("  &7Off on a jukebox nobody has asked — the paper in its GUI");
-                out.add("  &7turns it on, and right-clicking that paper restyles it.");
+                out.add("  &7turns it on, and right-clicking it opens your own look.");
             }
         }
 

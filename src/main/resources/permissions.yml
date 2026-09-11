@@ -84,9 +84,7 @@ actions:
   lyrics:
     # Showing and hiding them
     toggle: true
-    # How they look over this jukebox — everyone standing there sees the same
-    look: true
-    # Your own look, drawn for you alone. /cdisc preset
+    # Your own look, drawn for you and nobody else. /cdisc preset
     preset: true
     # /cdisc preset share, which offers your look to someone else
     share: true

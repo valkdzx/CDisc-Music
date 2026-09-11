@@ -182,8 +182,6 @@ public final class Main extends JavaPlugin {
             lyricsDisplay.clear(block);
             dev.valkdz.cdisc.lyrics.LyricsPrefs.forget(block);
             dev.valkdz.cdisc.speaker.SpeakerSettings.forget(block);
-            dev.valkdz.cdisc.lyrics.LyricsLook.forget(block);
-            lyricsGuiManager.forceCloseFor(block);
             queueGuiManager.forceCloseFor(block);
             jukeboxViewers.clear(block);
             jukeboxListener.clearControlled(block);
@@ -316,6 +314,12 @@ public final class Main extends JavaPlugin {
     public dev.valkdz.cdisc.gui.LyricsGuiManager getLyricsGuiManager() { return lyricsGuiManager; }
 
     public dev.valkdz.cdisc.lyrics.HologramPresets getHologramPresets() { return hologramPresets; }
+
+    public void presetChanged(org.bukkit.entity.Player player) {
+        if (lyricsDisplay != null) lyricsDisplay.presetChanged(player);
+        if (carriedLyrics != null) carriedLyrics.presetChanged(player);
+    }
+
     public dev.valkdz.cdisc.gui.ScreenPreferences getScreenPreferences() { return screenPreferences; }
 
     public dev.valkdz.cdisc.lyrics.HologramPreview getHologramPreview() { return hologramPreview; }

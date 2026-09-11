@@ -125,7 +125,7 @@ public class PlayerGuiListener implements Listener {
 
                 if (e.isRightClick()) {
                     stateChanged = false;
-                    actions.openLyricsLook(player, block);
+                    actions.openMyLyricsLook(player);
                     break;
                 }
                 actions.toggleLyrics(player, block);
@@ -165,7 +165,7 @@ public class PlayerGuiListener implements Listener {
             case PlayerGuiManager.SLOT_CHANNELS -> Action.PLAYER_CHANNELS;
             case PlayerGuiManager.SLOT_TRACK_MESSAGES -> Action.PLAYER_MESSAGES;
             case PlayerGuiManager.SLOT_LYRICS ->
-                    rightClick ? Action.LYRICS_LOOK : Action.LYRICS_TOGGLE;
+                    rightClick ? Action.LYRICS_PRESET : Action.LYRICS_TOGGLE;
             case PlayerGuiManager.SLOT_VIEW -> Action.PLAYER_SCREEN;
 
             // Exit closes the screen, and the pair button is judged by the screen it opens.

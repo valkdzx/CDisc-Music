@@ -196,11 +196,6 @@ public final class PlayerActions {
         plugin.getQueueGuiManager().open(player, block);
     }
 
-    public void openLyricsLook(Player player, Block block) {
-        if (!plugin.cdiscConfig().isLyricsEnabled()) return;
-        plugin.getLyricsGuiManager().open(player, block);
-    }
-
     public void openMyLyricsLook(Player player) {
         if (!plugin.cdiscConfig().isLyricsEnabled()) return;
         plugin.getLyricsGuiManager().openPreset(player);
