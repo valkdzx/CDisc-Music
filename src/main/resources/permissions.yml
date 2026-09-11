@@ -5,13 +5,14 @@
 # may not press is not drawn for them at all.
 #
 # A value is one rule, or a list of rules — and any one rule in the list is enough:
-#   true             everyone
-#   false            nobody, until a permission plugin grants the node
-#   op               operators
-#   notop            everyone who is not an operator
-#   somegroup.vip    whoever has that permission
-#   '!somegroup.mute' whoever has NOT got it — the quotes are required, ! starts a YAML tag
-#   [admin, mod]     admin or mod
+#   true                                everyone
+#   false                               nobody, until a permission plugin grants the node
+#   op                                  operators
+#   notop                               everyone who is not an operator
+#   somegroup.vip                       whoever has that permission
+#   '!somegroup.muted'                  whoever has NOT got it. The quotes are needed:
+#                                       a bare ! starts a YAML tag and the file stops loading
+#   [somegroup.admin, somegroup.mod]    whoever has either of them
 #
 # true, false and op set the default of the node itself, so LuckPerms and friends can still
 # overrule them for one player. A rule that names other permissions is a second way in:
