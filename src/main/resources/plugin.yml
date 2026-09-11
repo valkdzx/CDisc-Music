@@ -1,5 +1,5 @@
 name: CDisc
-version: 1.8.2
+version: 1.9
 main: dev.valkdz.cdisc.Main
 api-version: 1.20
 author: valkdz

@@ -6,7 +6,7 @@
 
     <groupId>dev.valkdz</groupId>
     <artifactId>cdisc</artifactId>
-    <version>1.8.2</version>
+    <version>1.9</version>
     <packaging>jar</packaging>
 
     <name>cdisc</name>

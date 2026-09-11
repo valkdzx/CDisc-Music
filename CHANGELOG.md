@@ -1,6 +1,120 @@
 # Changelog
 
-## 1.8.2
+## 1.9
+
+### 🔑 A permission for every action, and screens built from them
+
+A player either had the player screen or did not. `cdisc.player` opened all of
+it at once: pause, skip, seek, volume, the queue, and picking the jukebox up to
+carry it away. Half of it could not be handed out.
+
+Every action now carries a node of its own — `cdisc.player.pause`,
+`cdisc.queue.add`, `cdisc.lyrics.toggle`, thirty-eight of them — and
+permissions.yml holds one rule per action instead of one default per command:
+
+```yml
+actions:
+  player:
+    pause: [somegroup.admin, somegroup.mod]
+    portable: op
+    repeat: '!somegroup.muted'
+    beacon: false
+```
+
+A rule is `true`, `false`, `op`, `notop`, the name of a permission, the name of
+one with a `!` in front for whoever has *not* got it, or a list of any of those,
+and one matching line in the list is enough. `true`, `false` and `op` are set as
+the default of the node itself, so a permission plugin can still overrule them
+for a single player; a rule that names other rights is a second way in rather
+than a way to lose one.
+
+The screens are drawn from the same answers. Someone who may not carry a
+jukebox is not shown the button for it, someone who may not change the volume
+does not get the slider in the dialog, and a queue that may be read but not
+edited refuses the disc rather than swallowing it. The commands answer per
+subcommand, so `/cdisc player pause` and `/cdisc player next` are separate
+questions.
+
+Nothing has to be rewritten by hand: the old `defaults` block is carried onto
+the new rules the first time the plugin starts, and the old node names keep
+working as parents over the actions they used to cover, so a grant of
+`cdisc.player` in LuckPerms still reaches all of its pieces.
+
+### 🎨 Everyone reads the hologram their own way
+
+A preset was meant to be personal, and a player who set one did get an extra
+hologram drawn to their own taste — but that copy was never hidden from anybody
+else. Two players with presets at the same jukebox each read three sets of words
+at once: their own, the other's, and the jukebox's, stacked in different colours
+over the same block.
+
+Every reader now sees the words their own preset asks for and nothing else. One
+hologram is put up per look actually in use among the players within 80 blocks
+of the jukebox, so a crowd that never touched `/cdisc preset` still shares a
+single entity between them, and each hologram is invisible to everyone outside
+its own group. Nobody nearby means nothing is spawned at all. The words over the
+head of a player carrying a jukebox follow the same rule: bystanders read them in
+their own colours and line counts while the carrier reads the sidebar.
+
+Fade length and slide come from the preset now, like every other setting, and
+are no longer greyed out in the screen: they used to be the jukebox's to set,
+because one hologram had to animate one way for the whole crowd.
+
+**The look stored on a jukebox is gone.** It was the one place where a style
+could be put on everybody else's screen, which is the thing this release stops.
+Right-clicking the lyrics paper opens your own preset instead, the "Put my look
+on this jukebox" button and the `cdisc.lyrics.look` permission are removed — the
+node is named in the console when `permissions.yml` is brought up to date — and a
+style already written into a jukebox block is ignored. `config.yml` keeps its
+part: it is the look a player reads until they change it.
+### 🚪 A carried jukebox kept playing on the other side of a portal
+
+Walk into the Nether with a jukebox in hand and the music was gone. The carrier
+still heard it, since what reaches the person holding one is a channel of their
+own, but everyone else hears it from an invisible entity the jukebox is tied to,
+and an entity does not follow a player into another world. It stayed behind: put
+the jukebox down over there and nobody heard a thing, pick it up again and only
+the carrier did.
+
+That entity is now raised again where the carrier is standing and the sound is
+built around the new one, with the volume, the distance, the speaker settings
+and the carrier channel put back on it. The old one is closed only once the new
+one is playing, so the track does not stop while they are swapped.
+
+### 💬 The words over a carrier stopped trailing behind them
+
+The words above someone carrying a jukebox were moved once every five ticks
+while the sound they belong to follows every tick, so the text lagged a step
+behind the player and swung back into place a moment later. It now follows on
+the same beat as the sound, and it stands perfectly still while the carrier
+does.
+
+### ⏱ CDisc stopped taking a sixth of the server thread
+
+A profile of a running server put the plugin at 15.8% of the main thread with a
+handful of jukeboxes playing. Nearly all of it was work that did not need doing.
+
+Asking a block a question in Bukkit is not a read, it is a snapshot: the whole
+block entity is written out to NBT and parsed back. Two of those were happening
+for every playing jukebox every few ticks, one to ask whether the words are
+shown over it and one for the speaker settings. Both answers are now read once
+and kept until they change, and both are dropped when the jukebox stops or the
+plugin is reloaded. The hologram pass also leaves early when nothing is playing
+at all.
+
+Following a player who carries a jukebox cost about as much again. Every tick it
+asked whether the carrier still has the thing by copying the whole inventory out
+and reading the data of every jukebox in it to compare an id; the handle is now
+looked for in the slot it was found in last time, and the inventory is swept
+only when it is not there, which is the tick it gets dropped, stashed or handed
+over. The entity that carries the sound was teleported every tick whether or not
+the player had moved, and a teleport is a tracker update for everyone nearby, so
+it now moves only when the carrier does.
+
+The same server afterwards, with all of that running at once: 0.8% of the main
+thread, about a twentieth of a core. The two profiles are not the same minute of
+play, so read the shape of it rather than the exact ratio.
+
 
 ### 🔴 YouTube live streams stopped after five seconds
 
