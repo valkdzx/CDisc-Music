@@ -39,6 +39,8 @@ public final class CarriedLyrics {
 
     private static final double HEIGHT = 2.5;
 
+    private static final double MOVED_ENOUGH = 1.0E-4;
+
     private static final String OBJECTIVE = "cdisc_lyrics";
 
     private static final ChatColor[] ROW_KEYS = ChatColor.values();
@@ -52,6 +54,7 @@ public final class CarriedLyrics {
     private final Map<UUID, Shown> shown = new HashMap<>();
 
     private BukkitTask task;
+    private BukkitTask followTask;
 
     public CarriedLyrics(Main plugin, LyricsService service) {
         this.plugin = plugin;
@@ -64,6 +67,8 @@ public final class CarriedLyrics {
         Objective objective;
         TextDisplay entity;
 
+        Location sentTo;
+
         List<String> lastLines = List.of();
     }
 
@@ -71,6 +76,10 @@ public final class CarriedLyrics {
         stop();
 
         task = Bukkit.getScheduler().runTaskTimer(plugin, this::tick, 5L, 5L);
+
+        // The words are written a few ticks apart, but they follow the carrier as often as
+        // the sound does, or they trail behind the player they belong to.
+        followTask = Bukkit.getScheduler().runTaskTimer(plugin, this::follow, 1L, 1L);
     }
 
     public void stop() {
@@ -78,6 +87,43 @@ public final class CarriedLyrics {
             task.cancel();
             task = null;
         }
+        if (followTask != null) {
+            followTask.cancel();
+            followTask = null;
+        }
+    }
+
+    private void follow() {
+        if (shown.isEmpty()) return;
+
+        for (Map.Entry<UUID, Shown> entry : shown.entrySet()) {
+            Shown state = entry.getValue();
+            if (gone(state.entity)) continue;
+
+            Player player = Bukkit.getPlayer(entry.getKey());
+            if (player == null) continue;
+
+            moveTo(state, player.getLocation().add(0, HEIGHT, 0));
+        }
+    }
+
+    private void moveTo(Shown state, Location at) {
+        if (!state.entity.getWorld().equals(at.getWorld())) {
+
+            state.entity.remove();
+            state.entity = null;
+            state.sentTo = null;
+            return;
+        }
+
+        Location sent = state.sentTo;
+        if (sent != null && sent.getWorld() == at.getWorld()
+                && sent.distanceSquared(at) <= MOVED_ENOUGH) {
+            return;
+        }
+
+        state.sentTo = at;
+        state.entity.teleport(at);
     }
 
     public void clearAll() {
@@ -211,9 +257,11 @@ public final class CarriedLyrics {
 
             state.entity = spawn(at, style, config);
             if (state.entity == null) return;
+            state.sentTo = at;
             player.hideEntity(plugin, state.entity);
         } else {
-            state.entity.teleport(at);
+            moveTo(state, at);
+            if (state.entity == null) return;
         }
 
         String text = String.join("\n", lines);
