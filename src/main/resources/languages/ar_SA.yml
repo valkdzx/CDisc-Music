@@ -534,3 +534,5 @@ portable:
 update:
   available: "&e[CDisc] صدرت نسخة جديدة &a&l%s&e! &7(لديك %s)"
   hover: "&fانقر لفتح صفحة التنزيل على Modrinth"
+  downloaded: "&e[CDisc] تم تنزيل النسخة &a&l%s&e وستُثبَّت عند إعادة التشغيل القادمة. &7(لديك %s)"
+  downloaded_hover: "&fانقر لعرض التغييرات على Modrinth"

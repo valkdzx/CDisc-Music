@@ -38,10 +38,13 @@ public class UpdateChecker implements Listener {
 
     private final Main plugin;
     private final HttpClient http;
+    private final PluginUpdater updater;
 
     private volatile String latestVersion;
 
     private volatile String announcedVersion;
+
+    private volatile String stagedVersion;
 
     private volatile boolean projectMissing;
 
@@ -53,6 +56,7 @@ public class UpdateChecker implements Listener {
                 .connectTimeout(Duration.ofSeconds(5))
                 .followRedirects(HttpClient.Redirect.NORMAL)
                 .build();
+        this.updater = new PluginUpdater(plugin, http);
     }
 
     public boolean isUpdateAvailable() {
@@ -90,6 +94,11 @@ public class UpdateChecker implements Listener {
         }
     }
 
+    public void shutdown() {
+        stop();
+        updater.onDisable(plugin.cdiscConfig().isAutoUpdateEnabled());
+    }
+
     private void runCheck() {
         if (projectMissing) {
             stop();
@@ -98,6 +107,7 @@ public class UpdateChecker implements Listener {
 
         String current = plugin.getDescription().getVersion();
         String serverVersion = serverMinecraftVersion();
+        stagedVersion = updater.stagedVersion();
 
         Release newest;
         try {
@@ -119,17 +129,39 @@ public class UpdateChecker implements Listener {
             return;
         }
 
+        boolean compatible = newest.supports(serverVersion);
+        boolean autoUpdate = plugin.cdiscConfig().isAutoUpdateEnabled();
+        if (autoUpdate && compatible && newest.download() != null
+                && !newest.version().equals(stagedVersion)) {
+            try {
+                updater.stage(newest.version(), newest.download());
+                stagedVersion = newest.version();
+            } catch (Exception e) {
+                plugin.getLogger().warning("Auto-update: downloading " + newest.version()
+                        + " failed, will try again on the next check: " + e);
+            }
+        }
+
         latestVersion = newest.version();
-        if (newest.version().equals(announcedVersion)) return;
-        announcedVersion = newest.version();
+        boolean staged = newest.version().equals(stagedVersion);
+        String announcement = newest.version() + (staged ? "+staged" : "");
+        if (announcement.equals(announcedVersion)) return;
+        announcedVersion = announcement;
 
         plugin.getLogger().warning("A new version is available: " + newest.version()
                 + " (running " + current + ", server " + serverVersion + ")");
-        plugin.getLogger().warning("Download: " + VERSION_PAGE + newest.version());
-        if (!newest.supports(serverVersion)) {
+        if (staged) {
+            plugin.getLogger().warning("Downloaded " + newest.download().fileName()
+                    + ", it replaces this version when the server stops. Changes: "
+                    + VERSION_PAGE + newest.version());
+        } else {
+            plugin.getLogger().warning("Download: " + VERSION_PAGE + newest.version());
+        }
+        if (!compatible) {
             plugin.getLogger().warning("Note: " + newest.version()
                     + " does not list Minecraft " + serverVersion
-                    + " among its tested versions — check the release page before updating.");
+                    + " among its tested versions — check the release page before updating."
+                    + (autoUpdate ? " It was not downloaded automatically." : ""));
         }
 
         Bukkit.getScheduler().runTask(plugin, () -> {
@@ -158,14 +190,17 @@ public class UpdateChecker implements Listener {
         if (version == null) return;
 
         String url = VERSION_PAGE + version;
-        String line = plugin.getMessageManager().get(player, "update.available",
+        boolean staged = version.equals(stagedVersion);
+        String line = plugin.getMessageManager().get(player,
+                staged ? "update.downloaded" : "update.available",
                 version, plugin.getDescription().getVersion());
-        String hover = plugin.getMessageManager().get(player, "update.hover");
+        String hover = plugin.getMessageManager().get(player,
+                staged ? "update.downloaded_hover" : "update.hover");
 
         Chat.send(player, Chat.link(line, url, hover));
     }
 
-    private record Release(String version, List<String> gameVersions) {
+    private record Release(String version, List<String> gameVersions, PluginUpdater.Download download) {
         boolean supports(String serverVersion) {
             for (String listed : gameVersions) {
                 if (sameFamily(listed, serverVersion)) return true;
@@ -231,7 +266,7 @@ public class UpdateChecker implements Listener {
             if (number == null || number.isBlank()) continue;
 
             if (best == null || compareVersions(number, best.version()) > 0) {
-                best = new Release(number, textList(entry.get("game_versions")));
+                best = new Release(number, textList(entry.get("game_versions")), primaryJar(entry));
             }
         }
 
@@ -250,6 +285,18 @@ public class UpdateChecker implements Listener {
             }
         }
         return false;
+    }
+
+    private static PluginUpdater.Download primaryJar(JsonBrowser entry) {
+        JsonBrowser chosen = null;
+        for (JsonBrowser file : entry.get("files").values()) {
+            String name = file.get("filename").text();
+            if (name == null || !name.toLowerCase(Locale.ROOT).endsWith(".jar")) continue;
+            if (chosen == null || file.get("primary").asBoolean(false)) chosen = file;
+        }
+        if (chosen == null) return null;
+        return new PluginUpdater.Download(chosen.get("url").text(),
+                chosen.get("filename").text(), chosen.get("hashes").get("sha512").text());
     }
 
     private static List<String> textList(JsonBrowser array) {

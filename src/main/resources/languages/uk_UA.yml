@@ -534,3 +534,5 @@ portable:
 update:
   available: "&e[CDisc] Доступна нова версія &a&l%s&e! &7(у тебе %s)"
   hover: "&fКлікни, щоб відкрити сторінку завантаження на Modrinth"
+  downloaded: "&e[CDisc] Версію &a&l%s&e завантажено, вона встановиться після перезапуску. &7(у тебе %s)"
+  downloaded_hover: "&fКлікни, щоб переглянути зміни на Modrinth"

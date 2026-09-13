@@ -153,6 +153,9 @@ update-checker:
   notify-ops: true
   # 0 checks once at startup only, which misses a release published while running.
   interval-hours: 6
+  # Downloads a newer release that lists this server's Minecraft version into plugins/CDisc/update.
+  # When the server stops, the old CDisc jar is deleted and the new one takes its place.
+  auto-update: true
 
 ### Anonymous statistics (bStats)
 # Server-level facts only: player count, server and Java version, feature counters.

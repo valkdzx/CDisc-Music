@@ -534,3 +534,5 @@ portable:
 update:
   available: "&e[CDisc] Version &a&l%s &eist da! &7(du hast %s)"
   hover: "&fKlick, um die Downloadseite auf Modrinth zu öffnen"
+  downloaded: "&e[CDisc] Version &a&l%s &eist heruntergeladen und wird beim nächsten Neustart installiert. &7(du hast %s)"
+  downloaded_hover: "&fKlick, um die Änderungen auf Modrinth zu sehen"

@@ -289,6 +289,9 @@ public final class Main extends JavaPlugin {
         }
         audioPlayerManager.shutdown();
         youtubeOAuthSetup.shutdown();
+        if (updateChecker != null) {
+            updateChecker.shutdown();
+        }
     }
 
     public void onSimpleVoiceChatReady(Object voicechatApi) {

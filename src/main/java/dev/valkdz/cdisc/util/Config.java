@@ -233,6 +233,10 @@ public final class Config {
         return cfg().getBoolean("update-checker.notify-ops", true);
     }
 
+    public boolean isAutoUpdateEnabled() {
+        return isUpdateCheckerEnabled() && cfg().getBoolean("update-checker.auto-update", true);
+    }
+
     public int getUpdateIntervalHours() {
         return Math.max(0, cfg().getInt("update-checker.interval-hours", 6));
     }
