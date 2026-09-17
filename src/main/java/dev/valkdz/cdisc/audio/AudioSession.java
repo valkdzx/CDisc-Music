@@ -28,6 +28,7 @@ public class AudioSession {
     private final ArrayDeque<byte[]> lead = new ArrayDeque<>();
     private boolean priming = true;
     private String lastTrackId;
+    private long lastPumpFailureMs;
 
     private static final int STREAM_LEAD_CAP = 1500;
     private static final int STREAM_PREBUFFER = 75;
@@ -42,7 +43,11 @@ public class AudioSession {
         this.voiceSession = voiceSession;
         this.discTitle = discTitle;
         this.discAuthor = discAuthor;
-        this.pump = Executors.newSingleThreadScheduledExecutor();
+        this.pump = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread thread = new Thread(r, "cdisc-audio-pump");
+            thread.setDaemon(true);
+            return thread;
+        });
         startPump();
     }
 
@@ -63,50 +68,76 @@ public class AudioSession {
     }
 
     private void startPump() {
+        // An exception escaping a scheduleAtFixedRate task cancels every later run,
+        // which silences the jukebox for good with nothing in the log.
         pump.scheduleAtFixedRate(() -> {
-            if (voiceSession.isClosed()) {
-                pump.shutdownNow();
-                return;
-            }
-
-            if (player.isPaused()) {
-
-                player.provide();
-                lead.clear();
-                priming = true;
-                return;
-            }
-
-            if (trackChanged()) {
-                lead.clear();
-                priming = true;
-            }
-
-            boolean stream = isCurrentStream();
-            int cap = stream ? STREAM_LEAD_CAP : DISC_LEAD_CAP;
-
-            AudioFrame frame;
-            while (lead.size() < cap && (frame = player.provide()) != null) {
-                lead.addLast(frame.getData());
-            }
-
-            if (priming) {
-                int need = stream ? STREAM_PREBUFFER : 0;
-                if (lead.size() <= need) return;
-                priming = false;
-            }
-
-            byte[] data = lead.pollFirst();
-            if (data != null) {
-                voiceSession.sendFrame(data);
-                for (VoiceSession speaker : speakerOutputs) {
-                    speaker.sendFrame(data);
-                }
-            } else if (stream) {
-
-                priming = true;
+            try {
+                tick();
+            } catch (Throwable t) {
+                reportPumpFailure(t);
             }
         }, 0, 20, TimeUnit.MILLISECONDS);
+    }
+
+    private void tick() {
+        if (voiceSession.isClosed()) {
+            pump.shutdownNow();
+            return;
+        }
+
+        if (player.isPaused()) {
+
+            player.provide();
+            lead.clear();
+            priming = true;
+            return;
+        }
+
+        if (trackChanged()) {
+            lead.clear();
+            priming = true;
+        }
+
+        boolean stream = isCurrentStream();
+        int cap = stream ? STREAM_LEAD_CAP : DISC_LEAD_CAP;
+
+        AudioFrame frame;
+        while (lead.size() < cap && (frame = player.provide()) != null) {
+            lead.addLast(frame.getData());
+        }
+
+        if (priming) {
+            int need = stream ? STREAM_PREBUFFER : 0;
+            if (lead.size() <= need) return;
+            priming = false;
+        }
+
+        byte[] data = lead.pollFirst();
+        if (data != null) {
+            send(voiceSession, data);
+            for (VoiceSession speaker : speakerOutputs) {
+                send(speaker, data);
+            }
+        } else if (stream) {
+
+            priming = true;
+        }
+    }
+
+    private void send(VoiceSession output, byte[] data) {
+        try {
+            output.sendFrame(data);
+        } catch (RuntimeException e) {
+            reportPumpFailure(e);
+        }
+    }
+
+    private void reportPumpFailure(Throwable t) {
+        long now = System.currentTimeMillis();
+        if (now - lastPumpFailureMs < 60_000L) return;
+        lastPumpFailureMs = now;
+        dev.valkdz.cdisc.Main.getInstance().getLogger().log(java.util.logging.Level.WARNING,
+                "[CDisc] A jukebox audio frame could not be delivered; playback continues", t);
     }
 
     private boolean isCurrentStream() {
@@ -167,15 +198,14 @@ public class AudioSession {
     }
 
     public void stop() {
-        player.stopTrack();
-        player.destroy();
         pump.shutdownNow();
         try {
             pump.awaitTermination(1, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            e.printStackTrace();
         } finally {
+            player.stopTrack();
+            player.destroy();
             voiceSession.close();
             for (VoiceSession speaker : speakerOutputs) {
                 speaker.close();
