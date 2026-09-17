@@ -55,9 +55,14 @@ final class Diagnostics {
         out.add("");
         out.add("&fOnline sources");
         out.add(source(config.isSoundcloudEnabled(), true, "soundcloud", "sc:", null));
-        out.add(source(config.isSpotifyEnabled(),
-                has(config.getSpotifyClientId()) && has(config.getSpotifyClientSecret()),
-                "spotify", "sp:", "client-id and client-secret in tokens.yml"));
+        if (config.isSpotifyEnabled() && config.isYoutubeEnabled()
+                && !(has(config.getSpotifyClientId()) && has(config.getSpotifyClientSecret()))) {
+            out.add(line(State.READY, "spotify (sp:)", "no key — searches YouTube instead"));
+        } else {
+            out.add(source(config.isSpotifyEnabled(),
+                    has(config.getSpotifyClientId()) && has(config.getSpotifyClientSecret()),
+                    "spotify", "sp:", "client-id and client-secret in tokens.yml"));
+        }
         out.add(source(config.isYandexMusicEnabled(), has(config.getYandexMusicAccessToken()),
                 "yandex-music", "ym:", "access-token in tokens.yml"));
         out.add(source(config.isVkMusicEnabled(), has(config.getVkMusicUserToken()),

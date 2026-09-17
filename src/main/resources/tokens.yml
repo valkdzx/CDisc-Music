@@ -6,6 +6,7 @@
 
 spotify:
   # https://developer.spotify.com -> Dashboard -> Create app. No redirect URI needed.
+  # Optional: without them sp:<words> searches YouTube, and Spotify links go through the backend.
   client-id: ""
   client-secret: ""
 

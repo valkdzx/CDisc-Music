@@ -610,6 +610,13 @@ public class TrackLoader {
         return colon > 0 && resolved.substring(0, colon).endsWith("search");
     }
 
+    public static boolean spotifySearchable(Config config) {
+        return !config.isYoutubeEnabled()
+                || (config.isSpotifyEnabled()
+                        && !config.getSpotifyClientId().isEmpty()
+                        && !config.getSpotifyClientSecret().isEmpty());
+    }
+
     public static String sourceIdOf(String query) {
         String q = query == null ? "" : query.trim().toLowerCase(java.util.Locale.ROOT);
         if (q.startsWith("sc:")) return "soundcloud";
@@ -766,7 +773,10 @@ public class TrackLoader {
 
         if (q.startsWith("yt:")) return "ytsearch:" + q.substring(3);
         if (q.startsWith("sc:")) return "scsearch:" + q.substring(3);
-        if (q.startsWith("sp:")) return "spsearch:" + q.substring(3);
+        if (q.startsWith("sp:")) {
+            return spotifySearchable(plugin.cdiscConfig())
+                    ? "spsearch:" + q.substring(3) : "ytsearch:" + q.substring(3);
+        }
         if (q.startsWith("ym:")) return "ymsearch:" + q.substring(3);
         if (q.startsWith("vk:")) return "vksearch:" + q.substring(3);
         if (q.startsWith("tt:")) return "ttsearch:" + q.substring(3);

@@ -53,6 +53,9 @@ public final class LoadDiagnosis {
         }
 
         if (lower.startsWith("sp:")) {
+            if (!dev.valkdz.cdisc.audio.engine.TrackLoader.spotifySearchable(config)) {
+                return youtubeHint(plugin, player, config);
+            }
             return keyed(plugin, player, config.isSpotifyEnabled(),
                     has(config.getSpotifyClientId()) && has(config.getSpotifyClientSecret()),
                     "spotify");
