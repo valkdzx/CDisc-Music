@@ -18,6 +18,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -52,12 +53,6 @@ public class QueueGuiManager {
     }
 
     private final Map<Block, Set<Player>> openViewers = new ConcurrentHashMap<>();
-
-    // While a block is listed here the close handler must not persist the GUI back
-    // into the queue: it would resurrect discs the teardown just dropped (dupe).
-    private final Set<Block> suppressPersist = ConcurrentHashMap.newKeySet();
-
-    private final Set<Block> persistPending = ConcurrentHashMap.newKeySet();
 
     private final Main plugin;
 
@@ -97,10 +92,7 @@ public class QueueGuiManager {
     }
 
     public void onClosed(Player player, Block block, Inventory inventory) {
-
-        if (!suppressPersist.contains(block)) {
-            persist(inventory, block);
-        }
+        persist(inventory, block);
         Set<Player> viewers = openViewers.get(block);
         if (viewers != null) {
             viewers.remove(player);
@@ -118,33 +110,56 @@ public class QueueGuiManager {
         Set<Player> viewers = openViewers.remove(block);
         if (viewers == null) return;
 
-        suppressPersist.add(block);
-        try {
-            for (Player p : viewers) {
-                if (p.isOnline()) p.closeInventory();
-            }
-        } finally {
-            suppressPersist.remove(block);
+        for (Player p : viewers) {
+            if (p.isOnline()) p.closeInventory();
         }
     }
 
+    // Only cells the player changed since the last paint are written: the queue may have
+    // moved on meanwhile (dropped, ejected, advanced), and a whole-GUI copy resurrects discs.
     public void persist(Inventory inventory, Block block) {
-        DiscQueue queue = plugin.getAudioPlayerManager().getQueue(block);
+        if (!(inventory.getHolder() instanceof QueueGuiHolder holder)) return;
+        LavaPlayerManager apm = plugin.getAudioPlayerManager();
+        DiscQueue queue = apm.getQueue(block);
         if (queue == null) return;
+
+        ItemStack[] shown = holder.shown();
+        int current = queue.getCurrentIndex();
+        ItemStack takenCurrent = null;
+
         for (int i = 0; i < QUEUE_SLOTS.length; i++) {
-            queue.setSlot(i, inventory.getItem(QUEUE_SLOTS[i]));
+            ItemStack now = copyOf(inventory.getItem(QUEUE_SLOTS[i]));
+            if (Objects.equals(now, shown[i])) continue;
+
+            if (!Objects.equals(queue.getSlot(i), shown[i])) {
+                if (now != null) block.getWorld().dropItemNaturally(block.getLocation().add(0.5, 1.1, 0.5), now);
+                shown[i] = copyOf(queue.getSlot(i));
+                inventory.setItem(QUEUE_SLOTS[i], shown[i]);
+                continue;
+            }
+
+            if (i == current && shown[i] != null) takenCurrent = shown[i];
+            queue.setSlot(i, now);
+            shown[i] = copyOf(now);
         }
+
+        if (takenCurrent != null) apm.releaseCurrentDisc(block, takenCurrent);
     }
 
     public void schedulePersist(Block block, Inventory inventory) {
-        persistPending.add(block);
-        Bukkit.getScheduler().runTask(plugin, () -> {
-            try {
-                persist(inventory, block);
-            } finally {
-                persistPending.remove(block);
-            }
-        });
+        Bukkit.getScheduler().runTask(plugin, () -> persist(inventory, block));
+    }
+
+    private static ItemStack copyOf(ItemStack item) {
+        return item == null || item.getType().isAir() ? null : item.clone();
+    }
+
+    private void paintCells(Inventory inventory, DiscQueue queue) {
+        if (!(inventory.getHolder() instanceof QueueGuiHolder holder)) return;
+        for (int i = 0; i < QUEUE_SLOTS.length; i++) {
+            holder.shown()[i] = copyOf(queue.getSlot(i));
+            inventory.setItem(QUEUE_SLOTS[i], holder.shown()[i]);
+        }
     }
 
     public boolean hasViewer(Block block) {
@@ -158,18 +173,14 @@ public class QueueGuiManager {
 
         DiscQueue queue = plugin.getAudioPlayerManager().getOrCreateQueue(block);
 
-        boolean repaintCells = !persistPending.contains(block);
-
         for (Player p : viewers) {
             if (!p.isOnline()) continue;
             Inventory inv = p.getOpenInventory().getTopInventory();
             if (!(inv.getHolder() instanceof QueueGuiHolder holder) || !holder.getBlock().equals(block)) continue;
 
-            if (repaintCells) {
-                for (int i = 0; i < QUEUE_SLOTS.length; i++) {
-                    inv.setItem(QUEUE_SLOTS[i], queue.getSlot(i));
-                }
-            }
+            // A click still waiting for its next-tick persist must land before the repaint.
+            persist(inv, block);
+            paintCells(inv, queue);
             renderControls(p, inv, queue, block);
         }
     }
@@ -226,9 +237,7 @@ public class QueueGuiManager {
             inventory.setItem(slot, filler);
         }
 
-        for (int i = 0; i < QUEUE_SLOTS.length; i++) {
-            inventory.setItem(QUEUE_SLOTS[i], queue.getSlot(i));
-        }
+        paintCells(inventory, queue);
 
         renderControls(player, inventory, queue, block);
     }

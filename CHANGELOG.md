@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.0
+
+### 🔁 A disc taken out of the queue could still be played, and copied
+
+Taking the current disc out of the queue now takes it out of the jukebox too, and pulling a record out always stops the music.
+
 ## 1.9
 
 ### 🔑 A permission for every action, and screens built from them

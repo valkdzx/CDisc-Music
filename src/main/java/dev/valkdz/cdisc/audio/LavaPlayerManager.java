@@ -1034,19 +1034,31 @@ public class LavaPlayerManager {
 
     public void handlePhysicalEject(Block block) {
         DiscQueue queue = getQueue(block);
-        if (queue == null) return;
+        if (queue != null) {
+            int current = queue.getCurrentIndex();
+            if (current >= 0) queue.setSlot(current, null);
+            queue.setCurrentIndex(-1);
 
-        int current = queue.getCurrentIndex();
-        if (current >= 0) queue.setSlot(current, null);
-        queue.setCurrentIndex(-1);
+            if (queue.isEmpty()) {
+                queues.remove(block);
+                queueStore.forget(block);
+                savedRevisions.remove(block);
+            }
 
-        if (queue.isEmpty()) {
-            queues.remove(block);
-            queueStore.forget(block);
-            savedRevisions.remove(block);
+            refreshQueueGuis(block);
         }
 
-        refreshQueueGuis(block);
+        // Playback started from the GUI never starts the vanilla song, so no record-stop event follows.
+        if (hasActiveSession(block)) stopPlaying(block, getGeneration(block));
+    }
+
+    public void releaseCurrentDisc(Block block, ItemStack disc) {
+        DiscQueue queue = getQueue(block);
+        if (queue != null) queue.setCurrentIndex(-1);
+
+        if (block.getState() instanceof Jukebox jukebox && disc.isSimilar(jukebox.getRecord())) {
+            plugin.getJukeboxListener().clearPhysicalRecord(block);
+        }
     }
 
     public void seedQueue(Block block, ItemStack currentDisc) {

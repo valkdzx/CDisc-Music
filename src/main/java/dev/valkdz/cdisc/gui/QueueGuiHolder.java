@@ -3,12 +3,14 @@ package dev.valkdz.cdisc.gui;
 import org.bukkit.block.Block;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
+import org.bukkit.inventory.ItemStack;
 
 public class QueueGuiHolder implements InventoryHolder {
 
     private final Block block;
     private final int generation;
     private Inventory inventory;
+    private final ItemStack[] shown = new ItemStack[QueueGuiManager.QUEUE_SLOTS.length];
 
     public QueueGuiHolder(Block block, int generation) {
         this.block = block;
@@ -30,5 +32,9 @@ public class QueueGuiHolder implements InventoryHolder {
 
     public int getGeneration() {
         return generation;
+    }
+
+    public ItemStack[] shown() {
+        return shown;
     }
 }
