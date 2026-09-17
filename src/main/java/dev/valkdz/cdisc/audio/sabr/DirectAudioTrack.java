@@ -42,8 +42,9 @@ public final class DirectAudioTrack extends DelegatedAudioTrack {
     @Override
     public void process(LocalAudioTrackExecutor executor) throws Exception {
         try (HttpInterface httpInterface = interfaces.getInterface();
-             PersistentHttpStream stream = new PersistentHttpStream(
-                     httpInterface, URI.create(url), contentLength > 0 ? contentLength : null)) {
+             SeekableInputStream stream = contentLength > 0
+                     ? new ChunkedHttpStream(httpInterface, URI.create(url), contentLength)
+                     : new PersistentHttpStream(httpInterface, URI.create(url), null)) {
 
             MediaContainerDescriptor container = detect(stream);
 
