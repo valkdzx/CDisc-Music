@@ -322,8 +322,47 @@ public class TrackLoader {
     }
 
     public void loadItem(String resolved, AudioLoadResultHandler handler) {
+        if (interceptSpotifyCollection(resolved, handler)) return;
         if (interceptSpotify(resolved, handler)) return;
         lavaPlayer.loadItem(resolved, handler);
+    }
+
+    private boolean interceptSpotifyCollection(String resolved, AudioLoadResultHandler handler) {
+        String collection = dev.valkdz.cdisc.audio.spotify.SpotifyBridge.collectionOf(resolved);
+        Config config = plugin.cdiscConfig();
+        if (collection == null || spotifyBridge == null || !spotifyBridge.isUsable()) return false;
+        if (!config.isSpotifyEnabled()
+                || (!config.getSpotifyClientId().isEmpty() && !config.getSpotifyClientSecret().isEmpty())) {
+            return false;
+        }
+
+        resolveExecutor.submit(() -> {
+            try {
+                var read = spotifyBridge.readCollection(collection);
+                List<AudioTrack> tracks = new ArrayList<>();
+                for (var entry : read.entries()) {
+                    tracks.add(new dev.valkdz.cdisc.audio.spotify.SpotifyEntryTrack(entry));
+                }
+                handler.playlistLoaded(new com.sedmelluq.discord.lavaplayer.track.BasicAudioPlaylist(read.name(), tracks, null, false));
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } catch (Exception e) {
+                handler.loadFailed(new FriendlyException("Could not read the Spotify "
+                        + collection + ": " + e.getMessage(), FriendlyException.Severity.COMMON, e));
+            }
+        });
+        return true;
+    }
+
+    public String resolvePlaylistQuery(String query) {
+        String q = query == null ? "" : query.trim();
+        String list = q.contains("youtube.com") || q.contains("youtu.be") ? queryParam(q, "list") : null;
+        if (list == null || list.isEmpty()) return resolveQuery(query);
+
+        String video = normalizeYoutubeUrl(q);
+        return video.contains("watch?v=")
+                ? video + "&list=" + list
+                : "https://www.youtube.com/playlist?list=" + list;
     }
 
     private boolean interceptSpotify(String resolved, AudioLoadResultHandler handler) {

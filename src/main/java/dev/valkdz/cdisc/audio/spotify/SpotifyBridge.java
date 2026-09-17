@@ -30,6 +30,14 @@ public final class SpotifyBridge {
     private static final Pattern TRACK_IN_TEXT = Pattern.compile("track[/:]([A-Za-z0-9]{22})");
     private static final Pattern BARE_TRACK = Pattern.compile("[A-Za-z0-9]{22}");
 
+    private static final Pattern COLLECTION_IN_TEXT =
+            Pattern.compile("(playlist|album)[/:]([A-Za-z0-9]{22})");
+
+    private static final Pattern NEXT_DATA = Pattern.compile(
+            "<script id=\"__NEXT_DATA__\" type=\"application/json\">(.*?)</script>", Pattern.DOTALL);
+
+    private static final String EMBED_URL = "https://open.spotify.com/embed/";
+
     private static final long DURATION_SLACK_SECONDS = 5;
 
     public record Match(String trackId, String isrc, String title, String artist,
@@ -38,6 +46,16 @@ public final class SpotifyBridge {
         public String youtubeUrl() {
             return "https://www.youtube.com/watch?v=" + videoId;
         }
+    }
+
+    public record Entry(String trackId, String title, String artist, long durationMs) {
+
+        public String spotifyUrl() {
+            return "https://open.spotify.com/track/" + trackId;
+        }
+    }
+
+    public record Collection(String name, List<Entry> entries) {
     }
 
     private final HttpClient http;
@@ -85,6 +103,51 @@ public final class SpotifyBridge {
 
         String tail = text.startsWith("sp:") ? text.substring(3) : null;
         return tail != null && BARE_TRACK.matcher(tail).matches() ? tail : null;
+    }
+
+    public static String collectionOf(String identifier) {
+        if (identifier == null) return null;
+
+        String text = identifier.trim();
+        if (!text.contains("spotify")) return null;
+
+        Matcher matcher = COLLECTION_IN_TEXT.matcher(text);
+        return matcher.find() ? matcher.group(1) + "/" + matcher.group(2) : null;
+    }
+
+    // The embed page needs no key, but lists at most the first 100 tracks.
+    public Collection readCollection(String collection) throws IOException, InterruptedException {
+        HttpResponse<String> response = http.send(
+                HttpRequest.newBuilder(URI.create(EMBED_URL + collection))
+                        .header("User-Agent", "Mozilla/5.0")
+                        .timeout(Duration.ofSeconds(15))
+                        .GET().build(),
+                HttpResponse.BodyHandlers.ofString());
+
+        if (response.statusCode() != 200) {
+            throw new IOException("Spotify answered " + response.statusCode() + " for " + collection);
+        }
+        return parseEmbed(response.body());
+    }
+
+    static Collection parseEmbed(String html) throws IOException {
+        Matcher data = NEXT_DATA.matcher(html);
+        if (!data.find()) throw new IOException("the Spotify embed page carried no track list");
+
+        JsonNode entity = MAPPER.readTree(data.group(1))
+                .path("props").path("pageProps").path("state").path("data").path("entity");
+
+        List<Entry> entries = new java.util.ArrayList<>();
+        for (JsonNode track : entity.path("trackList")) {
+            String uri = track.path("uri").asText("");
+            if (!uri.startsWith("spotify:track:")) continue;
+
+            entries.add(new Entry(uri.substring("spotify:track:".length()),
+                    track.path("title").asText(""),
+                    track.path("subtitle").asText("").replace((char) 0x00A0, ' '),
+                    track.path("duration").asLong(0)));
+        }
+        return new Collection(entity.path("name").asText("Spotify"), entries);
     }
 
     public Match resolve(String trackId) throws IOException, InterruptedException {

@@ -55,7 +55,7 @@ public final class PlaylistGuiManager {
     }
 
     public void openFor(Player player, String query) {
-        String resolved = plugin.getAudioPlayerManager().getTrackLoader().resolveQuery(query);
+        String resolved = plugin.getAudioPlayerManager().getTrackLoader().resolvePlaylistQuery(query);
         if (resolved == null) {
             player.sendMessage("§c" + plugin.getMessageManager().get(player, "lavaplayer.track.invalid_query"));
             return;
