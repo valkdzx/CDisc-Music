@@ -134,7 +134,7 @@ public final class SourcesConfig {
     }
 
     public boolean youtubeFallbackApi() {
-        return cfg.getBoolean("youtube.fallback-api", false);
+        return cfg.getBoolean("youtube.fallback-api", true);
     }
 
     public boolean youtubeProxy() {

@@ -86,7 +86,7 @@ obviously about the address: clients fail one after another with six
 different messages — "requires login", HTTP 400, no audio formats, "the page
 needs to be reloaded", 403 on the stream itself.
 
-**Try this first:**
+**On by default:**
 
 ```yaml
 # sources.yml
@@ -98,9 +98,13 @@ The backend asks from its own address, and mints its own proof-of-origin
 token while doing it. Nothing else needs configuring — no po-token, no
 visitor-data, no keys. Both paths start at once and whichever answers first
 wins, so it costs nothing where YouTube already works. What it does cost is a
-dependency on someone else's machine, which is why it isn't on by default.
+dependency on someone else's machine.
 
-If that isn't an option, the rest of this section is about supplying a
+CDisc switches it on once at startup, and on a server located in Russia also
+switches on `proxy`, since YouTube is slowed there. Set either back to `false`
+and it stays that way.
+
+If the backend isn't an option, the rest of this section is about supplying a
 po-token yourself. It is a good deal more work.
 
 Three ways, worst to best:

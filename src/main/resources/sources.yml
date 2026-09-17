@@ -80,20 +80,22 @@ youtube:
   # only thing separating "needs a token", "needs a login" and "undecodable format".
   log-client-failures: false
 
-  # Fetch through the backend API instead of asking YouTube from here. THE FIRST THING
-  # TO TRY WHEN YOUTUBE STOPS PLAYING: it asks from its own address and mints its own
-  # token, so nothing else here needs configuring. Both paths race, so it costs nothing
-  # on a working server. Age-restricted tracks use it even when this is off.
-
   # Where operators are pointed when YouTube fails and nothing here gets past it.
   # Blank names the page without linking to it. A Russian client is sent to the Russian page.
   setup-guide-url: 'https://wiki.2281273.xyz/#/youtube'
 
-  fallback-api: false
+  # Fetch through the backend API instead of asking YouTube from here. THE FIRST THING
+  # TO TRY WHEN YOUTUBE STOPS PLAYING: it asks from its own address and mints its own
+  # token, so nothing else here needs configuring. Both paths race, so it costs nothing
+  # on a working server. Age-restricted tracks use it even when this is off.
+  # Switched on once at startup if it was off; set it back to false and it stays false.
+  fallback-api: true
 
   # Have the backend read the bytes too, rather than handing back a link. Turn this on with
   # fallback-api unless both are the same machine: a stream URL is bound to the address that
   # asked for it and answers anyone else with 403. Costs about a megabyte per minute.
+  # A server located in Russia gets this switched on once at startup, as YouTube is slowed
+  # there; set it back to false and it stays false.
   proxy: false
 
   # Read SABR streams rather than treating them as a dead track. YouTube answers some

@@ -26,6 +26,7 @@ public final class Config {
         // After the split, never before: the upgrade drops keys this version no
         // longer reads, and the split still has to find the old ones to move them.
         ConfigUpgrade.runAll(plugin);
+        YoutubeAutoSettings.run(plugin);
         reload();
     }
 
