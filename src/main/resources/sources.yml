@@ -40,6 +40,7 @@ search:
 ### Local files
 # Played from disk with nothing fetched. Reached as local:rain.mp3, subfolders included.
 # Discs store the path relative to this folder, and nothing outside it is reachable.
+# File names in any language work; on Linux, LANG=C.UTF-8 still helps other tools read them.
 local:
   # Relative paths are read from the plugin folder; absolute paths work too.
   folder: 'local'

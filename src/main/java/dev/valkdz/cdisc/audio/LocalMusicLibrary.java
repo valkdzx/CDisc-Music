@@ -7,16 +7,23 @@ import org.bukkit.Bukkit;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.charset.StandardCharsets;
+import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 
@@ -37,9 +44,16 @@ public final class LocalMusicLibrary {
     private volatile Set<String> extensions = Set.of();
     private volatile int maxFiles;
 
-    private volatile List<String> index = List.of();
+    private record Scan(List<String> names, Map<String, Path> renamed, Map<String, String> rawNames) {
+        static final Scan EMPTY = new Scan(List.of(), Map.of(), Map.of());
+    }
+
+    private volatile Scan scan = Scan.EMPTY;
     private volatile long indexedAt;
     private volatile boolean truncationReported;
+    private volatile boolean encodingReported;
+
+    private final Map<String, String> aliases = new ConcurrentHashMap<>();
 
     public LocalMusicLibrary(Main plugin) {
         this.plugin = plugin;
@@ -49,7 +63,7 @@ public final class LocalMusicLibrary {
     public void reload() {
         if (!plugin.cdiscConfig().isLocalEnabled()) {
             root = null;
-            index = List.of();
+            scan = Scan.EMPTY;
             return;
         }
 
@@ -60,11 +74,11 @@ public final class LocalMusicLibrary {
         Path folder = resolveFolder(plugin.cdiscConfig().getLocalFolder());
         if (folder == null) {
             root = null;
-            index = List.of();
+            scan = Scan.EMPTY;
             return;
         }
 
-        if (!folder.equals(root)) index = List.of();
+        if (!folder.equals(root)) scan = Scan.EMPTY;
         root = folder;
         indexedAt = 0;
         rescan();
@@ -113,7 +127,7 @@ public final class LocalMusicLibrary {
         if (root != null && System.currentTimeMillis() - indexedAt > REFRESH_INTERVAL_MS) {
             rescan();
         }
-        return index;
+        return scan.names();
     }
 
     private void rescan() {
@@ -122,9 +136,9 @@ public final class LocalMusicLibrary {
 
         indexedAt = System.currentTimeMillis();
 
-        Runnable scan = () -> {
+        Runnable task = () -> {
             try {
-                index = walk(scanRoot);
+                scan = walk(scanRoot);
             } catch (Exception e) {
                 plugin.getLogger().warning("Couldn't read the local music folder: " + e.getMessage());
             } finally {
@@ -133,14 +147,17 @@ public final class LocalMusicLibrary {
         };
 
         if (plugin.isEnabled()) {
-            Bukkit.getScheduler().runTaskAsynchronously(plugin, scan);
+            Bukkit.getScheduler().runTaskAsynchronously(plugin, task);
         } else {
-            scan.run();
+            task.run();
         }
     }
 
-    private List<String> walk(Path scanRoot) throws IOException {
+    private Scan walk(Path scanRoot) throws IOException {
         List<String> found = new ArrayList<>();
+        Map<String, Path> renamed = new HashMap<>();
+        Map<String, String> rawNames = new HashMap<>();
+        URI base = scanRoot.toUri();
         boolean truncated = false;
 
         try (Stream<Path> walk = Files.walk(scanRoot, MAX_DEPTH)) {
@@ -151,8 +168,21 @@ public final class LocalMusicLibrary {
                     truncated = true;
                     break;
                 }
-                found.add(scanRoot.relativize(path).toString().replace(File.separatorChar, '/'));
+                String raw = scanRoot.relativize(path).toString().replace(File.separatorChar, '/');
+                String real = realName(base, path, raw);
+                found.add(real);
+                if (!real.equals(raw)) {
+                    renamed.put(real, path);
+                    rawNames.put(raw, real);
+                }
             }
+        }
+
+        if (!renamed.isEmpty() && !encodingReported) {
+            encodingReported = true;
+            plugin.getLogger().warning("Some file names in the local music folder can't be read in this "
+                    + "server's encoding (" + System.getProperty("sun.jnu.encoding") + "). CDisc plays "
+                    + "them anyway; start Java with LANG=C.UTF-8 so everything else can read them too.");
         }
 
         if (truncated && !truncationReported) {
@@ -161,8 +191,14 @@ public final class LocalMusicLibrary {
                     + " playable files; the rest are ignored. Raise local.max-files in sources.yml.");
         }
 
-        found.sort(Comparator.comparing(s -> s.toLowerCase(Locale.ROOT)));
-        return List.copyOf(found);
+        found.sort(Comparator.comparing(LocalMusicLibrary::key));
+        return new Scan(List.copyOf(found), Map.copyOf(renamed), Map.copyOf(rawNames));
+    }
+
+    static String realName(URI base, Path path, String raw) {
+        URI relative = base.relativize(path.toUri());
+        String decoded = relative.isAbsolute() ? null : relative.getPath();
+        return decoded == null || decoded.isEmpty() ? raw : decoded;
     }
 
     private boolean hasAllowedExtension(String fileName) {
@@ -178,7 +214,7 @@ public final class LocalMusicLibrary {
 
         String withoutExtension = null;
         for (String entry : index()) {
-            String lower = entry.toLowerCase(Locale.ROOT);
+            String lower = key(entry);
             if (lower.equals(needle)) return entry;
 
             int dot = lower.lastIndexOf('.');
@@ -202,11 +238,11 @@ public final class LocalMusicLibrary {
         Set<String> ranked = new LinkedHashSet<>();
         for (int rule = 0; rule < 3 && ranked.size() < limit; rule++) {
             for (String entry : entries) {
-                String lower = baseName(entry).toLowerCase(Locale.ROOT);
+                String lower = key(baseName(entry));
                 boolean hit = switch (rule) {
                     case 0 -> lower.equals(needle) || stripExtension(lower).equals(needle);
                     case 1 -> lower.startsWith(needle);
-                    default -> entry.toLowerCase(Locale.ROOT).contains(needle);
+                    default -> key(entry).contains(needle);
                 };
                 if (hit && ranked.add(entry) && ranked.size() >= limit) break;
             }
@@ -221,7 +257,8 @@ public final class LocalMusicLibrary {
         String needle = needleOf(name);
         List<String> out = new ArrayList<>();
         for (String entry : index()) {
-            if (!entry.toLowerCase(Locale.ROOT).startsWith(needle)) continue;
+            if (entry.length() < name.length()
+                    || !key(entry.substring(0, name.length())).equals(needle)) continue;
             out.add(typed + entry.substring(name.length()));
             if (out.size() >= limit) break;
         }
@@ -231,6 +268,12 @@ public final class LocalMusicLibrary {
     public File fileFor(String relative) {
         Path base = root;
         if (base == null || relative == null || relative.isBlank()) return null;
+
+        Path renamed = scan.renamed().get(clean(relative));
+        if (renamed != null) {
+            File file = openable(renamed, clean(relative));
+            return file != null && file.isFile() && file.canRead() ? file : null;
+        }
 
         Path candidate;
         try {
@@ -243,6 +286,35 @@ public final class LocalMusicLibrary {
         File file = candidate.toFile();
         if (!file.isFile() || !file.canRead()) return null;
         if (!hasAllowedExtension(file.getName())) return null;
+        return file;
+    }
+
+    // The walked Path still holds the name's real bytes; its String form may not.
+    // Lavaplayer opens files by String, so such a file is reached through an ASCII link.
+    private synchronized File openable(Path actual, String real) {
+        File direct = actual.toFile();
+        if (direct.isFile()) return direct;
+
+        Path dir = plugin.getDataFolder().toPath().resolve("local-links");
+        String name = UUID.nameUUIDFromBytes(real.getBytes(StandardCharsets.UTF_8))
+                + "." + real.substring(real.lastIndexOf('.') + 1);
+        Path link = dir.resolve(name);
+
+        try {
+            Files.createDirectories(dir);
+            Files.deleteIfExists(link);
+            try {
+                Files.createSymbolicLink(link, actual);
+            } catch (IOException | UnsupportedOperationException e) {
+                Files.createLink(link, actual);
+            }
+        } catch (IOException e) {
+            plugin.getLogger().warning("Couldn't reach local file '" + real + "': " + e.getMessage());
+            return null;
+        }
+
+        File file = link.toFile();
+        aliases.put(file.getAbsolutePath(), real);
         return file;
     }
 
@@ -273,6 +345,9 @@ public final class LocalMusicLibrary {
         Path base = root;
         if (base == null || rawPath == null || rawPath.isBlank()) return null;
 
+        String aliased = aliases.get(rawPath);
+        if (aliased != null) return aliased;
+
         Path path;
         try {
             path = Paths.get(rawPath);
@@ -284,7 +359,8 @@ public final class LocalMusicLibrary {
 
         path = path.normalize();
         if (!path.startsWith(base) || path.equals(base)) return null;
-        return base.relativize(path).toString().replace(File.separatorChar, '/');
+        String relative = base.relativize(path).toString().replace(File.separatorChar, '/');
+        return scan.rawNames().getOrDefault(relative, relative);
     }
 
     private static String clean(String raw) {
@@ -296,7 +372,11 @@ public final class LocalMusicLibrary {
     }
 
     private static String needleOf(String raw) {
-        return clean(raw).toLowerCase(Locale.ROOT);
+        return key(clean(raw));
+    }
+
+    static String key(String name) {
+        return Normalizer.normalize(name, Normalizer.Form.NFC).toLowerCase(Locale.ROOT).replace('ё', 'е');
     }
 
     private static String baseName(String path) {
