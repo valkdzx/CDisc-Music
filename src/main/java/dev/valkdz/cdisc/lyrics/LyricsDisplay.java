@@ -707,7 +707,8 @@ public final class LyricsDisplay {
 
     private static void applyTransform(TextDisplay display, float translationY,
                                        float scale, int interpolationTicks) {
-        if (display == null || !display.isValid()) return;
+        // Not isValid(): it is false inside the spawn consumer, where the preset's scale is set.
+        if (display == null || display.isDead()) return;
 
         display.setInterpolationDelay(0);
         display.setInterpolationDuration(Math.max(0, interpolationTicks));

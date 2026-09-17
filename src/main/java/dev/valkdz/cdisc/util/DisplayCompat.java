@@ -21,7 +21,7 @@ public final class DisplayCompat {
     }
 
     public static void setTeleportDuration(Entity entity, int ticks) {
-        if (TELEPORT_DURATION == null || entity == null || !entity.isValid()) return;
+        if (TELEPORT_DURATION == null || entity == null || entity.isDead()) return;
         try {
             TELEPORT_DURATION.invoke(entity, ticks);
         } catch (ReflectiveOperationException | IllegalArgumentException ignored) {
