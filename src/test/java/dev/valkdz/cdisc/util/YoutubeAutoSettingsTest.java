@@ -16,15 +16,16 @@ class YoutubeAutoSettingsTest {
     void switchesOnlyTheYoutubeKeyAndKeepsComments() {
         String text = "other:\n  proxy: false\n\nyoutube:\n  # stays\n  proxy: false\n  sabr: true\n";
 
-        String updated = YoutubeAutoSettings.replaceInYoutubeSection(text, "proxy");
+        String updated = YoutubeAutoSettings.replaceInSection(text, "youtube", "proxy");
 
         assertEquals("other:\n  proxy: false\n\nyoutube:\n  # stays\n  proxy: true\n  sabr: true\n", updated);
     }
 
     @Test
     void leavesAKeyThatIsNotFalseAlone() {
-        assertNull(YoutubeAutoSettings.replaceInYoutubeSection("youtube:\n  proxy: true\n", "proxy"));
-        assertNull(YoutubeAutoSettings.replaceInYoutubeSection("youtube:\n  sabr: false\n", "proxy"));
+        assertNull(YoutubeAutoSettings.replaceInSection("youtube:\n  proxy: true\n", "youtube", "proxy"));
+        assertNull(YoutubeAutoSettings.replaceInSection("youtube:\n  sabr: false\n", "youtube", "proxy"));
+        assertNull(YoutubeAutoSettings.replaceInSection("youtube:\n  proxy: false\n", "soundcloud", "proxy"));
     }
 
     @Test
@@ -34,11 +35,13 @@ class YoutubeAutoSettingsTest {
             shipped = new String(in.readAllBytes(), StandardCharsets.UTF_8);
         }
 
-        String updated = YoutubeAutoSettings.replaceInYoutubeSection(shipped, "proxy");
+        String updated = YoutubeAutoSettings.replaceInSection(shipped, "youtube", "proxy");
+        updated = YoutubeAutoSettings.replaceInSection(updated, "soundcloud", "proxy");
 
         YamlConfiguration read = new YamlConfiguration();
         read.loadFromString(updated);
         assertTrue(read.getBoolean("youtube.proxy"));
+        assertTrue(read.getBoolean("soundcloud.proxy"));
         assertTrue(read.getBoolean("youtube.fallback-api"));
     }
 }

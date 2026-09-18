@@ -133,6 +133,10 @@ public class TrackLoader {
         }
 
         if (config.isSoundcloudEnabled()) {
+            if (config.isSoundcloudProxyEnabled()) {
+                lavaPlayer.registerSourceManager(new dev.valkdz.cdisc.audio.soundcloud.SoundCloudProxySourceManager(
+                        config.getSoundcloudProxyUrl()));
+            }
             lavaPlayer.registerSourceManager(SoundCloudAudioSourceManager.createDefault());
         }
 

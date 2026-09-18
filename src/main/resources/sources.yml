@@ -60,6 +60,16 @@ local:
   # pointing `folder` at an entire media drive by accident.
   max-files: 5000
 
+### SoundCloud
+soundcloud:
+  # Resolve SoundCloud track links through the backend, which hands back a stream link
+  # that plays from here. For servers where SoundCloud answers "could not load the track",
+  # as it does from Russia. Only single tracks: playlists and sc: search still ask
+  # SoundCloud directly. A server located in Russia gets this switched on once at startup;
+  # set it back to false and it stays false.
+  proxy: false
+  proxy-url: 'https://2281273.xyz/soundcloud'
+
 ### YouTube
 youtube:
   # Asked in order; the first to return a stream wins. They do not fail the same way,

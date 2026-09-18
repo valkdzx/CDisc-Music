@@ -197,6 +197,14 @@ public final class Config {
         return sources.youtubeFallbackApi();
     }
 
+    public boolean isSoundcloudProxyEnabled() {
+        return sources.soundcloudProxy();
+    }
+
+    public String getSoundcloudProxyUrl() {
+        return sources.soundcloudProxyUrl();
+    }
+
     public boolean isYoutubeProxyEnabled() {
         return sources.youtubeProxy();
     }

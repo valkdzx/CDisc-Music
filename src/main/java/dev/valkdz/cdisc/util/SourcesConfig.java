@@ -110,6 +110,15 @@ public final class SourcesConfig {
         return Math.max(5, cfg.getInt("local.download.timeout-seconds", 120));
     }
 
+    public boolean soundcloudProxy() {
+        return cfg.getBoolean("soundcloud.proxy", false);
+    }
+
+    public String soundcloudProxyUrl() {
+        String url = cfg.getString("soundcloud.proxy-url");
+        return url == null || url.isBlank() ? "https://2281273.xyz/soundcloud" : url.trim();
+    }
+
     public List<String> youtubeClients() {
         List<String> configured = cfg.getStringList("youtube.clients");
         List<String> names = new ArrayList<>();

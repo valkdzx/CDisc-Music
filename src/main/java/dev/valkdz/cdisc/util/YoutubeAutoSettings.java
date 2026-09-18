@@ -47,18 +47,25 @@ final class YoutubeAutoSettings {
 
         // The marker is what lets an owner turn a setting back off: it is only ever set once.
         if (!state.contains("youtube.fallback-api")
-                && switchOn(plugin, sources, "fallback-api")) {
+                && switchOn(plugin, sources, "youtube", "fallback-api")) {
             state.set("youtube.fallback-api", "switched-on");
             dirty = true;
         }
 
-        if (!state.contains("youtube.proxy")) {
-            Boolean russia = locatedInRussia();
+        Boolean russia = null;
+        boolean asked = false;
+        for (String section : new String[]{"youtube", "soundcloud"}) {
+            String marker = section + ".proxy";
+            if (state.contains(marker)) continue;
+            if (!asked) {
+                russia = locatedInRussia();
+                asked = true;
+            }
             if (Boolean.FALSE.equals(russia)) {
-                state.set("youtube.proxy", "not-in-russia");
+                state.set(marker, "not-in-russia");
                 dirty = true;
-            } else if (Boolean.TRUE.equals(russia) && switchOn(plugin, sources, "proxy")) {
-                state.set("youtube.proxy", "switched-on");
+            } else if (Boolean.TRUE.equals(russia) && switchOn(plugin, sources, section, "proxy")) {
+                state.set(marker, "switched-on");
                 dirty = true;
             }
         }
@@ -74,40 +81,40 @@ final class YoutubeAutoSettings {
         }
     }
 
-    private static boolean switchOn(Main plugin, File file, String key) {
-        if (YamlConfiguration.loadConfiguration(file).getBoolean("youtube." + key, false)) {
+    private static boolean switchOn(Main plugin, File file, String section, String key) {
+        if (YamlConfiguration.loadConfiguration(file).getBoolean(section + "." + key, false)) {
             return true;
         }
 
         try {
             String text = Files.readString(file.toPath(), StandardCharsets.UTF_8);
-            String updated = replaceInYoutubeSection(text, key);
+            String updated = replaceInSection(text, section, key);
             if (updated == null) return false;
 
             Files.writeString(file.toPath(), updated, StandardCharsets.UTF_8);
         } catch (IOException e) {
-            plugin.getLogger().warning("Couldn't switch on youtube." + key + ": " + e.getMessage());
+            plugin.getLogger().warning("Couldn't switch on " + section + "." + key + ": " + e.getMessage());
             return false;
         }
 
-        plugin.getLogger().info("Switched on youtube." + key + " in " + SourcesConfig.FILE_NAME
+        plugin.getLogger().info("Switched on " + section + "." + key + " in " + SourcesConfig.FILE_NAME
                 + ". Set it back to false if you don't want it; it won't be changed again.");
         return true;
     }
 
-    static String replaceInYoutubeSection(String text, String key) {
+    static String replaceInSection(String text, String section, String key) {
         String eol = text.contains("\r\n") ? "\r\n" : "\n";
         List<String> lines = new ArrayList<>(Arrays.asList(text.split("\\r?\\n", -1)));
         Pattern target = Pattern.compile("^(\\s+" + Pattern.quote(key) + ":\\s*)false(\\s*)$");
 
-        boolean inYoutube = false;
+        boolean inSection = false;
         for (int i = 0; i < lines.size(); i++) {
             String line = lines.get(i);
             if (!line.isEmpty() && !Character.isWhitespace(line.charAt(0)) && !line.startsWith("#")) {
-                inYoutube = line.startsWith("youtube:");
+                inSection = line.startsWith(section + ":");
                 continue;
             }
-            if (!inYoutube) continue;
+            if (!inSection) continue;
 
             Matcher matcher = target.matcher(line);
             if (matcher.matches()) {
