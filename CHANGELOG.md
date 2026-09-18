@@ -1,10 +1,21 @@
 # Changelog
 
+## 2.0.1
+
+- ☁️ SoundCloud can play through the backend (`soundcloud.proxy` in sources.yml) where SoundCloud refuses to load tracks. It switches on by itself on servers in Russia; turning it off is respected. Playlists and `sc:` search still go to SoundCloud directly.
+- ⚙️ A settings window: `/cdisc admin config` edits config.yml, sources.yml, permissions.yml and tokens.yml in a dialog, one tab per file (Paper 1.21.7+). Off by default (`config-dialog` in config.yml). Needs `cdisc.admin.config`, which only operators have by default and which also grants everything `cdisc.admin` does.
+- 📝 A new lyrics hologram takes its preset size from the first line.
+
 ## 2.0
 
-### 🔁 A disc taken out of the queue could still be played, and copied
-
-Taking the current disc out of the queue now takes it out of the jukebox too, and pulling a record out always stops the music.
+- ⏩ Seeking in long YouTube videos is now instant.
+- 🔇 A failed audio frame no longer silences a jukebox.
+- 📜 Spotify playlists and albums work without keys; YouTube links with a playlist are read as playlists.
+- 🎧 Spotify search without keys falls back to YouTube.
+- 📁 Local files with non-Latin names play correctly.
+- ⬆️ New releases download and install themselves when the server stops.
+- 🌐 The backend is on by default, and the proxy turns on by itself on servers in Russia. Turning either off is respected.
+- 🔁 A disc taken out of the queue no longer keeps playing from the jukebox as a copy.
 
 ## 1.9
 
