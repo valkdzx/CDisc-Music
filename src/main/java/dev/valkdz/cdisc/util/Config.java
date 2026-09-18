@@ -455,6 +455,10 @@ public final class Config {
         return cfg().getBoolean("player-dialog", true);
     }
 
+    public boolean isConfigDialogEnabled() {
+        return cfg().getBoolean("config-dialog", false);
+    }
+
     public int getPlayerDialogRefreshTicks() {
         return Math.max(1, cfg().getInt("player-dialog-refresh-ticks", 10));
     }

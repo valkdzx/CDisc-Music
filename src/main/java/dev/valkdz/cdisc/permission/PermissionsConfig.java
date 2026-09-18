@@ -73,6 +73,7 @@ public final class PermissionsConfig {
                     fromRule == null ? PermissionDefault.FALSE : fromRule));
         }
         replace(new Permission(Perms.ADMIN, PermissionDefault.OP));
+        replace(new Permission(Perms.CONFIG, PermissionDefault.OP));
 
         for (Map.Entry<String, List<Action>> legacy : LEGACY_NODES.entrySet()) {
             Map<String, Boolean> children = new HashMap<>();

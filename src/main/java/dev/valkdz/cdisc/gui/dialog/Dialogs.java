@@ -46,6 +46,14 @@ public final class Dialogs {
         plugin.getScreenPreferences().set(player.getUniqueId(), dialog);
     }
 
+    public static void openConfig(Main plugin, Player player) {
+        try {
+            ConfigDialog.open(plugin, player);
+        } catch (LinkageError | RuntimeException e) {
+            plugin.getLogger().warning("Could not show the settings window (" + e + ").");
+        }
+    }
+
     public static boolean openPlayer(Main plugin, Player player, Block block) {
         try {
             PlayerDialog.open(plugin, player, block);

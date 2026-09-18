@@ -366,6 +366,23 @@ public final class Main extends JavaPlugin {
         });
     }
 
+    public void reloadEverything() {
+        config.reload();
+        localMusic.reload();
+        messageManager.reload();
+        permissions.reload();
+        speakerGroupManager.reload();
+        audioPlayerManager.reload();
+        updateChecker.check();
+
+        poTokenService.start();
+
+        lyricsService.clearCache();
+        dev.valkdz.cdisc.lyrics.LyricsPrefs.forgetAll();
+        lyricsDisplay.clearAll();
+        lyricsDisplay.start();
+    }
+
     public void disablePlugin() { this.setEnabled(false); }
 
     private void suppressNoisyYoutubeLogs() {

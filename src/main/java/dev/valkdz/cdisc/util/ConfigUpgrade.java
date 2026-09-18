@@ -27,7 +27,7 @@ public final class ConfigUpgrade {
 
     // Literal keys: permissions.yml holds nodes like cdisc.create, which Bukkit's
     // own '.' separator would read as three nested sections.
-    private static final char SEP = '\u0000';
+    static final char SEP = '\u0000';
 
     private static final Pattern KEY = Pattern.compile("^(\\s*)([^#:][^:]*):(?:\\s+(.*?))?\\s*$");
 
@@ -270,7 +270,7 @@ public final class ConfigUpgrade {
         log.info(note.toString());
     }
 
-    private static void backUp(File file, Logger log) {
+    static void backUp(File file, Logger log) {
         try {
             Path backup = file.toPath().resolveSibling(backupName(file.getName()));
             Files.copy(file.toPath(), backup, StandardCopyOption.REPLACE_EXISTING);
@@ -285,7 +285,7 @@ public final class ConfigUpgrade {
         return bare + ".old";
     }
 
-    private static YamlConfiguration load(String text) {
+    static YamlConfiguration load(String text) {
         YamlConfiguration cfg = new YamlConfiguration();
         cfg.options().pathSeparator(SEP);
         try {
@@ -296,7 +296,7 @@ public final class ConfigUpgrade {
         return cfg;
     }
 
-    private static String readResource(Main plugin, String name) throws IOException {
+    static String readResource(Main plugin, String name) throws IOException {
         try (InputStream in = plugin.getResource(name)) {
             if (in == null) return null;
             return new String(in.readAllBytes(), StandardCharsets.UTF_8);
@@ -309,7 +309,7 @@ public final class ConfigUpgrade {
         return value instanceof ConfigurationSection section ? section : null;
     }
 
-    private static Object plain(Object value) {
+    static Object plain(Object value) {
         if (value instanceof ConfigurationSection section) {
             Map<String, Object> map = new LinkedHashMap<>();
             for (String key : section.getKeys(false)) {

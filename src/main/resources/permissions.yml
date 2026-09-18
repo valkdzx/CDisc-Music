@@ -18,7 +18,8 @@
 # overrule them for one player. A rule that names other permissions is a second way in:
 # whoever matches it gets through, and so does anyone granted the node directly.
 #
-# cdisc.admin covers every node here and ignores every limit below it.
+# cdisc.admin covers every node here and ignores every limit below it; so does
+# cdisc.admin.config, the right to the settings window.
 # The old node names still work: cdisc.player grants the player screen, cdisc.create the
 # creating of discs, cdisc.pair the speaker groups, and so on.
 

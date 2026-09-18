@@ -2,6 +2,7 @@ package dev.valkdz.cdisc.command;
 
 import dev.valkdz.cdisc.Main;
 import dev.valkdz.cdisc.audio.LocalMusicLibrary;
+import dev.valkdz.cdisc.gui.dialog.Dialogs;
 import dev.valkdz.cdisc.permission.Action;
 import dev.valkdz.cdisc.permission.Perms;
 import dev.valkdz.cdisc.util.ItemUtils;
@@ -171,6 +172,7 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
             case "reload" -> {
                 if (allowed(sender, Action.ADMIN_RELOAD)) reload(sender);
             }
+            case "config" -> config(sender);
             case "ytsetup" -> {
                 if (!allowed(sender, Action.ADMIN_YTSETUP)) return;
                 if (sender instanceof Player p) {
@@ -187,21 +189,28 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
         }
     }
 
+    private void config(CommandSender sender) {
+        if (!(sender instanceof Player p)) {
+            sender.sendMessage("§c" + message(sender, "cdisc.player_only", "/cdisc admin"));
+            return;
+        }
+        if (!p.hasPermission(Perms.CONFIG)) {
+            p.sendMessage("§c" + message(p, "perms.denied", Perms.CONFIG));
+            return;
+        }
+        if (!plugin.cdiscConfig().isConfigDialogEnabled()) {
+            p.sendMessage("§c" + message(p, "config_dialog.disabled"));
+            return;
+        }
+        if (!Dialogs.supported()) {
+            p.sendMessage("§c" + message(p, "config_dialog.unsupported"));
+            return;
+        }
+        Dialogs.openConfig(plugin, p);
+    }
+
     private void reload(CommandSender sender) {
-        plugin.cdiscConfig().reload();
-        plugin.getLocalMusic().reload();
-        plugin.getMessageManager().reload();
-        plugin.getPermissions().reload();
-        plugin.getSpeakerGroupManager().reload();
-        plugin.getAudioPlayerManager().reload();
-        plugin.getUpdateChecker().check();
-
-        plugin.getPoTokenService().start();
-
-        plugin.getLyricsService().clearCache();
-        dev.valkdz.cdisc.lyrics.LyricsPrefs.forgetAll();
-        plugin.getLyricsDisplay().clearAll();
-        plugin.getLyricsDisplay().start();
+        plugin.reloadEverything();
         sender.sendMessage("§a" + message(sender, "cdisc.reloaded"));
     }
 
@@ -435,7 +444,9 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
                             entry("reload", Action.ADMIN_RELOAD, sender),
                             entry("doctor", Action.ADMIN_DOCTOR, sender),
                             entry("download", Action.DISC_DOWNLOAD, sender),
-                            playerEntry("ytsetup", Action.ADMIN_YTSETUP, sender))
+                            playerEntry("ytsetup", Action.ADMIN_YTSETUP, sender),
+                            sender instanceof Player && sender.hasPermission(Perms.CONFIG)
+                                    && plugin.cdiscConfig().isConfigDialogEnabled() ? "config" : null)
                     .filter(java.util.Objects::nonNull)
                     .filter(s -> s.startsWith(args[1].toLowerCase(Locale.ROOT)))
                     .sorted()
