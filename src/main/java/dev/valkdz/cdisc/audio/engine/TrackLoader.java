@@ -313,6 +313,10 @@ public class TrackLoader {
                 : StandardAudioDataFormats.DISCORD_OPUS);
     }
 
+    public boolean isPcmOutput() {
+        return lavaPlayer.getConfiguration().getOutputFormat() == StandardAudioDataFormats.DISCORD_PCM_S16_LE;
+    }
+
     public AudioPlayer createPlayer() {
         return lavaPlayer.createPlayer();
     }

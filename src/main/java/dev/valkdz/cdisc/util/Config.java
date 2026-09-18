@@ -337,6 +337,22 @@ public final class Config {
         return Math.max(20, cfg().getInt("portable-jukebox.particle-interval-ticks", 50));
     }
 
+    public boolean isGoatHornEnabled() {
+        return cfg().getBoolean("goat-horn.enabled", true);
+    }
+
+    public int getGoatHornMaxSeconds() {
+        return Math.max(1, cfg().getInt("goat-horn.max-seconds", 15));
+    }
+
+    public boolean isGoatHornTrimming() {
+        return !"refuse".equalsIgnoreCase(cfg().getString("goat-horn.too-long", "trim").trim());
+    }
+
+    public double getGoatHornDistance() {
+        return Math.max(1.0, cfg().getDouble("goat-horn.distance", 64.0));
+    }
+
     public boolean isSpeakerGroupEnabled() {
         return cfg().getBoolean("speaker-group.enabled", true);
     }

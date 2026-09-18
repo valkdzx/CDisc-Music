@@ -52,6 +52,7 @@ public final class Main extends JavaPlugin {
     private VoiceBackendManager voiceBackendManager;
     private UpdateChecker updateChecker;
     private PortableJukeboxManager portableJukeboxManager;
+    private dev.valkdz.cdisc.horn.HornPlayer hornPlayer;
     private dev.valkdz.cdisc.speaker.SpeakerGroupManager speakerGroupManager;
     private dev.valkdz.cdisc.gui.PairGuiManager pairGuiManager;
     private dev.valkdz.cdisc.speaker.SpeakerParticles speakerParticles;
@@ -195,6 +196,10 @@ public final class Main extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new PortableJukeboxListener(this), this);
         portableJukeboxManager.start();
 
+        hornPlayer = new dev.valkdz.cdisc.horn.HornPlayer(this);
+        getServer().getPluginManager().registerEvents(hornPlayer, this);
+        hornPlayer.start();
+
         updateChecker = new UpdateChecker(this);
         getServer().getPluginManager().registerEvents(updateChecker, this);
         updateChecker.check();
@@ -258,6 +263,9 @@ public final class Main extends JavaPlugin {
         }
         if (portableJukeboxManager != null) {
             portableJukeboxManager.stop();
+        }
+        if (hornPlayer != null) {
+            hornPlayer.stop();
         }
         if (hologramPreview != null) {
             hologramPreview.hideAll();
@@ -332,6 +340,7 @@ public final class Main extends JavaPlugin {
     public VoiceBackendManager getVoiceBackendManager() { return voiceBackendManager; }
     public UpdateChecker getUpdateChecker() { return updateChecker; }
     public PortableJukeboxManager getPortableJukeboxManager() { return portableJukeboxManager; }
+    public dev.valkdz.cdisc.horn.HornPlayer getHornPlayer() { return hornPlayer; }
     public dev.valkdz.cdisc.speaker.SpeakerGroupManager getSpeakerGroupManager() { return speakerGroupManager; }
     public dev.valkdz.cdisc.gui.PairGuiManager getPairGuiManager() { return pairGuiManager; }
     public dev.valkdz.cdisc.gui.PlaylistGuiManager getPlaylistGuiManager() { return playlistGuiManager; }

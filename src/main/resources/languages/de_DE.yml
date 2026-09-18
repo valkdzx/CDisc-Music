@@ -531,6 +531,13 @@ portable:
   item:
     name: "&6Jukebox &7(getragen)"
     lore: "&7Setz sie ab, um sie wieder aufzustellen"
+horn:
+  hold: "Halt eine Musikplatte oder ein Ziegenhorn in der Hand!"
+  recorded: "Auf das Horn aufgenommen: %s - %s [%s]"
+  trimmed: "Der Klang ist %s lang; das Horn behält nur die ersten %s."
+  too_long: "Dieser Klang ist %s lang — ein Ziegenhorn fasst höchstens %s."
+  live_blocked: "Ein Livestream kann nicht auf ein Ziegenhorn aufgenommen werden."
+  cleared: "Horn geleert!"
 update:
   available: "&e[CDisc] Version &a&l%s &eist da! &7(du hast %s)"
   hover: "&fKlick, um die Downloadseite auf Modrinth zu öffnen"

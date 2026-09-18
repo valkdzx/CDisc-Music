@@ -531,6 +531,13 @@ portable:
   item:
     name: "&6Gramola &7(en mano)"
     lore: "&7Colócala para volver a montarla"
+horn:
+  hold: "¡Ten un disco de música o un cuerno de cabra en la mano!"
+  recorded: "Grabado en el cuerno: %s - %s [%s]"
+  trimmed: "El sonido dura %s; el cuerno solo guarda los primeros %s."
+  too_long: "Ese sonido dura %s — un cuerno de cabra admite hasta %s."
+  live_blocked: "Una transmisión en directo no se puede grabar en un cuerno de cabra."
+  cleared: "¡Cuerno borrado!"
 update:
   available: "&e[CDisc] ¡Hay una versión nueva &a&l%s&e! &7(tienes la %s)"
   hover: "&fHaz clic para abrir la página de descarga en Modrinth"

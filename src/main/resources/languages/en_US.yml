@@ -531,6 +531,13 @@ portable:
   item:
     name: "&6Jukebox &7(carried)"
     lore: "&7Place it down to set it back up"
+horn:
+  hold: "Hold a music disc or a goat horn in your hand!"
+  recorded: "Recorded onto the horn: %s - %s [%s]"
+  trimmed: "The sound is %s long; the horn keeps only the first %s."
+  too_long: "That sound is %s long — a goat horn holds up to %s."
+  live_blocked: "A live stream can't be recorded onto a goat horn."
+  cleared: "Horn cleared!"
 update:
   available: "&e[CDisc] A new version &a&l%s &eis available! &7(you have %s)"
   hover: "&fClick to open the download page on Modrinth"

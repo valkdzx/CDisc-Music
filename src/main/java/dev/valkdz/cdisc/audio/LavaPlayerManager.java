@@ -15,6 +15,7 @@ import dev.valkdz.cdisc.audio.engine.TrackLoader;
 import dev.valkdz.cdisc.audio.queue.DiscQueue;
 import dev.valkdz.cdisc.audio.queue.QueueStore;
 import dev.valkdz.cdisc.audio.queue.RepeatMode;
+import dev.valkdz.cdisc.horn.GoatHorns;
 import dev.valkdz.cdisc.metrics.CDiscMetrics;
 import dev.valkdz.cdisc.speaker.SpeakerGroup;
 import dev.valkdz.cdisc.speaker.SpeakerSettings;
@@ -314,6 +315,14 @@ public class LavaPlayerManager {
         this.distance = distance;
 
         trackLoader.setPcmOutput(backend != null && backend.wantsPcm());
+    }
+
+    public VoiceSession createFollowingSession(org.bukkit.entity.Entity anchor, float distance) {
+        return voiceBackend == null ? null : voiceBackend.createEntitySession(anchor, distance);
+    }
+
+    public boolean hasVoiceBackend() {
+        return voiceBackend != null;
     }
 
     public TrackLoader getTrackLoader() {
@@ -621,7 +630,15 @@ public class LavaPlayerManager {
     private void writeToDisc(Player player, ItemStack item, AudioTrack track,
                              String query, String resolved) {
 
-        String rejection = LocalMusicLibrary.isLocalQuery(query) ? null
+        if (GoatHorns.isHorn(item)) {
+            String refusal = GoatHorns.refusal(plugin, player, track.getInfo());
+            if (refusal != null) {
+                Bukkit.getScheduler().runTask(plugin, () -> player.sendMessage("§c" + refusal));
+                return;
+            }
+        }
+
+        String rejection = LocalMusicLibrary.isLocalQuery(query) || GoatHorns.isHorn(item) ? null
                 : plugin.getPermissions().trackRejection(
                         player, track.getInfo().isStream, track.getInfo().length);
         if (rejection != null) {
@@ -664,12 +681,8 @@ public class LavaPlayerManager {
         boolean isYoutube = trackLoader.isYoutubeIdentifier(resolved);
 
         if (!isYoutube || !trackLoader.hasCustomApi() || plugin.cdiscConfig().isYoutubeFastCreate()) {
-            String durationStr = TimeUtils.format(track.getInfo().length);
-            Bukkit.getScheduler().runTask(plugin, () -> {
-                ItemUtils.saveTrackToDisc(item, query, null, titleN, authorN, null);
-                player.sendMessage("§a" + plugin.getMessageManager()
-                        .get(player, "lavaplayer.track.loaded", titleN, authorN, durationStr));
-            });
+            Bukkit.getScheduler().runTask(plugin, () ->
+                    stored(player, item, track, query, null, titleN, authorN, null));
             return;
         }
 
@@ -679,12 +692,8 @@ public class LavaPlayerManager {
 
         trackLoader.probePlayability(track).whenComplete((playable, ex) -> {
             if (playable) {
-                String durationStr = TimeUtils.format(track.getInfo().length);
-                Bukkit.getScheduler().runTask(plugin, () -> {
-                    ItemUtils.saveTrackToDisc(item, query, null, titleN, authorN, "lavaplayer");
-                    player.sendMessage("§a" + plugin.getMessageManager()
-                            .get(player, "lavaplayer.track.loaded", titleN, authorN, durationStr));
-                });
+                Bukkit.getScheduler().runTask(plugin, () ->
+                        stored(player, item, track, query, null, titleN, authorN, "lavaplayer"));
                 return;
             }
 
@@ -698,13 +707,29 @@ public class LavaPlayerManager {
                 return;
             }
             String backendUrl = trackLoader.backendStreamUrlFor(videoId);
-            String durationStr = TimeUtils.format(track.getInfo().length);
-            Bukkit.getScheduler().runTask(plugin, () -> {
-                ItemUtils.saveTrackToDisc(item, backendUrl, query, titleN, authorN, "backend");
-                player.sendMessage("§a" + plugin.getMessageManager()
-                        .get(player, "lavaplayer.track.loaded", titleN, authorN, durationStr));
-            });
+            Bukkit.getScheduler().runTask(plugin, () ->
+                    stored(player, item, track, backendUrl, query, titleN, authorN, "backend"));
         });
+    }
+
+    private void stored(Player player, ItemStack item, AudioTrack track, String query, String fallback,
+                        String title, String author, String fetch) {
+        ItemUtils.saveTrackToDisc(item, query, fallback, title, author, fetch);
+        long length = track.getInfo().length;
+        if (!GoatHorns.isHorn(item)) {
+            player.sendMessage("§a" + plugin.getMessageManager()
+                    .get(player, "lavaplayer.track.loaded", title, author, TimeUtils.format(length)));
+            return;
+        }
+
+        long clip = GoatHorns.record(plugin, item, length);
+        if (plugin.getHornPlayer() != null) plugin.getHornPlayer().prefetch(item);
+        player.sendMessage("§a" + plugin.getMessageManager()
+                .get(player, "horn.recorded", title, author, TimeUtils.format(clip)));
+        if (GoatHorns.trimmed(length, clip)) {
+            player.sendMessage("§e" + plugin.getMessageManager()
+                    .get(player, "horn.trimmed", TimeUtils.format(length), TimeUtils.format(clip)));
+        }
     }
 
     public void startPlaying(Block block, String query) {

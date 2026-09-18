@@ -3,6 +3,7 @@ package dev.valkdz.cdisc.command;
 import dev.valkdz.cdisc.Main;
 import dev.valkdz.cdisc.audio.LocalMusicLibrary;
 import dev.valkdz.cdisc.gui.dialog.Dialogs;
+import dev.valkdz.cdisc.horn.GoatHorns;
 import dev.valkdz.cdisc.permission.Action;
 import dev.valkdz.cdisc.permission.Perms;
 import dev.valkdz.cdisc.util.ItemUtils;
@@ -105,9 +106,9 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
         }
 
         String query = String.join(" ", Arrays.copyOfRange(parts, 1, parts.length));
-        ItemStack item = ItemUtils.getDiscInHand(p);
+        ItemStack item = recordableInHand(p);
         if (item == null) {
-            p.sendMessage("§c" + message(p, "cdisc.hold_disc"));
+            p.sendMessage("§c" + message(p, holdMessage()));
             return;
         }
         if (!creationAllowed(p, query)) return;
@@ -117,13 +118,27 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
         plugin.getAudioPlayerManager().createDisc(p, item, query);
     }
 
+    private ItemStack recordableInHand(Player p) {
+        ItemStack disc = ItemUtils.getDiscInHand(p);
+        return disc != null ? disc : GoatHorns.inHand(plugin, p);
+    }
+
+    private String holdMessage() {
+        return plugin.cdiscConfig().isGoatHornEnabled() ? "horn.hold" : "cdisc.hold_disc";
+    }
+
     private void disc(Player p, String sub, String[] parts) {
         switch (sub) {
             case "clear" -> {
                 if (!allowed(p, Action.DISC_CLEAR)) return;
-                ItemStack item = ItemUtils.getDiscInHand(p);
+                ItemStack item = recordableInHand(p);
                 if (item == null) {
-                    p.sendMessage("§c" + message(p, "cdisc.hold_disc"));
+                    p.sendMessage("§c" + message(p, holdMessage()));
+                    return;
+                }
+                if (GoatHorns.isHorn(item)) {
+                    GoatHorns.clear(item);
+                    p.sendMessage("§a" + message(p, "horn.cleared"));
                     return;
                 }
                 ItemUtils.clearDisc(item);
@@ -263,9 +278,9 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
         }
         if (!allowed(player, Action.DISC_CREATE)) return;
 
-        ItemStack item = ItemUtils.getDiscInHand(player);
+        ItemStack item = recordableInHand(player);
         if (item == null) {
-            player.sendMessage("§c" + plugin.getMessageManager().get(player, "cdisc.hold_disc"));
+            player.sendMessage("§c" + message(player, holdMessage()));
             return;
         }
 

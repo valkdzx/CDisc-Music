@@ -48,6 +48,18 @@ portable-jukebox:
   max-per-player: 1
   particle-interval-ticks: 50
 
+### Goat horns
+# /cdisc create with a goat horn in hand records a short sound onto it; blowing the horn
+# plays it from the player through voice chat instead of the horn's own call.
+goat-horn:
+  enabled: true
+  # Longest sound a horn holds, in seconds.
+  max-seconds: 15
+  # A longer sound: trim (keep only the first max-seconds) | refuse (record nothing).
+  too-long: trim
+  # Blocks away the horn is still heard.
+  distance: 64.0
+
 ### Speaker groups
 # Several jukeboxes playing one track in sync. The main holds the discs and decodes;
 # speakers emit the same audio from their own position.
