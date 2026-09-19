@@ -842,11 +842,6 @@ public class LavaPlayerManager {
                                     + "direct link, and it all goes through "
                                     + "serverAbrStreamingUrl, which youtube-source cannot play. "
                                     + "Neither the tokens nor this server's address are at fault.");
-                            if (!trackLoader.hasAlternative()) {
-                                Bukkit.getLogger().severe("[CDisc] Nothing to fall back on: turn "
-                                        + "on youtube.sabr or youtube.fallback-api in sources.yml, "
-                                        + "or YouTube will not play at all.");
-                            }
                         }
 
                         if (!willRetry) {

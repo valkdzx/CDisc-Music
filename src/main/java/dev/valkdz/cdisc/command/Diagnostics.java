@@ -105,6 +105,9 @@ final class Diagnostics {
                 out.add("  &7this is why.");
             }
 
+            out.add(line(State.READY, "direct",
+                    "always asked first — the VISIONOS client, no keys needed"));
+
             if (config.getYoutubeCustomApi()) {
                 out.add(line(State.READY, "fallback-api",
                         "asking through the backend — no keys needed"));
@@ -124,14 +127,11 @@ final class Diagnostics {
             }
 
             if (!config.isYoutubeSabrEnabled()) {
-                out.add(line(State.FRAGILE, "sabr",
-                        "off — a SABR-only answer will play nothing"));
-                out.add("  &7YouTube has started sending responses that list every");
-                out.add("  &7format and link to none of them. Set youtube.sabr to read");
-                out.add("  &7those here instead of treating them as a dead track.");
+                out.add(line(State.OFF, "sabr",
+                        "off — when the direct read fails, SABR-only answers are skipped"));
             } else if (poToken) {
                 out.add(line(State.READY, "sabr",
-                        "ready — SABR-only answers are read directly"));
+                        "ready — SABR-only answers are read when the direct read fails"));
             } else {
                 out.add(line(State.FRAGILE, "sabr",
                         "on, but it has no po-token to present"));

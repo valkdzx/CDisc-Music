@@ -104,8 +104,8 @@ youtube:
 
   # Fetch through the backend API instead of asking YouTube from here. THE FIRST THING
   # TO TRY WHEN YOUTUBE STOPS PLAYING: it asks from its own address and mints its own
-  # token, so nothing else here needs configuring. Order: the direct read (sabr) first,
-  # then this, then youtube-source. Age-restricted tracks use it even when this is off.
+  # token, so nothing else here needs configuring. Order: the direct read first, then this,
+  # then youtube-source. Age-restricted tracks use it even when this is off.
   # Switched on once at startup if it was off; set it back to false and it stays false.
   fallback-api: true
 
@@ -116,9 +116,9 @@ youtube:
   # there; set it back to false and it stays false.
   proxy: false
 
-  # Read SABR streams rather than treating them as a dead track. YouTube answers some
-  # requests with formats but no direct links, which youtube-source reports as "no audio".
-  # Needs po-token and visitor-data in tokens.yml; unused when ordinary links still work.
+  # The direct read (VISIONOS client, no keys) is always asked first and has no switch.
+  # This adds a second try when it fails: reading SABR streams, which list formats without
+  # direct links. Needs po-token and visitor-data in tokens.yml.
   sabr: true
 
   # Client version claimed when asking for a player response, which SABR has to do itself.

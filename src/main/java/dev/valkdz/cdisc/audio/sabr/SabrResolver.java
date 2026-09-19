@@ -30,6 +30,7 @@ public final class SabrResolver {
     private static final Pattern BARE_ID = Pattern.compile("^[A-Za-z0-9_-]{11}$");
 
     private final HttpClient http;
+    private final boolean sabr;
     private final SabrSourceManager sourceManager = new SabrSourceManager();
     private final Supplier<InnerTubePlayer.ClientIdentity> identity;
 
@@ -41,8 +42,10 @@ public final class SabrResolver {
     private long mintedVisitorDataUntil;
     private final HttpInterfaceManager cipherInterfaces = HttpClientTools.createDefaultThreadLocalManager();
 
-    public SabrResolver(Supplier<InnerTubePlayer.ClientIdentity> identity, String remoteCipherUrl) {
+    public SabrResolver(Supplier<InnerTubePlayer.ClientIdentity> identity, String remoteCipherUrl,
+                        boolean sabr) {
         this.identity = identity;
+        this.sabr = sabr;
         cipherInterfaces.configureBuilder(dev.valkdz.cdisc.util.NetProxy::apply);
         this.cipher = isBlank(remoteCipherUrl)
                 ? new LocalSignatureCipherManager()
@@ -73,7 +76,7 @@ public final class SabrResolver {
         if (videoId == null) return null;
 
         AudioTrack direct = resolveDirect(videoId, discTitle, discAuthor, namesWin);
-        if (direct != null) return direct;
+        if (direct != null || !sabr) return direct;
 
         InnerTubePlayer.PlayerResponse response = new InnerTubePlayer(http, identity.get()).fetch(videoId);
 

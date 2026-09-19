@@ -107,9 +107,8 @@ public class TrackLoader {
                     ? new CustomYoutubeApiResolver("https://2281273.xyz/", new HttpAudioSourceManager(), useProxy)
                     : null;
 
-            sabrResolver = config.isYoutubeSabrEnabled()
-                    ? new dev.valkdz.cdisc.audio.sabr.SabrResolver(this::sabrIdentity, rcUrl)
-                    : null;
+            sabrResolver = new dev.valkdz.cdisc.audio.sabr.SabrResolver(
+                    this::sabrIdentity, rcUrl, config.isYoutubeSabrEnabled());
 
             java.net.http.HttpClient bridgeHttp = dev.valkdz.cdisc.util.NetProxy.apply(java.net.http.HttpClient.newBuilder())
                     .connectTimeout(java.time.Duration.ofSeconds(10)).build();
@@ -415,7 +414,8 @@ public class TrackLoader {
                     Direct answer = direct == null ? Direct.NOTHING : direct;
 
                     if (answer.track() != null) {
-                        setTrackSourceMetadata(answer.track(), "YouTube (direct)");
+                        setTrackSourceMetadata(answer.track(), directLabel(answer.track()));
+                        announce(answer.track());
                         invokeHandler(answer.track(), handler);
                         return;
                     }
@@ -468,6 +468,7 @@ public class TrackLoader {
             }
             if (backend != null) {
                 setTrackSourceMetadata(backend, "Custom API (Backend)");
+                announce(backend);
                 invokeHandler(backend, handler);
                 return;
             }
@@ -482,6 +483,7 @@ public class TrackLoader {
 
             if (ytItem != null) {
                 setTrackSourceMetadata(ytItem, "youtube-source");
+                if (ytItem instanceof AudioTrack track) announce(track);
                 invokeHandler(ytItem, handler);
             } else if (!backendAlreadyTried && looksAgeRestricted(refusal)) {
                 Bukkit.getLogger().info("[CDisc] youtube-source was refused on age; "
@@ -492,6 +494,15 @@ public class TrackLoader {
                 handler.noMatches();
             }
         });
+    }
+
+    private static String directLabel(AudioTrack track) {
+        return track instanceof dev.valkdz.cdisc.audio.sabr.SabrAudioTrack
+                ? "YouTube SABR" : "YouTube direct (VISIONOS)";
+    }
+
+    private static void announce(AudioTrack track) {
+        Bukkit.getLogger().info("[CDisc] \"" + track.getInfo().title + "\" via " + track.getUserData() + ".");
     }
 
     private void invokeHandler(AudioItem item, AudioLoadResultHandler handler) {
@@ -653,11 +664,7 @@ public class TrackLoader {
     }
 
     public boolean hasAlternative() {
-        return hasCustomApi() || hasSabr();
-    }
-
-    public boolean hasSabr() {
-        return sabrResolver != null;
+        return hasCustomApi() || sabrResolver != null;
     }
 
     private dev.valkdz.cdisc.audio.sabr.InnerTubePlayer.ClientIdentity sabrIdentity() {
@@ -698,7 +705,7 @@ public class TrackLoader {
                         + "(age-restricted); going through the backend.");
                 return new Direct(null, true);
             }
-            Bukkit.getLogger().warning("[CDisc] SABR could not serve the track: " + e.getMessage());
+            Bukkit.getLogger().warning("[CDisc] The direct read could not serve the track: " + e.getMessage());
             return Direct.NOTHING;
         }
     }
