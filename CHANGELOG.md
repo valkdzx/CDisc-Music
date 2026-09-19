@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.0.2
+
+- 📯 Goat horns record sounds: `/cdisc create` with a horn in hand, then blow it to play the sound through voice chat. Up to 15 seconds by default (`goat-horn` in config.yml).
+- 🔀 YouTube asks one source at a time: the direct read first, then the backend, youtube-source last. A track costs the backend fewer requests, and YouTube links work on servers where youtube-source is blocked, as searches already did.
+- 🌍 `proxy.address` in sources.yml sends every request the plugin makes through an HTTP proxy. Its login goes in tokens.yml.
+- 🗑️ `/cdisc admin ytsetup` is gone: the Google login only helped youtube-source, which is now asked last.
+
 ## 2.0.1
 
 - ☁️ SoundCloud can play through the backend (`soundcloud.proxy` in sources.yml) where SoundCloud refuses to load tracks. It switches on by itself on servers in Russia; turning it off is respected. Playlists and `sc:` search still go to SoundCloud directly.
