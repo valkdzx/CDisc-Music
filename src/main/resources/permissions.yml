@@ -107,7 +107,6 @@ actions:
   admin:
     reload: op
     doctor: op
-    ytsetup: op
 
 ### Limits
 # Applied to everyone without cdisc.admin. /cdisc create makes the SERVER fetch a URL

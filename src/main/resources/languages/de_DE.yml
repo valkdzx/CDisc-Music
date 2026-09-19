@@ -164,7 +164,7 @@ cdisc:
   unknown: "&cSo einen Unterbefehl gibt es nicht: %s. Tipp /cdisc und drück Tab."
   create_usage: "&7/cdisc create <Link oder Suche>"
   disc_usage: "&7/cdisc disc &f— &7clear&f, &7convert&f, &7playlist <Suche>&f."
-  admin_usage: "&7/cdisc admin &f— &7reload&f, &7doctor&f, &7download <Suche oder Link>&f, &7ytsetup&f, &7config&f."
+  admin_usage: "&7/cdisc admin &f— &7reload&f, &7doctor&f, &7download <Suche oder Link>&f, &7config&f."
   cleared: "Platte geleert!"
   reloaded: "Plugin neu geladen!"
   hold_disc: "Halt eine Musikplatte in der Hand!"
@@ -504,26 +504,6 @@ gui:
     not_playing: "&cAuf dieser Jukebox läuft gerade nichts!"
     success: "&aGesprungen zu %s"
     chat_prompt: "&e&lSchreib eine Zeit in den Chat &7(z. B. 1:36, oder . zum Abbrechen)"
-youtube:
-  oauth:
-    in_process: "Die OAuth-Einrichtung läuft bereits!"
-    already_done: "YouTube OAuth ist bereits eingerichtet!"
-    not_ready: "Der YouTube-Quellenmanager ist noch nicht bereit!"
-    starting: "YouTube-OAuth-Einrichtung wird gestartet..."
-    initiated: "OAuth-Vorgang gestartet. Folge den Anweisungen, die du bekommen hast!"
-    success: "YouTube-OAuth-Einrichtung abgeschlossen! Der refreshToken wurde in config.yml gespeichert"
-    instructions:
-      header: "&f==== YouTube-OAuth-Einrichtung ===="
-      step_link: "&f1. Öffne den Link "
-      link: "&6&lhttps://www.google.com/device"
-      link_hover: "&fKlick, um ihn im Browser zu öffnen"
-      step_code: "&f2. Gib den Code ein "
-      code: "&6&l%s"
-      code_hover: "&fKlick, um den Code zu kopieren"
-      code_hint: "&7 (Klick zum Kopieren)"
-      step_warning: "&c3. Nimm NICHT dein Haupt-Google-Konto, nimm ein Zweitkonto."
-      waiting: "&fWarte nach den Schritten auf die Meldung..."
-      footer: "&f============================="
 jukebox:
   stored_discs: "&7Enthält &f%d&7 Platte(n)"
 portable:

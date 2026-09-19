@@ -18,7 +18,6 @@ import dev.valkdz.cdisc.update.UpdateChecker;
 import dev.valkdz.cdisc.util.Config;
 import dev.valkdz.cdisc.util.MessageManager;
 import dev.valkdz.cdisc.voice.VoiceBackendManager;
-import dev.valkdz.cdisc.youtube.YouTubeOAuthSetup;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.LoggerContext;
@@ -34,7 +33,6 @@ public final class Main extends JavaPlugin {
     public static Main getInstance() { return instance; }
 
     private LavaPlayerManager audioPlayerManager;
-    private YouTubeOAuthSetup youtubeOAuthSetup;
     private MessageManager messageManager;
     private Config config;
     private TrackProgressDisplay trackProgressDisplay;
@@ -106,7 +104,6 @@ public final class Main extends JavaPlugin {
         audioPlayerManager = new LavaPlayerManager(this);
 
         audioPlayerManager.startQueuePersistence();
-        youtubeOAuthSetup = new YouTubeOAuthSetup(this);
 
         poTokenService = new dev.valkdz.cdisc.youtube.PoTokenService(this);
         poTokenService.start();
@@ -296,7 +293,6 @@ public final class Main extends JavaPlugin {
             poTokenService.stop();
         }
         audioPlayerManager.shutdown();
-        youtubeOAuthSetup.shutdown();
         if (updateChecker != null) {
             updateChecker.shutdown();
         }
@@ -314,7 +310,6 @@ public final class Main extends JavaPlugin {
     public MessageManager getMessageManager() { return messageManager; }
     public Config cdiscConfig() { return config; }
     public dev.valkdz.cdisc.permission.PermissionsConfig getPermissions() { return permissions; }
-    public YouTubeOAuthSetup getYouTubeOAuthSetup() { return youtubeOAuthSetup; }
     public TrackProgressDisplay getTrackProgressDisplay() { return trackProgressDisplay; }
     public PlayerGuiManager getPlayerGuiManager() { return playerGuiManager; }
 

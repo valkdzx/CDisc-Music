@@ -86,8 +86,6 @@ final class Diagnostics {
         } else {
             boolean poToken = has(config.getPOtoken()) && has(config.getVisitorData());
             boolean backend = has(config.getPoTokenBackendUrl());
-            boolean oauth = config.isYoutubeOauthEnabled()
-                    && has(config.getYoutubeOauthRefreshToken());
 
             if (backend) {
                 out.add(line(State.READY, "po-token", "fetched automatically from "
@@ -141,8 +139,6 @@ final class Diagnostics {
             if (!config.isYoutubeClientFailureLogging()) {
                 out.add("  &7Set youtube.log-client-failures to see why each one fails.");
             }
-            out.add(line(oauth ? State.READY : State.FRAGILE, "oauth",
-                    oauth ? "signed in" : "not set up — /cdisc ytsetup"));
         }
 
         out.add("");

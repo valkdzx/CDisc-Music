@@ -98,10 +98,6 @@ public class TrackLoader {
 
             youtubeManager = new YoutubeAudioSourceManager(options, buildClients(config, web));
 
-            String refreshToken = config.getYoutubeOauthRefreshToken();
-            if (config.isYoutubeOauthEnabled() && !refreshToken.isEmpty()) {
-                youtubeManager.useOauth2(refreshToken, true);
-            }
             lavaPlayer.registerSourceManager(youtubeManager);
 
             boolean customApi = config.getYoutubeCustomApi();

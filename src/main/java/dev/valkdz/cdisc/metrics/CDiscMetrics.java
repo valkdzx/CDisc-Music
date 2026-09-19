@@ -55,8 +55,6 @@ public final class CDiscMetrics {
 
         metrics.addCustomChart(new SimplePie("youtube_fallback_api",
                 () -> String.valueOf(cfg.getYoutubeCustomApi())));
-        metrics.addCustomChart(new SimplePie("youtube_oauth",
-                () -> String.valueOf(cfg.isYoutubeOauthEnabled())));
         metrics.addCustomChart(new SimplePie("fast_create",
                 () -> String.valueOf(cfg.isYoutubeFastCreate())));
         metrics.addCustomChart(new SimplePie("update_checker",

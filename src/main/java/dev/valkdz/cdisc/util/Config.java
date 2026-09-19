@@ -160,18 +160,6 @@ public final class Config {
         return tokens.vkUserToken();
     }
 
-    public boolean isYoutubeOauthEnabled() {
-        return tokens.youtubeOauthEnabled();
-    }
-
-    public String getYoutubeOauthSetupDone() {
-        return tokens.youtubeOauthSetupDone();
-    }
-
-    public String getYoutubeOauthRefreshToken() {
-        return tokens.youtubeRefreshToken();
-    }
-
     public int getSearchDefaultResults() {
         return sources.searchDefaultResults();
     }
@@ -248,18 +236,6 @@ public final class Config {
 
     public int getUpdateIntervalHours() {
         return Math.max(0, cfg().getInt("update-checker.interval-hours", 6));
-    }
-
-    public void setYoutubeOauthSetupDone(String value) {
-        tokens.setYoutubeOauthSetupDone(value);
-    }
-
-    public void setYoutubeOauthRefreshToken(String token) {
-        tokens.setYoutubeRefreshToken(token);
-    }
-
-    public void setYoutubeOauthEnabled(boolean enabled) {
-        tokens.setYoutubeOauthEnabled(enabled);
     }
 
     public void save() {

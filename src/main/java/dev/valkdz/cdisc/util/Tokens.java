@@ -65,9 +65,6 @@ public final class Tokens {
     public String yandexAccessToken() { return string(YANDEX, "access-token"); }
     public String vkUserToken() { return string(VK, "user-token"); }
 
-    public boolean youtubeOauthEnabled() { return bool(YOUTUBE, "oauth-enabled", false); }
-    public String youtubeOauthSetupDone() { return raw(YOUTUBE, "oauth-setup-done", "false"); }
-    public String youtubeRefreshToken() { return string(YOUTUBE, "refresh-token"); }
     public String youtubePoToken() { return string(YOUTUBE, "po-token"); }
     public String youtubeVisitorData() { return string(YOUTUBE, "visitor-data"); }
     public String cipherPassword() { return string(CIPHER, "password"); }
@@ -75,9 +72,6 @@ public final class Tokens {
 
     public String poTokenBackendUrl() { return string(PO_TOKEN_BACKEND, "url"); }
 
-    public void setYoutubeOauthEnabled(boolean enabled) { set(YOUTUBE, "oauth-enabled", enabled); }
-    public void setYoutubeOauthSetupDone(String value) { set(YOUTUBE, "oauth-setup-done", value); }
-    public void setYoutubeRefreshToken(String token) { set(YOUTUBE, "refresh-token", token); }
 
     public void setSpotify(String clientId, String clientSecret) {
         set(SPOTIFY, "client-id", clientId);

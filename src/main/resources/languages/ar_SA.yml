@@ -164,7 +164,7 @@ cdisc:
   unknown: "&cلا يوجد أمر فرعي بهذا الاسم: %s. اكتب /cdisc واضغط Tab."
   create_usage: "&7/cdisc create <رابط أو بحث>"
   disc_usage: "&7/cdisc disc &f— &7clear&f، &7convert&f، &7playlist <بحث>&f."
-  admin_usage: "&7/cdisc admin &f— &7reload&f، &7doctor&f، &7download <بحث أو رابط>&f، &7ytsetup&f، &7config&f."
+  admin_usage: "&7/cdisc admin &f— &7reload&f، &7doctor&f، &7download <بحث أو رابط>&f، &7config&f."
   cleared: "مُسحت الأسطوانة!"
   reloaded: "أُعيد تحميل الإضافة!"
   hold_disc: "أمسك أسطوانة موسيقى بيدك!"
@@ -504,26 +504,6 @@ gui:
     not_playing: "&cلا شيء يُشغَّل على ذلك الصندوق الآن!"
     success: "&aانتقلنا إلى %s"
     chat_prompt: "&e&lاكتب وقتًا في الدردشة &7(مثل 1:36، أو . للإلغاء)"
-youtube:
-  oauth:
-    in_process: "إعداد OAuth جارٍ بالفعل!"
-    already_done: "YouTube OAuth مُعدّ بالفعل!"
-    not_ready: "مدير مصدر YouTube ليس جاهزًا بعد!"
-    starting: "جارٍ بدء إعداد YouTube OAuth..."
-    initiated: "بدأت عملية OAuth. اتبع التعليمات التي وصلتك!"
-    success: "اكتمل إعداد YouTube OAuth! حُفظ refreshToken في config.yml"
-    instructions:
-      header: "&f==== إعداد YouTube OAuth ===="
-      step_link: "&f1. افتح الرابط "
-      link: "&6&lhttps://www.google.com/device"
-      link_hover: "&fانقر لفتحه في المتصفح"
-      step_code: "&f2. أدخل الرمز "
-      code: "&6&l%s"
-      code_hover: "&fانقر لنسخ الرمز"
-      code_hint: "&7 (انقر للنسخ)"
-      step_warning: "&c3. لا تستخدم حساب Google الرئيسي، استخدم حسابًا ثانويًا."
-      waiting: "&fبعد إتمام الخطوات، انتظر الرسالة..."
-      footer: "&f============================="
 jukebox:
   stored_discs: "&7يحوي &f%d&7 أسطوانة"
 portable:

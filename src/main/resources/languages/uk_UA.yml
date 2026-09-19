@@ -164,7 +164,7 @@ cdisc:
   unknown: "&cТакої підкоманди немає: %s. Набери /cdisc і натисни Tab."
   create_usage: "&7/cdisc create <посилання або пошук>"
   disc_usage: "&7/cdisc disc &f— &7clear&f, &7convert&f, &7playlist <запит>&f."
-  admin_usage: "&7/cdisc admin &f— &7reload&f, &7doctor&f, &7download <пошук або посилання>&f, &7ytsetup&f, &7config&f."
+  admin_usage: "&7/cdisc admin &f— &7reload&f, &7doctor&f, &7download <пошук або посилання>&f, &7config&f."
   cleared: "Платівку очищено!"
   reloaded: "Плагін перезавантажено!"
   hold_disc: "Візьми музичну платівку в руку!"
@@ -504,26 +504,6 @@ gui:
     not_playing: "&cНа тому програвачі зараз нічого не грає!"
     success: "&aПеремотано на %s"
     chat_prompt: "&e&lНапиши час у чат &7(наприклад 1:36, або . щоб скасувати)"
-youtube:
-  oauth:
-    in_process: "Налаштування OAuth уже триває!"
-    already_done: "YouTube OAuth уже налаштовано!"
-    not_ready: "Менеджер джерела YouTube ще не готовий!"
-    starting: "Починаю налаштування YouTube OAuth..."
-    initiated: "Процес OAuth розпочато. Дотримуйся надісланих інструкцій!"
-    success: "Налаштування YouTube OAuth успішно завершено! refreshToken збережено у config.yml"
-    instructions:
-      header: "&f==== Налаштування YouTube OAuth ===="
-      step_link: "&f1. Відкрий посилання "
-      link: "&6&lhttps://www.google.com/device"
-      link_hover: "&fКлікни, щоб відкрити у браузері"
-      step_code: "&f2. Уведи код "
-      code: "&6&l%s"
-      code_hover: "&fКлікни, щоб скопіювати код"
-      code_hint: "&7 (клікни, щоб скопіювати)"
-      step_warning: "&c3. НЕ використовуй основний акаунт Google, візьми запасний."
-      waiting: "&fПісля виконання кроків зачекай на повідомлення..."
-      footer: "&f============================="
 jukebox:
   stored_discs: "&7Містить &f%d&7 платівок(ки)"
 portable:

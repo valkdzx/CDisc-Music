@@ -45,8 +45,7 @@ public enum Action {
     PAIR_LIST("pair.list", "true"),
 
     ADMIN_RELOAD("admin.reload", "op"),
-    ADMIN_DOCTOR("admin.doctor", "op"),
-    ADMIN_YTSETUP("admin.ytsetup", "op");
+    ADMIN_DOCTOR("admin.doctor", "op");
 
     private final String path;
     private final String fallback;

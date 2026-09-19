@@ -74,8 +74,6 @@ final class ConfigSplitMigration {
                 tokens::setYandexAccessToken);
         moved += carry(trimmed(old, "sources-config.vk-music.user-token"),
                 tokens::setVkUserToken);
-        moved += carry(trimmed(old, "sources-config.youtube.oauth.refreshToken"),
-                tokens::setYoutubeRefreshToken);
         moved += carry(trimmed(old, "sources-config.youtube.oauth.po-token"),
                 tokens::setYoutubePoToken);
         moved += carry(trimmed(old, "sources-config.youtube.oauth.visitor-data"),
@@ -83,14 +81,6 @@ final class ConfigSplitMigration {
         moved += carry(trimmed(old, "remote-cipher-server.password"),
                 tokens::setCipherPassword);
 
-        if (old.isSet("sources-config.youtube.oauth.enabled")) {
-            tokens.setYoutubeOauthEnabled(
-                    old.getBoolean("sources-config.youtube.oauth.enabled", false));
-        }
-        if (old.isSet("sources-config.youtube.oauth.setup_done")) {
-            tokens.setYoutubeOauthSetupDone(
-                    String.valueOf(old.get("sources-config.youtube.oauth.setup_done")));
-        }
         return moved;
     }
 

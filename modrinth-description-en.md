@@ -104,7 +104,6 @@ Break the jukebox and **every disc in its queue drops on the ground** — nothin
 | `/cdisc seek <SS \| MM:SS \| HH:MM:SS>` | Jump to a timecode in the current track (look at the jukebox) |
 | `/cdisc clear` | Reset the held disc back to normal |
 | `/cdisc reload` | Reload the configuration |
-| `/cdisc ytsetup` | Set up YouTube OAuth |
 
 ### Search prefixes
 `yt:` YouTube · `sc:` SoundCloud · `sp:` Spotify · `ym:` Yandex Music · `vk:` VK · `tt:` TikTok · `local:` the server's music folder
@@ -117,7 +116,7 @@ Break the jukebox and **every disc in its queue drops on the ground** — nothin
 
 Some sources work better (or only) with credentials in `config.yml`:
 
-- **YouTube** — OAuth (`/cdisc ytsetup`) and/or a Remote Cipher Server
+- **YouTube** — a Remote Cipher Server
 - **Spotify** — client ID + secret
 - **Yandex Music** — access token
 - **VK Music** — user token

@@ -81,8 +81,7 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
             "hologram", new String[]{"preset"},
             "reload", new String[]{"admin", "reload"},
             "doctor", new String[]{"admin", "doctor"},
-            "download", new String[]{"admin", "download"},
-            "ytsetup", new String[]{"admin", "ytsetup"});
+            "download", new String[]{"admin", "download"});
 
     private static String[] rewrite(String[] args) {
         String[] moved = MOVED.get(args[0].toLowerCase(Locale.ROOT));
@@ -188,14 +187,6 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
                 if (allowed(sender, Action.ADMIN_RELOAD)) reload(sender);
             }
             case "config" -> config(sender);
-            case "ytsetup" -> {
-                if (!allowed(sender, Action.ADMIN_YTSETUP)) return;
-                if (sender instanceof Player p) {
-                    plugin.getYouTubeOAuthSetup().startSetup(p);
-                } else {
-                    sender.sendMessage("§c" + message(sender, "cdisc.player_only", "/cdisc admin"));
-                }
-            }
             default -> {
                 if (Perms.isAdmin(sender)) {
                     sender.sendMessage("§c" + message(sender, "cdisc.admin_usage"));
@@ -459,7 +450,6 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
                             entry("reload", Action.ADMIN_RELOAD, sender),
                             entry("doctor", Action.ADMIN_DOCTOR, sender),
                             entry("download", Action.DISC_DOWNLOAD, sender),
-                            playerEntry("ytsetup", Action.ADMIN_YTSETUP, sender),
                             sender instanceof Player && sender.hasPermission(Perms.CONFIG)
                                     && plugin.cdiscConfig().isConfigDialogEnabled() ? "config" : null)
                     .filter(java.util.Objects::nonNull)

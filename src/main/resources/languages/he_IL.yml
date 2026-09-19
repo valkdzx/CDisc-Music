@@ -164,7 +164,7 @@ cdisc:
   unknown: "&cאין פקודת משנה כזאת: %s. הקלד /cdisc ולחץ Tab."
   create_usage: "&7/cdisc create <קישור או חיפוש>"
   disc_usage: "&7/cdisc disc &f— &7clear&f, &7convert&f, &7playlist <חיפוש>&f."
-  admin_usage: "&7/cdisc admin &f— &7reload&f, &7doctor&f, &7download <חיפוש או קישור>&f, &7ytsetup&f, &7config&f."
+  admin_usage: "&7/cdisc admin &f— &7reload&f, &7doctor&f, &7download <חיפוש או קישור>&f, &7config&f."
   cleared: "התקליט נוקה!"
   reloaded: "התוסף נטען מחדש!"
   hold_disc: "החזק תקליט מוזיקה ביד!"
@@ -504,26 +504,6 @@ gui:
     not_playing: "&cבתיבת הנגינה הזאת לא מתנגן כלום כרגע!"
     success: "&aדילגנו אל %s"
     chat_prompt: "&e&lכתוב זמן בצ'אט &7(למשל 1:36, או . כדי לבטל)"
-youtube:
-  oauth:
-    in_process: "הגדרת OAuth כבר בתהליך!"
-    already_done: "YouTube OAuth כבר מוגדר!"
-    not_ready: "מנהל מקור YouTube עדיין לא מוכן!"
-    starting: "מתחיל הגדרת YouTube OAuth..."
-    initiated: "תהליך OAuth התחיל. עקוב אחרי ההוראות שנשלחו אליך!"
-    success: "הגדרת YouTube OAuth הושלמה! ה-refreshToken נשמר ב-config.yml"
-    instructions:
-      header: "&f==== הגדרת YouTube OAuth ===="
-      step_link: "&f1. פתח את הקישור "
-      link: "&6&lhttps://www.google.com/device"
-      link_hover: "&fלחץ כדי לפתוח בדפדפן"
-      step_code: "&f2. הזן את הקוד "
-      code: "&6&l%s"
-      code_hover: "&fלחץ כדי להעתיק את הקוד"
-      code_hint: "&7 (לחץ כדי להעתיק)"
-      step_warning: "&c3. אל תשתמש בחשבון Google הראשי שלך, קח חשבון משני."
-      waiting: "&fאחרי שתסיים את השלבים, המתן להודעה..."
-      footer: "&f============================="
 jukebox:
   stored_discs: "&7מכילה &f%d&7 תקליטים"
 portable:
