@@ -460,7 +460,7 @@ public final class Config {
     }
 
     public boolean isConfigDialogEnabled() {
-        return cfg().getBoolean("config-dialog", false);
+        return cfg().getBoolean("config-dialog", true);
     }
 
     public int getPlayerDialogRefreshTicks() {

@@ -7,6 +7,7 @@
 - 🎯 The direct read no longer depends on `youtube.sabr`: it is always on, and `sabr` only adds reading SABR streams when it fails.
 - 🌍 `proxy.address` in sources.yml sends every request the plugin makes through an HTTP proxy. Its login goes in tokens.yml.
 - 🪵 `/cdisc admin logs` uploads the server log to mclo.gs, with the `/cdisc admin doctor` report on top, and replies with the link. Keys and tokens are hidden before it leaves the server.
+- ⚙️ The settings window (`/cdisc admin config`) is on by default. It still needs `cdisc.admin.config`, which only operators have.
 - 🗑️ `/cdisc admin ytsetup` is gone: the Google login only helped youtube-source, which is now asked last.
 
 ## 2.0.1

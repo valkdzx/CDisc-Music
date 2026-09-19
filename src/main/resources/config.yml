@@ -163,7 +163,7 @@ player-dialog-refresh-ticks: 10
 # one tab per file. Paper 1.21.7+ only. Saving rewrites the file and reloads the plugin.
 # Needs cdisc.admin.config, which only operators have by default; cdisc.admin does not grant it.
 # Whoever has it also gets everything cdisc.admin gives.
-config-dialog: false
+config-dialog: true
 
 ### Update checker
 # Asks Modrinth for the newest release and reports it in the console and to operators.
