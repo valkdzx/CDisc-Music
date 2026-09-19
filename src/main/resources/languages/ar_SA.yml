@@ -169,6 +169,7 @@ cdisc:
   reloaded: "أُعيد تحميل الإضافة!"
   logs_uploading: "جارٍ رفع سجل الخادم إلى mclo.gs..."
   logs_uploaded: "تم رفع السجل: %s — يستطيع أي شخص لديه الرابط قراءته."
+  logs_issue: "&7افتح issue على https://github.com/valkdzx/CDisc-Music/issues والصق هذا الرابط مع وصف ما فعلته وما الذي حدث خطأ: يحتوي على السجل وتقرير /cdisc admin doctor، فتظهر المشكلة فورًا."
   logs_failed: "تعذّر رفع السجل: %s"
   hold_disc: "أمسك أسطوانة موسيقى بيدك!"
   player_only: "هذا يجب تنفيذه داخل اللعبة. من الطرفية يعمل %s."

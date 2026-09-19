@@ -169,6 +169,7 @@ cdisc:
   reloaded: "התוסף נטען מחדש!"
   logs_uploading: "מעלה את יומן השרת ל-mclo.gs..."
   logs_uploaded: "היומן הועלה: %s — כל מי שיש לו את הקישור יכול לקרוא אותו."
+  logs_issue: "&7פתחו issue ב-https://github.com/valkdzx/CDisc-Music/issues והדביקו את הקישור הזה, יחד עם מה שעשיתם ומה השתבש: הוא כולל את היומן ואת הדוח של /cdisc admin doctor, כך שהבעיה נראית מיד."
   logs_failed: "לא ניתן היה להעלות את היומן: %s"
   hold_disc: "החזק תקליט מוזיקה ביד!"
   player_only: "את זה צריך להריץ במשחק. מהמסוף עובד %s."

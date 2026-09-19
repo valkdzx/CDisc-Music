@@ -169,6 +169,7 @@ cdisc:
   reloaded: "¡Plugin recargado!"
   logs_uploading: "Subiendo el registro del servidor a mclo.gs..."
   logs_uploaded: "Registro subido: %s — cualquiera con el enlace puede leerlo."
+  logs_issue: "&7Abre un issue en https://github.com/valkdzx/CDisc-Music/issues y pega este enlace, junto con lo que hiciste y lo que falló: incluye el registro y el informe de /cdisc admin doctor, así el problema se ve enseguida."
   logs_failed: "No se pudo subir el registro: %s"
   hold_disc: "¡Ten un disco de música en la mano!"
   player_only: "Eso hay que ejecutarlo en el juego. Desde la consola funciona %s."

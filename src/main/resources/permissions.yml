@@ -107,7 +107,8 @@ actions:
   admin:
     reload: op
     doctor: op
-    # Uploads the server log to mclo.gs and replies with a public link; keys are hidden first.
+    # Uploads the server log to mclo.gs for a GitHub issue and replies with a public link;
+    # keys are hidden first.
     logs: op
 
 ### Limits

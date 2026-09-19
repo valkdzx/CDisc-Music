@@ -169,6 +169,7 @@ cdisc:
   reloaded: "Plugin reloaded!"
   logs_uploading: "Uploading the server log to mclo.gs..."
   logs_uploaded: "Log uploaded: %s — anyone with the link can read it."
+  logs_issue: "&7Open an issue at https://github.com/valkdzx/CDisc-Music/issues and paste this link with what you did and what went wrong: it carries the log and the /cdisc admin doctor report, so the problem shows at once."
   logs_failed: "Couldn't upload the log: %s"
   hold_disc: "Hold a music disc in your hand!"
   player_only: "That one has to be run in game. From the console, %s is what works."

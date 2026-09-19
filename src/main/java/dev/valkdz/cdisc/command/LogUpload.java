@@ -26,6 +26,7 @@ final class LogUpload {
     private static final Path LOG = Path.of("logs", "latest.log");
     private static final int MAX_LINES = 25_000;
     private static final int MAX_CHARS = 9 * 1024 * 1024;
+    private static final String ISSUES = "https://github.com/valkdzx/CDisc-Music/issues";
     private static final String HIDDEN = "[hidden by CDisc]";
 
     private static final Pattern GOOGLE_TOKEN = Pattern.compile("1//[0-9A-Za-z_-]{20,}|ya29\\.[0-9A-Za-z._-]+");
@@ -40,6 +41,7 @@ final class LogUpload {
                 : List.of("(" + LOG.toAbsolutePath() + " not found)");
 
         List<String> out = new ArrayList<>();
+        out.add("Uploaded with /cdisc admin logs for a CDisc issue report: " + ISSUES);
         out.add("CDisc " + plugin.getDescription().getVersion() + " on " + Bukkit.getName() + " "
                 + Bukkit.getVersion() + ", Java " + System.getProperty("java.version")
                 + ", " + System.getProperty("os.name"));

@@ -204,15 +204,17 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage("§7" + message(sender, "cdisc.logs_uploading"));
 
         plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
-            String reply;
+            List<String> reply;
             try {
-                reply = "§a" + message(sender, "cdisc.logs_uploaded", LogUpload.upload(plugin, doctor));
+                reply = List.of(
+                        "§a" + message(sender, "cdisc.logs_uploaded", LogUpload.upload(plugin, doctor)),
+                        message(sender, "cdisc.logs_issue").replace('&', '§'));
             } catch (Exception e) {
                 if (e instanceof InterruptedException) Thread.currentThread().interrupt();
-                reply = "§c" + message(sender, "cdisc.logs_failed", String.valueOf(e.getMessage()));
+                reply = List.of("§c" + message(sender, "cdisc.logs_failed", String.valueOf(e.getMessage())));
             }
-            String text = reply;
-            plugin.getServer().getScheduler().runTask(plugin, () -> sender.sendMessage(text));
+            List<String> lines = reply;
+            plugin.getServer().getScheduler().runTask(plugin, () -> lines.forEach(sender::sendMessage));
         });
     }
 

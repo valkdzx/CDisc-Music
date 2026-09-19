@@ -169,6 +169,7 @@ cdisc:
   reloaded: "Plugin neu geladen!"
   logs_uploading: "Lade das Server-Log zu mclo.gs hoch..."
   logs_uploaded: "Log hochgeladen: %s — jeder mit dem Link kann es lesen."
+  logs_issue: "&7Eröffne ein Issue auf https://github.com/valkdzx/CDisc-Music/issues und füge diesen Link ein, dazu was du getan hast und was schiefging: Er enthält das Log und den Bericht von /cdisc admin doctor, so ist das Problem sofort sichtbar."
   logs_failed: "Das Log konnte nicht hochgeladen werden: %s"
   hold_disc: "Halt eine Musikplatte in der Hand!"
   player_only: "Das muss im Spiel laufen. Von der Konsole aus geht %s."
