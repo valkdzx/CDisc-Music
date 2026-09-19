@@ -6,7 +6,7 @@
 # backend, lyrics, update checks. A nearer alternative to youtube.fallback-api.
 proxy:
   # host:port, e.g. 203.0.113.5:8080. HTTP proxies only, not SOCKS. Blank goes direct.
-  # Its login, if it has one, goes in tokens.yml. Takes effect after a server restart.
+  # Its login, if it has one, goes in tokens.yml. /cdisc admin reload applies a change.
   address: ""
 
 ### Which sources are available

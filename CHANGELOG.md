@@ -5,7 +5,7 @@
 - 📯 Goat horns record sounds: `/cdisc create` with a horn in hand, then blow it to play the sound through voice chat. Up to 15 seconds by default (`goat-horn` in config.yml).
 - 🔀 YouTube asks one source at a time: the direct read first, then the backend, youtube-source last. A track costs the backend fewer requests, and YouTube links work on servers where youtube-source is blocked, as searches already did. With `debug: true` in config.yml, the console names the source each track came from.
 - 🎯 The direct read no longer depends on `youtube.sabr`: it is always on, and `sabr` only adds reading SABR streams when it fails.
-- 🌍 `proxy.address` in sources.yml sends every request the plugin makes through an HTTP proxy. Its login goes in tokens.yml.
+- 🌍 `proxy.address` in sources.yml sends every request the plugin makes through an HTTP proxy. Its login goes in tokens.yml, and `/cdisc admin reload` or the settings window applies a change without a restart.
 - 🪵 `/cdisc admin logs` uploads the server log to mclo.gs, with the `/cdisc admin doctor` report on top, and replies with the link. Keys and tokens are hidden before it leaves the server.
 - ⚙️ The settings window (`/cdisc admin config`) is on by default. It still needs `cdisc.admin.config`, which only operators have.
 - 🗑️ `/cdisc admin ytsetup` is gone: the Google login only helped youtube-source, which is now asked last.
