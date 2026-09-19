@@ -501,7 +501,8 @@ public class TrackLoader {
                 ? "YouTube SABR" : "YouTube direct (VISIONOS)";
     }
 
-    private static void announce(AudioTrack track) {
+    private void announce(AudioTrack track) {
+        if (!plugin.cdiscConfig().isDebug()) return;
         Bukkit.getLogger().info("[CDisc] \"" + track.getInfo().title + "\" via " + track.getUserData() + ".");
     }
 

@@ -180,3 +180,8 @@ update-checker:
 # Server-level facts only: player count, server and Java version, feature counters.
 # No player names, UUIDs, IPs, track titles or search queries are ever sent.
 metrics: true
+
+### Debug
+# Name in the console the source each track came from: direct read, SABR, backend or
+# youtube-source. One line per track, both when a disc is created and when it plays.
+debug: false

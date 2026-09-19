@@ -463,6 +463,10 @@ public final class Config {
         return cfg().getBoolean("config-dialog", true);
     }
 
+    public boolean isDebug() {
+        return cfg().getBoolean("debug", false);
+    }
+
     public int getPlayerDialogRefreshTicks() {
         return Math.max(1, cfg().getInt("player-dialog-refresh-ticks", 10));
     }
