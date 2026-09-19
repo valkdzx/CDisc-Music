@@ -164,9 +164,12 @@ cdisc:
   unknown: "&cNo existe ese subcomando: %s. Escribe /cdisc y pulsa Tab."
   create_usage: "&7/cdisc create <enlace o búsqueda>"
   disc_usage: "&7/cdisc disc &f— &7clear&f, &7convert&f, &7playlist <consulta>&f."
-  admin_usage: "&7/cdisc admin &f— &7reload&f, &7doctor&f, &7download <búsqueda o enlace>&f, &7config&f."
+  admin_usage: "&7/cdisc admin &f— &7reload&f, &7doctor&f, &7download <búsqueda o enlace>&f, &7logs&f, &7config&f."
   cleared: "¡Disco borrado!"
   reloaded: "¡Plugin recargado!"
+  logs_uploading: "Subiendo el registro del servidor a mclo.gs..."
+  logs_uploaded: "Registro subido: %s — cualquiera con el enlace puede leerlo."
+  logs_failed: "No se pudo subir el registro: %s"
   hold_disc: "¡Ten un disco de música en la mano!"
   player_only: "Eso hay que ejecutarlo en el juego. Desde la consola funciona %s."
 convert:

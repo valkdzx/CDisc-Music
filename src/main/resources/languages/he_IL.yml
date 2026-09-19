@@ -164,9 +164,12 @@ cdisc:
   unknown: "&cאין פקודת משנה כזאת: %s. הקלד /cdisc ולחץ Tab."
   create_usage: "&7/cdisc create <קישור או חיפוש>"
   disc_usage: "&7/cdisc disc &f— &7clear&f, &7convert&f, &7playlist <חיפוש>&f."
-  admin_usage: "&7/cdisc admin &f— &7reload&f, &7doctor&f, &7download <חיפוש או קישור>&f, &7config&f."
+  admin_usage: "&7/cdisc admin &f— &7reload&f, &7doctor&f, &7download <חיפוש או קישור>&f, &7logs&f, &7config&f."
   cleared: "התקליט נוקה!"
   reloaded: "התוסף נטען מחדש!"
+  logs_uploading: "מעלה את יומן השרת ל-mclo.gs..."
+  logs_uploaded: "היומן הועלה: %s — כל מי שיש לו את הקישור יכול לקרוא אותו."
+  logs_failed: "לא ניתן היה להעלות את היומן: %s"
   hold_disc: "החזק תקליט מוזיקה ביד!"
   player_only: "את זה צריך להריץ במשחק. מהמסוף עובד %s."
 convert:

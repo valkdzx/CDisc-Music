@@ -164,9 +164,12 @@ cdisc:
   unknown: "&cНет такой подкоманды: %s. Наберите /cdisc и нажмите tab."
   create_usage: "&7/cdisc create <ссылка или поиск>"
   disc_usage: "&7/cdisc disc &f— &7clear&f, &7convert&f, &7playlist <запрос>&f."
-  admin_usage: "&7/cdisc admin &f— &7reload&f, &7doctor&f, &7download <поиск или ссылка>&f, &7config&f."
+  admin_usage: "&7/cdisc admin &f— &7reload&f, &7doctor&f, &7download <поиск или ссылка>&f, &7logs&f, &7config&f."
   cleared: "Пластинка очищена!"
   reloaded: "Плагин перезагружен!"
+  logs_uploading: "Загружаю лог сервера на mclo.gs..."
+  logs_uploaded: "Лог загружен: %s — его может прочитать любой, у кого есть ссылка."
+  logs_failed: "Не удалось загрузить лог: %s"
   hold_disc: "Держи пластинку в руке!"
   player_only: "Эту команду нужно вводить в игре. Из консоли работает %s."
 convert:

@@ -107,6 +107,8 @@ actions:
   admin:
     reload: op
     doctor: op
+    # Uploads the server log to mclo.gs and replies with a public link; keys are hidden first.
+    logs: op
 
 ### Limits
 # Applied to everyone without cdisc.admin. /cdisc create makes the SERVER fetch a URL

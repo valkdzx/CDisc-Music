@@ -164,9 +164,12 @@ cdisc:
   unknown: "&cТакої підкоманди немає: %s. Набери /cdisc і натисни Tab."
   create_usage: "&7/cdisc create <посилання або пошук>"
   disc_usage: "&7/cdisc disc &f— &7clear&f, &7convert&f, &7playlist <запит>&f."
-  admin_usage: "&7/cdisc admin &f— &7reload&f, &7doctor&f, &7download <пошук або посилання>&f, &7config&f."
+  admin_usage: "&7/cdisc admin &f— &7reload&f, &7doctor&f, &7download <пошук або посилання>&f, &7logs&f, &7config&f."
   cleared: "Платівку очищено!"
   reloaded: "Плагін перезавантажено!"
+  logs_uploading: "Завантажую лог сервера на mclo.gs..."
+  logs_uploaded: "Лог завантажено: %s — його може прочитати кожен, хто має посилання."
+  logs_failed: "Не вдалося завантажити лог: %s"
   hold_disc: "Візьми музичну платівку в руку!"
   player_only: "Це треба виконувати в грі. З консолі працює %s."
 convert:

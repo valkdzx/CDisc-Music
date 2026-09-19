@@ -164,9 +164,12 @@ cdisc:
   unknown: "&cلا يوجد أمر فرعي بهذا الاسم: %s. اكتب /cdisc واضغط Tab."
   create_usage: "&7/cdisc create <رابط أو بحث>"
   disc_usage: "&7/cdisc disc &f— &7clear&f، &7convert&f، &7playlist <بحث>&f."
-  admin_usage: "&7/cdisc admin &f— &7reload&f، &7doctor&f، &7download <بحث أو رابط>&f، &7config&f."
+  admin_usage: "&7/cdisc admin &f— &7reload&f، &7doctor&f، &7download <بحث أو رابط>&f، &7logs&f، &7config&f."
   cleared: "مُسحت الأسطوانة!"
   reloaded: "أُعيد تحميل الإضافة!"
+  logs_uploading: "جارٍ رفع سجل الخادم إلى mclo.gs..."
+  logs_uploaded: "تم رفع السجل: %s — يستطيع أي شخص لديه الرابط قراءته."
+  logs_failed: "تعذّر رفع السجل: %s"
   hold_disc: "أمسك أسطوانة موسيقى بيدك!"
   player_only: "هذا يجب تنفيذه داخل اللعبة. من الطرفية يعمل %s."
 convert:

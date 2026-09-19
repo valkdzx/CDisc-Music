@@ -81,7 +81,8 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
             "hologram", new String[]{"preset"},
             "reload", new String[]{"admin", "reload"},
             "doctor", new String[]{"admin", "doctor"},
-            "download", new String[]{"admin", "download"});
+            "download", new String[]{"admin", "download"},
+            "logs", new String[]{"admin", "logs"});
 
     private static String[] rewrite(String[] args) {
         String[] moved = MOVED.get(args[0].toLowerCase(Locale.ROOT));
@@ -186,6 +187,9 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
             case "reload" -> {
                 if (allowed(sender, Action.ADMIN_RELOAD)) reload(sender);
             }
+            case "logs" -> {
+                if (allowed(sender, Action.ADMIN_LOGS)) logs(sender);
+            }
             case "config" -> config(sender);
             default -> {
                 if (Perms.isAdmin(sender)) {
@@ -193,6 +197,23 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
                 }
             }
         }
+    }
+
+    private void logs(CommandSender sender) {
+        List<String> doctor = Diagnostics.report(plugin);
+        sender.sendMessage("§7" + message(sender, "cdisc.logs_uploading"));
+
+        plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
+            String reply;
+            try {
+                reply = "§a" + message(sender, "cdisc.logs_uploaded", LogUpload.upload(plugin, doctor));
+            } catch (Exception e) {
+                if (e instanceof InterruptedException) Thread.currentThread().interrupt();
+                reply = "§c" + message(sender, "cdisc.logs_failed", String.valueOf(e.getMessage()));
+            }
+            String text = reply;
+            plugin.getServer().getScheduler().runTask(plugin, () -> sender.sendMessage(text));
+        });
     }
 
     private void config(CommandSender sender) {
@@ -449,6 +470,7 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
             return Stream.of(
                             entry("reload", Action.ADMIN_RELOAD, sender),
                             entry("doctor", Action.ADMIN_DOCTOR, sender),
+                            entry("logs", Action.ADMIN_LOGS, sender),
                             entry("download", Action.DISC_DOWNLOAD, sender),
                             sender instanceof Player && sender.hasPermission(Perms.CONFIG)
                                     && plugin.cdiscConfig().isConfigDialogEnabled() ? "config" : null)

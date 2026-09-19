@@ -164,9 +164,12 @@ cdisc:
   unknown: "&cSo einen Unterbefehl gibt es nicht: %s. Tipp /cdisc und drück Tab."
   create_usage: "&7/cdisc create <Link oder Suche>"
   disc_usage: "&7/cdisc disc &f— &7clear&f, &7convert&f, &7playlist <Suche>&f."
-  admin_usage: "&7/cdisc admin &f— &7reload&f, &7doctor&f, &7download <Suche oder Link>&f, &7config&f."
+  admin_usage: "&7/cdisc admin &f— &7reload&f, &7doctor&f, &7download <Suche oder Link>&f, &7logs&f, &7config&f."
   cleared: "Platte geleert!"
   reloaded: "Plugin neu geladen!"
+  logs_uploading: "Lade das Server-Log zu mclo.gs hoch..."
+  logs_uploaded: "Log hochgeladen: %s — jeder mit dem Link kann es lesen."
+  logs_failed: "Das Log konnte nicht hochgeladen werden: %s"
   hold_disc: "Halt eine Musikplatte in der Hand!"
   player_only: "Das muss im Spiel laufen. Von der Konsole aus geht %s."
 convert:
