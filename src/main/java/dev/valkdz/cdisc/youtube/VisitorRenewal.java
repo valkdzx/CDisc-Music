@@ -24,7 +24,7 @@ public final class VisitorRenewal {
     private final HttpClient http;
 
     public VisitorRenewal() {
-        this.http = HttpClient.newBuilder()
+        this.http = dev.valkdz.cdisc.util.NetProxy.apply(HttpClient.newBuilder())
                 .connectTimeout(Duration.ofSeconds(10))
                 .followRedirects(HttpClient.Redirect.NORMAL)
                 .build();

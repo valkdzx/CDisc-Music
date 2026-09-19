@@ -67,7 +67,7 @@ public final class LocalDownloader {
             t.setDaemon(true);
             return t;
         });
-        this.http = HttpClient.newBuilder()
+        this.http = dev.valkdz.cdisc.util.NetProxy.apply(HttpClient.newBuilder())
                 .connectTimeout(Duration.ofSeconds(15))
 
                 .followRedirects(HttpClient.Redirect.NEVER)

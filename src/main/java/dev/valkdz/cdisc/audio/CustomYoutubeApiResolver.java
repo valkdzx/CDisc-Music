@@ -52,8 +52,9 @@ public class CustomYoutubeApiResolver {
     public CustomYoutubeApiResolver(String baseUrl, HttpAudioSourceManager httpProbe, boolean proxy) {
         this.baseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
         this.httpProbe = httpProbe;
+        httpProbe.configureBuilder(dev.valkdz.cdisc.util.NetProxy::apply);
         this.proxy = proxy;
-        this.http = HttpClient.newBuilder()
+        this.http = dev.valkdz.cdisc.util.NetProxy.apply(HttpClient.newBuilder())
                 .connectTimeout(Duration.ofSeconds(4))
                 .followRedirects(HttpClient.Redirect.NORMAL)
                 .build();

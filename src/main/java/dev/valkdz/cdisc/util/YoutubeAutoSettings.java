@@ -127,7 +127,7 @@ final class YoutubeAutoSettings {
 
     private static Boolean locatedInRussia() {
         try {
-            HttpClient http = HttpClient.newBuilder()
+            HttpClient http = NetProxy.apply(HttpClient.newBuilder())
                     .connectTimeout(Duration.ofSeconds(3))
                     .build();
             HttpResponse<String> response = http.send(

@@ -33,6 +33,7 @@ public final class SoundCloudProxySourceManager implements AudioSourceManager {
 
     public SoundCloudProxySourceManager(String endpoint) {
         this.endpoint = endpoint;
+        interfaces.configureBuilder(dev.valkdz.cdisc.util.NetProxy::apply);
     }
 
     record Resolved(AudioTrackInfo info, String streamUrl, String mimeType) {

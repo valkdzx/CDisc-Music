@@ -43,10 +43,11 @@ public final class SabrResolver {
 
     public SabrResolver(Supplier<InnerTubePlayer.ClientIdentity> identity, String remoteCipherUrl) {
         this.identity = identity;
+        cipherInterfaces.configureBuilder(dev.valkdz.cdisc.util.NetProxy::apply);
         this.cipher = isBlank(remoteCipherUrl)
                 ? new LocalSignatureCipherManager()
                 : new RemoteCipherManager(remoteCipherUrl);
-        this.http = HttpClient.newBuilder()
+        this.http = dev.valkdz.cdisc.util.NetProxy.apply(HttpClient.newBuilder())
                 .connectTimeout(Duration.ofSeconds(10))
 
                 .followRedirects(HttpClient.Redirect.NEVER)

@@ -171,6 +171,11 @@ public final class SourcesConfig {
         return Math.max(1, cfg.getInt("youtube.probe-timeout-seconds", 4));
     }
 
+    public String proxyAddress() {
+        String address = cfg.getString("proxy.address");
+        return address == null ? "" : address.trim();
+    }
+
     public String remoteCipherUrl() {
 
         String url = cfg.getString("youtube.remote-cipher.url");

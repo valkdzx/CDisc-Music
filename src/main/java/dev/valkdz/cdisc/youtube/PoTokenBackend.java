@@ -21,7 +21,7 @@ public final class PoTokenBackend {
 
     public PoTokenBackend(String userAgent) {
         this.userAgent = userAgent;
-        this.http = HttpClient.newBuilder()
+        this.http = dev.valkdz.cdisc.util.NetProxy.apply(HttpClient.newBuilder())
                 .connectTimeout(Duration.ofSeconds(10))
                 .followRedirects(HttpClient.Redirect.NORMAL)
                 .build();

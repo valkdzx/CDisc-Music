@@ -35,7 +35,7 @@ public final class NetEaseProvider implements LyricsProvider {
 
     public NetEaseProvider(IntSupplier timeoutSeconds) {
         this.timeoutSeconds = timeoutSeconds;
-        this.http = HttpClient.newBuilder()
+        this.http = dev.valkdz.cdisc.util.NetProxy.apply(HttpClient.newBuilder())
                 .connectTimeout(Duration.ofSeconds(10))
                 .followRedirects(HttpClient.Redirect.NORMAL)
                 .build();

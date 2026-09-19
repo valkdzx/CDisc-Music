@@ -79,6 +79,7 @@ public class TrackLoader {
         this.lavaPlayer = new DefaultAudioPlayerManager();
 
         this.lavaPlayer.setFrameBufferDuration(5000);
+        this.lavaPlayer.setHttpBuilderConfigurator(dev.valkdz.cdisc.util.NetProxy::apply);
         registerSources();
     }
 
@@ -110,7 +111,7 @@ public class TrackLoader {
                     ? new dev.valkdz.cdisc.audio.sabr.SabrResolver(this::sabrIdentity, rcUrl)
                     : null;
 
-            java.net.http.HttpClient bridgeHttp = java.net.http.HttpClient.newBuilder()
+            java.net.http.HttpClient bridgeHttp = dev.valkdz.cdisc.util.NetProxy.apply(java.net.http.HttpClient.newBuilder())
                     .connectTimeout(java.time.Duration.ofSeconds(10)).build();
 
             spotifyBridge = new dev.valkdz.cdisc.audio.spotify.SpotifyBridge(

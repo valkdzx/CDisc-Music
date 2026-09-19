@@ -73,6 +73,8 @@ public final class Main extends JavaPlugin {
 
         saveDefaultConfig();
         config = new Config(this);
+        dev.valkdz.cdisc.util.NetProxy.configure(config.getProxyAddress(),
+                config.getProxyUsername(), config.getProxyPassword(), getLogger());
 
         // The config must already be saved: Plasmo Voice initialises registered addons
         // during its own onEnable, and reads ours there.

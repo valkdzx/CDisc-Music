@@ -19,6 +19,7 @@ public final class Tokens {
     private static final String YOUTUBE = "youtube";
     private static final String CIPHER = "remote-cipher-server";
     private static final String PO_TOKEN_BACKEND = "po-token-backend";
+    private static final String PROXY = "proxy";
 
     private final Main plugin;
     private final File file;
@@ -71,6 +72,8 @@ public final class Tokens {
     public String poTokenBackendPassword() { return string(PO_TOKEN_BACKEND, "password"); }
 
     public String poTokenBackendUrl() { return string(PO_TOKEN_BACKEND, "url"); }
+    public String proxyUsername() { return string(PROXY, "username"); }
+    public String proxyPassword() { return string(PROXY, "password"); }
 
 
     public void setSpotify(String clientId, String clientSecret) {

@@ -52,6 +52,12 @@ final class Diagnostics {
             out.add(line(State.OFF, "/cdisc download", "switched off in sources.yml"));
         }
 
+        String proxy = dev.valkdz.cdisc.util.NetProxy.address();
+        if (proxy != null) {
+            out.add("");
+            out.add(line(State.READY, "proxy", "every request goes out through " + proxy));
+        }
+
         out.add("");
         out.add("&fOnline sources");
         out.add(source(config.isSoundcloudEnabled(), true, "soundcloud", "sc:", null));

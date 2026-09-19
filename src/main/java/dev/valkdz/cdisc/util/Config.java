@@ -243,6 +243,18 @@ public final class Config {
         plugin.saveConfig();
     }
 
+    public String getProxyAddress() {
+        return sources.proxyAddress();
+    }
+
+    public String getProxyUsername() {
+        return tokens.proxyUsername();
+    }
+
+    public String getProxyPassword() {
+        return tokens.proxyPassword();
+    }
+
     public String getRemoteCipherServerUrl() {
         return sources.remoteCipherUrl();
     }

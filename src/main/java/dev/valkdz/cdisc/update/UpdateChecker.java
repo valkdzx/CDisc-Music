@@ -52,7 +52,7 @@ public class UpdateChecker implements Listener {
 
     public UpdateChecker(Main plugin) {
         this.plugin = plugin;
-        this.http = HttpClient.newBuilder()
+        this.http = dev.valkdz.cdisc.util.NetProxy.apply(HttpClient.newBuilder())
                 .connectTimeout(Duration.ofSeconds(5))
                 .followRedirects(HttpClient.Redirect.NORMAL)
                 .build();

@@ -28,7 +28,7 @@ public final class LrcLibProvider implements LyricsProvider {
     public LrcLibProvider(String userAgent, IntSupplier timeoutSeconds) {
         this.userAgent = userAgent;
         this.timeoutSeconds = timeoutSeconds;
-        this.http = HttpClient.newBuilder()
+        this.http = dev.valkdz.cdisc.util.NetProxy.apply(HttpClient.newBuilder())
                 .connectTimeout(Duration.ofSeconds(10))
                 .followRedirects(HttpClient.Redirect.NORMAL)
                 .build();

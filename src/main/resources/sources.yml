@@ -1,6 +1,14 @@
 # CDisc — where the music comes from. Keys live in tokens.yml, behaviour in config.yml.
 # A source that needs a key and hasn't got one is skipped at startup, and named in the console.
 
+### Outgoing proxy
+# Send every request CDisc makes through an HTTP proxy: YouTube and the other sources, the
+# backend, lyrics, update checks. A nearer alternative to youtube.fallback-api.
+proxy:
+  # host:port, e.g. 203.0.113.5:8080. HTTP proxies only, not SOCKS. Blank goes direct.
+  # Its login, if it has one, goes in tokens.yml. Takes effect after a server restart.
+  address: ""
+
 ### Which sources are available
 # Turning one off unregisters it: its links stop resolving and its search prefix stops working.
 enabled:

@@ -35,3 +35,8 @@ po-token-backend:
 remote-cipher-server:
   # Password for the cipher server named in sources.yml. Blank for the public one.
   password: ""
+
+proxy:
+  # Login for the proxy named in sources.yml. Blank for a proxy without one.
+  username: ""
+  password: ""

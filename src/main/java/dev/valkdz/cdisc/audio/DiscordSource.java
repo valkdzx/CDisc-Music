@@ -97,7 +97,7 @@ public final class DiscordSource {
             synchronized (DiscordSource.class) {
                 client = http;
                 if (client == null) {
-                    client = HttpClient.newBuilder()
+                    client = dev.valkdz.cdisc.util.NetProxy.apply(HttpClient.newBuilder())
                             .connectTimeout(Duration.ofSeconds(5))
 
                             .followRedirects(HttpClient.Redirect.NEVER)
