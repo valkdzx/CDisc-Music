@@ -122,13 +122,6 @@ public class CustomYoutubeApiResolver {
         }
     }
 
-    public AudioTrack wrapStream(AudioPlayerManager playerManager, String streamUrl, String videoId,
-                                 String title, String author, long lengthMs, String watchUrl, String artworkUrl) {
-        HttpAudioTrack httpTrack = probeHttpTrack(playerManager, streamUrl);
-        if (httpTrack == null) return null;
-        return buildTrack(httpTrack, videoId, title, author, lengthMs, watchUrl, artworkUrl);
-    }
-
     private HttpAudioTrack probeHttpTrack(AudioPlayerManager playerManager, String streamUrl) {
         try {
             AudioItem probed = httpProbe.loadItem(playerManager, new AudioReference(streamUrl, null));

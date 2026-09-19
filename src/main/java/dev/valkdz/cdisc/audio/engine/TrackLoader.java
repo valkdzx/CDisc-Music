@@ -57,8 +57,6 @@ public class TrackLoader {
 
     private static final String SABR_MARKER = "No supported audio streams available";
 
-    private static final long PREFER_BACKEND_MS = 10 * 60 * 1000L;
-
     private static final String WEB_USER_AGENT =
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
             + "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
@@ -67,8 +65,6 @@ public class TrackLoader {
     private CustomYoutubeApiResolver customApiResolver;
     private dev.valkdz.cdisc.audio.sabr.SabrResolver sabrResolver;
     private dev.valkdz.cdisc.audio.spotify.SpotifyBridge spotifyBridge;
-
-    private volatile long preferBackendUntil;
 
     private volatile CustomYoutubeApiResolver ageGateApi;
 
@@ -332,6 +328,10 @@ public class TrackLoader {
     public void loadItem(String resolved, AudioLoadResultHandler handler) {
         if (interceptSpotifyCollection(resolved, handler)) return;
         if (interceptSpotify(resolved, handler)) return;
+        if (isYoutubeIdentifier(resolved) && !isSearch(resolved) && !resolved.contains("list=")) {
+            loadSmart(resolved, handler);
+            return;
+        }
         lavaPlayer.loadItem(resolved, handler);
     }
 
@@ -383,23 +383,11 @@ public class TrackLoader {
 
     public void load(String resolved, String musicFetch, String discTitle, String discAuthor,
                      AudioLoadResultHandler handler) {
-        if ("backend".equals(musicFetch) && customApiResolver != null) {
-            String videoId = customApiResolver.extractIdFromOwnStreamUrl(resolved);
-            resolveExecutor.submit(() -> {
-                AudioTrack track = customApiResolver.wrapStream(
-                        lavaPlayer, resolved, videoId, discTitle, discAuthor, 0, null, null);
-                if (track != null) {
-                    setTrackSourceMetadata(track, "Custom API (Backend)");
-                    handler.trackLoaded(track);
-                } else {
-                    handler.loadFailed(new FriendlyException(
-                            "Backend stream unreachable", FriendlyException.Severity.SUSPICIOUS, null));
-                }
-            });
-        } else if ("lavaplayer".equals(musicFetch)) {
-            lavaPlayer.loadItem(resolved, handler);
-        } else {
+        String youtube = "backend".equals(musicFetch) ? youtubeUrlOf(resolved) : resolved;
+        if (youtube.equals(resolved)) {
             loadSmart(resolved, handler);
+        } else {
+            loadSmart(youtube, handler, discTitle, discAuthor);
         }
     }
 
@@ -472,82 +460,40 @@ public class TrackLoader {
 
     private void loadViaLibraries(String resolved, AudioLoadResultHandler handler,
                                   boolean backendAlreadyTried) {
-
-        java.util.concurrent.atomic.AtomicReference<String> refusal =
-                new java.util.concurrent.atomic.AtomicReference<>();
-
-        CompletableFuture<AudioItem> apiFuture = customApiResolver == null
-                ? CompletableFuture.completedFuture(null)
-                : CompletableFuture.supplyAsync(
-                        () -> (AudioItem) customApiResolver.resolve(lavaPlayer, resolved), resolveExecutor
-                ).exceptionally(ex -> null);
-
-        CompletableFuture<AudioItem> ytFuture = CompletableFuture.supplyAsync(() -> {
-            try {
-                return youtubeManager.loadItem(lavaPlayer, new AudioReference(resolved, null));
-            } catch (Exception e) {
-                refusal.set(e.getMessage());
-                return null;
+        resolveExecutor.submit(() -> {
+            AudioTrack backend = null;
+            if (customApiResolver != null && !backendAlreadyTried) {
+                try {
+                    backend = customApiResolver.resolve(lavaPlayer, resolved);
+                } catch (Exception e) {
+                    backend = null;
+                }
             }
-        }, resolveExecutor).exceptionally(ex -> null);
-
-        if (prefersBackend()) {
-            preferBackendOver(apiFuture, ytFuture, handler, resolved, refusal,
-                              backendAlreadyTried);
-            return;
-        }
-
-        ytFuture.whenComplete((ytItem, ytEx) -> {
-            if (ytItem != null) {
-
-                setTrackSourceMetadata(ytItem, "youtube-source");
-                invokeHandler(ytItem, handler);
-            } else {
-                Bukkit.getLogger().warning("[CDisc] youtube-source returned nothing; "
-                        + "switching to the custom API...");
-                apiFuture.whenComplete((apiItem, apiEx) -> {
-                    if (apiItem != null) {
-                        Bukkit.getLogger().info("[CDisc] Loaded through the custom YouTube API.");
-                        setTrackSourceMetadata(apiItem, "Custom API (Backend)");
-                        invokeHandler(apiItem, handler);
-                    } else if (!backendAlreadyTried && looksAgeRestricted(refusal.get())) {
-
-                        Bukkit.getLogger().info("[CDisc] youtube-source was refused on age; "
-                                + "asking the backend.");
-                        loadAgeRestricted(resolved, handler);
-                    } else {
-                        Bukkit.getLogger().severe("[CDisc] No source could load this track.");
-                        handler.noMatches();
-                    }
-                });
-            }
-        });
-    }
-
-    private void preferBackendOver(CompletableFuture<AudioItem> apiFuture,
-                                   CompletableFuture<AudioItem> ytFuture,
-                                   AudioLoadResultHandler handler, String resolved,
-                                   java.util.concurrent.atomic.AtomicReference<String> refusal,
-                                   boolean backendAlreadyTried) {
-        apiFuture.whenComplete((apiItem, apiEx) -> {
-            if (apiItem != null) {
-                setTrackSourceMetadata(apiItem, "Custom API (Backend)");
-                invokeHandler(apiItem, handler);
+            if (backend != null) {
+                setTrackSourceMetadata(backend, "Custom API (Backend)");
+                invokeHandler(backend, handler);
                 return;
             }
-            ytFuture.whenComplete((ytItem, ytEx) -> {
-                if (ytItem != null) {
-                    setTrackSourceMetadata(ytItem, "youtube-source");
-                    invokeHandler(ytItem, handler);
-                } else if (!backendAlreadyTried && looksAgeRestricted(refusal.get())) {
-                    Bukkit.getLogger().info("[CDisc] youtube-source was refused on age; "
-                            + "asking the backend.");
-                    loadAgeRestricted(resolved, handler);
-                } else {
-                    Bukkit.getLogger().severe("[CDisc] No source could load this track.");
-                    handler.noMatches();
-                }
-            });
+
+            String refusal = null;
+            AudioItem ytItem = null;
+            try {
+                ytItem = youtubeManager.loadItem(lavaPlayer, new AudioReference(resolved, null));
+            } catch (Exception e) {
+                refusal = e.getMessage();
+            }
+
+            if (ytItem != null) {
+                setTrackSourceMetadata(ytItem, "youtube-source");
+                invokeHandler(ytItem, handler);
+            } else if (!backendAlreadyTried && looksAgeRestricted(refusal)) {
+                Bukkit.getLogger().info("[CDisc] youtube-source was refused on age; "
+                        + "asking the backend.");
+                loadAgeRestricted(resolved, handler);
+            } else {
+                Bukkit.getLogger().severe("[CDisc] No source could load this track.");
+                handler.noMatches();
+            }
         });
     }
 
@@ -599,48 +545,60 @@ public class TrackLoader {
         return result;
     }
 
-    private static String pathOf(AudioTrack track) {
-        return track instanceof dev.valkdz.cdisc.audio.sabr.DirectAudioTrack
-                ? "direct link" : "SABR";
-    }
-
     public AudioTrack resolveViaBackend(String resolved) {
         return customApiResolver == null ? null : customApiResolver.resolve(lavaPlayer, resolved);
     }
 
-    public void resolveViaBackendAsync(String resolved, Consumer<AudioTrack> callback) {
-        if (!hasAlternative()) {
-            callback.accept(null);
-            return;
-        }
+    public boolean hasNextSource(AudioTrack failed, String resolved) {
+        return !"youtube-source".equals(failed.getUserData())
+                && isYoutubeIdentifier(youtubeUrlOf(resolved));
+    }
+
+    public void nextSourceAsync(AudioTrack failed, String resolved, Consumer<AudioTrack> callback) {
+        String url = youtubeUrlOf(resolved);
+        boolean backendTried = "Custom API (Backend)".equals(failed.getUserData());
+
         resolveExecutor.submit(() -> {
-
-            Direct direct = attemptDirect(resolved, null, null, false);
-            AudioTrack track = direct.track();
-            if (track != null) {
-                Bukkit.getLogger().info("[CDisc] Found a replacement: reading straight from "
-                        + "YouTube (" + pathOf(track) + ").");
-                setTrackSourceMetadata(track, "SABR (direct)");
-                callback.accept(track);
-                return;
+            if (!backendTried && customApiResolver != null) {
+                AudioTrack track = null;
+                try {
+                    track = customApiResolver.resolve(lavaPlayer, url);
+                } catch (Exception e) {
+                    Bukkit.getLogger().warning("[CDisc] The custom API had no replacement: "
+                            + e.getMessage());
+                }
+                if (track != null) {
+                    Bukkit.getLogger().info("[CDisc] Found a replacement: going through the custom API.");
+                    setTrackSourceMetadata(track, "Custom API (Backend)");
+                    callback.accept(track);
+                    return;
+                }
             }
 
+            AudioTrack track = null;
             try {
-
-                track = direct.ageRestricted()
-                        ? backendForAgeGate().resolve(lavaPlayer, resolved)
-                        : resolveViaBackend(resolved);
+                AudioItem item = youtubeManager == null ? null
+                        : youtubeManager.loadItem(lavaPlayer, new AudioReference(url, null));
+                if (item instanceof AudioTrack found) {
+                    track = found;
+                } else if (item instanceof AudioPlaylist list && !list.getTracks().isEmpty()) {
+                    track = list.getSelectedTrack() != null ? list.getSelectedTrack() : list.getTracks().get(0);
+                }
             } catch (Exception e) {
-                Bukkit.getLogger().warning("[CDisc] The custom API had no replacement: "
+                Bukkit.getLogger().warning("[CDisc] youtube-source had no replacement: "
                         + e.getMessage());
-                track = null;
             }
             if (track != null) {
-            Bukkit.getLogger().info("[CDisc] Found a replacement: going through the custom API.");
-                setTrackSourceMetadata(track, "Custom API (Backend)");
+                Bukkit.getLogger().info("[CDisc] Found a replacement: going through youtube-source.");
+                setTrackSourceMetadata(track, "youtube-source");
             }
             callback.accept(track);
         });
+    }
+
+    private String youtubeUrlOf(String resolved) {
+        String videoId = backendForAgeGate().extractIdFromOwnStreamUrl(resolved);
+        return videoId == null ? resolved : "https://www.youtube.com/watch?v=" + videoId;
     }
 
     public String backendStreamUrlFor(String videoId) {
@@ -697,20 +655,8 @@ public class TrackLoader {
         return mentionsSabr(error.getCause(), seen);
     }
 
-    public void markYoutubeSourceUnusable() {
-        preferBackendUntil = System.currentTimeMillis() + PREFER_BACKEND_MS;
-    }
-
-    public boolean prefersBackend() {
-        return (hasCustomApi() || hasSabr()) && System.currentTimeMillis() < preferBackendUntil;
-    }
-
     public boolean hasAlternative() {
         return hasCustomApi() || hasSabr();
-    }
-
-    public void trustYoutubeSourceAgain() {
-        preferBackendUntil = 0L;
     }
 
     public boolean hasSabr() {

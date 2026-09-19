@@ -135,11 +135,6 @@ final class Diagnostics {
                 out.add("  &7needs po-token and visitor-data in tokens.yml. Without");
                 out.add("  &7them this path is on but cannot be used.");
             }
-            if (plugin.getAudioPlayerManager().prefersSabrOrBackend()) {
-                out.add(line(State.FRAGILE, "youtube-source",
-                        "sidelined — it answered SABR, so tracks go round it for now"));
-                out.add("  &7Clears itself within ten minutes, or at /cdisc admin reload.");
-            }
 
             out.add(line(State.READY, "clients",
                     String.join(", ", config.getYoutubeClients())));

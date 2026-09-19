@@ -767,9 +767,6 @@ public class LavaPlayerManager {
 
         int gen = generation.getOrDefault(block, 0) + 1;
 
-        java.util.concurrent.atomic.AtomicBoolean backendRetried =
-                new java.util.concurrent.atomic.AtomicBoolean();
-
         AudioSession session = new AudioSession(player, voiceSession, discTitle, discAuthor);
         sessions.put(block, Collections.singletonList(session));
         generation.put(block, gen);
@@ -803,13 +800,11 @@ public class LavaPlayerManager {
                         }
 
                         if (r == AudioTrackEndReason.LOAD_FAILED
-                                && trackLoader.hasAlternative()
-                                && trackLoader.isYoutubeIdentifier(resolved)
-                                && backendRetried.compareAndSet(false, true)) {
+                                && trackLoader.hasNextSource(t, resolved)) {
 
-                            Bukkit.getLogger().warning("[CDisc] youtube-source could not play "
-                                    + "this track; looking for another way...");
-                            trackLoader.resolveViaBackendAsync(resolved, replacement -> {
+                            Bukkit.getLogger().warning("[CDisc] " + t.getUserData() + " could not play "
+                                    + "this track; trying the next source...");
+                            trackLoader.nextSourceAsync(t, resolved, replacement -> {
                                 if (generation.getOrDefault(ref.get(), 0) != gen) return;
                                 if (replacement == null) {
                                     Bukkit.getLogger().severe("[CDisc] Nothing else could serve it either.");
@@ -834,9 +829,7 @@ public class LavaPlayerManager {
                     @Override
                     public void onTrackException(AudioPlayer p, AudioTrack t, com.sedmelluq.discord.lavaplayer.tools.FriendlyException e) {
 
-                        boolean willRetry = trackLoader.hasAlternative()
-                                && trackLoader.isYoutubeIdentifier(resolved)
-                                && !backendRetried.get();
+                        boolean willRetry = trackLoader.hasNextSource(t, resolved);
 
                         String reason = e.getMessage() == null ? "" : e.getMessage().split("\n", 2)[0];
                         Bukkit.getLogger().warning("[CDisc] Playback failed for \""
@@ -849,13 +842,7 @@ public class LavaPlayerManager {
                                     + "direct link, and it all goes through "
                                     + "serverAbrStreamingUrl, which youtube-source cannot play. "
                                     + "Neither the tokens nor this server's address are at fault.");
-                            if (trackLoader.hasAlternative()) {
-                                trackLoader.markYoutubeSourceUnusable();
-                                Bukkit.getLogger().warning("[CDisc] For the next 10 minutes "
-                                        + "tracks skip youtube-source and go through "
-                                        + (trackLoader.hasSabr() ? "SABR" : "the custom API")
-                                        + " instead. To clear that sooner: /cdisc admin reload.");
-                            } else {
+                            if (!trackLoader.hasAlternative()) {
                                 Bukkit.getLogger().severe("[CDisc] Nothing to fall back on: turn "
                                         + "on youtube.sabr or youtube.fallback-api in sources.yml, "
                                         + "or YouTube will not play at all.");
@@ -1489,14 +1476,8 @@ public class LavaPlayerManager {
         trackLoader.shutdown();
     }
 
-    public boolean prefersSabrOrBackend() {
-        return trackLoader.prefersBackend();
-    }
-
     public void reload() {
         trackLoader.reloadSources();
-
-        trackLoader.trustYoutubeSourceAgain();
     }
 
     public YoutubeAudioSourceManager getYoutubeSourceManager() {
