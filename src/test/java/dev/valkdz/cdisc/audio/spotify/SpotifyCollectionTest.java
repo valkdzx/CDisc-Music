@@ -33,4 +33,23 @@ class SpotifyCollectionTest {
         assertEquals("https://open.spotify.com/track/3h5T5JypYU7huFiVYhv1dr",
                 read.entries().get(0).spotifyUrl());
     }
+
+    @Test
+    void readsTheBackendAlbumListing() throws Exception {
+        String json = "{\"type\":\"album\",\"id\":\"1kZKHuWzsyGUVfuq0BxKDM\","
+                + "\"name\":\"Pt.1\",\"total\":2,\"truncated\":false,\"tracks\":["
+                + "{\"index\":1,\"id\":\"3fFUWcpKYnoRNoPOJzjIdx\",\"title\":\"first\","
+                + "\"artists\":[\"CUPSIZE\",\"Guest\"],\"duration_ms\":208130},"
+                + "{\"index\":2,\"title\":\"a local file with no id\",\"artists\":[],\"duration_ms\":1000}"
+                + "],\"count\":2}";
+
+        SpotifyBridge.Collection read = SpotifyBridge.parseBackend(json);
+
+        assertEquals("Pt.1", read.name());
+        assertEquals(1, read.entries().size());
+        assertEquals("CUPSIZE, Guest", read.entries().get(0).artist());
+        assertEquals(208130, read.entries().get(0).durationMs());
+        assertEquals("https://open.spotify.com/track/3fFUWcpKYnoRNoPOJzjIdx",
+                read.entries().get(0).spotifyUrl());
+    }
 }

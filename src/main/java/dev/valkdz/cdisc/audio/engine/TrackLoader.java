@@ -333,12 +333,8 @@ public class TrackLoader {
 
     private boolean interceptSpotifyCollection(String resolved, AudioLoadResultHandler handler) {
         String collection = dev.valkdz.cdisc.audio.spotify.SpotifyBridge.collectionOf(resolved);
-        Config config = plugin.cdiscConfig();
         if (collection == null || spotifyBridge == null || !spotifyBridge.isUsable()) return false;
-        if (!config.isSpotifyEnabled()
-                || (!config.getSpotifyClientId().isEmpty() && !config.getSpotifyClientSecret().isEmpty())) {
-            return false;
-        }
+        if (!plugin.cdiscConfig().isSpotifyEnabled()) return false;
 
         resolveExecutor.submit(() -> {
             try {

@@ -37,6 +37,7 @@ public final class SpotifyBridge {
             "<script id=\"__NEXT_DATA__\" type=\"application/json\">(.*?)</script>", Pattern.DOTALL);
 
     private static final String EMBED_URL = "https://open.spotify.com/embed/";
+    private static final String OPEN_URL = "https://open.spotify.com/";
 
     private static final long DURATION_SLACK_SECONDS = 5;
 
@@ -115,8 +116,80 @@ public final class SpotifyBridge {
         return matcher.find() ? matcher.group(1) + "/" + matcher.group(2) : null;
     }
 
-    // The embed page needs no key, but lists at most the first 100 tracks.
     public Collection readCollection(String collection) throws IOException, InterruptedException {
+        if (!blank(backendUrl.get())) {
+            try {
+                return backendCollection(collection);
+            } catch (IOException ignored) {
+                // The backend cannot see Spotify's own editorial playlists; the embed page can.
+            }
+        }
+        return embedCollection(collection);
+    }
+
+    private Collection backendCollection(String collection)
+            throws IOException, InterruptedException {
+
+        HttpRequest.Builder request = HttpRequest.newBuilder(URI.create(
+                        origin(backendUrl.get()) + "/spotify?url=" + URLEncoder.encode(
+                                OPEN_URL + collection, StandardCharsets.UTF_8)))
+                .header("Accept", "application/json")
+                .timeout(Duration.ofSeconds(30))
+                .GET();
+
+        String password = backendPassword.get();
+        if (!blank(password)) request.header("Authorization", "Bearer " + password);
+
+        HttpResponse<String> response =
+                http.send(request.build(), HttpResponse.BodyHandlers.ofString());
+
+        if (response.statusCode() != 200) {
+            throw new IOException("the backend answered " + response.statusCode()
+                    + " for " + collection + explain(response.body()));
+        }
+        return parseBackend(response.body());
+    }
+
+    static Collection parseBackend(String json) throws IOException {
+        JsonNode body = MAPPER.readTree(json);
+
+        List<Entry> entries = new java.util.ArrayList<>();
+        for (JsonNode track : body.path("tracks")) {
+            String id = track.path("id").asText("");
+            if (id.isBlank()) continue;
+
+            entries.add(new Entry(id,
+                    track.path("title").asText(""),
+                    artistsOf(track.path("artists")),
+                    track.path("duration_ms").asLong(0)));
+        }
+
+        if (entries.isEmpty()) throw new IOException("the backend listed no tracks");
+        return new Collection(body.path("name").asText("Spotify"), entries);
+    }
+
+    private static String artistsOf(JsonNode artists) {
+        StringBuilder out = new StringBuilder();
+        for (JsonNode artist : artists) {
+            if (!out.isEmpty()) out.append(", ");
+            out.append(artist.asText(""));
+        }
+        return out.toString();
+    }
+
+    private static String explain(String body) {
+        try {
+            String error = MAPPER.readTree(body).path("error").asText("");
+            return error.isBlank() ? "" : ": " + error;
+        } catch (IOException unreadable) {
+            return "";
+        }
+    }
+
+    // The embed page needs no key, but lists at most the first 100 tracks.
+    private Collection embedCollection(String collection)
+            throws IOException, InterruptedException {
+
         HttpResponse<String> response = http.send(
                 HttpRequest.newBuilder(URI.create(EMBED_URL + collection))
                         .header("User-Agent", "Mozilla/5.0")
