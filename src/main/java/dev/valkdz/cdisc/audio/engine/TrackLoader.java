@@ -78,7 +78,7 @@ public class TrackLoader {
         this.plugin = plugin;
         this.lavaPlayer = new DefaultAudioPlayerManager();
 
-        this.lavaPlayer.setFrameBufferDuration(5000);
+        this.lavaPlayer.setFrameBufferDuration(30000);
         this.lavaPlayer.setHttpBuilderConfigurator(dev.valkdz.cdisc.util.NetProxy::apply);
         registerSources();
     }
