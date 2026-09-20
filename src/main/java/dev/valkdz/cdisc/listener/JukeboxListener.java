@@ -146,9 +146,13 @@ public class JukeboxListener implements Listener {
         if (jukebox.hasRecord()) return;
 
         ItemStack hand = e.getItem();
-        if (ItemUtils.isCdiscDisc(hand)) {
-            customDiscBlocks.add(BlockKey.of(block));
-        }
+        if (!ItemUtils.isCdiscDisc(hand)) return;
+
+        customDiscBlocks.add(BlockKey.of(block));
+
+        // The record lands after this event, and the record-start packet the start used to
+        // wait for never arrives if another plugin's handler swallows it first.
+        Bukkit.getScheduler().runTask(plugin, () -> startFromRecord(block));
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -203,6 +207,46 @@ public class JukeboxListener implements Listener {
         });
     }
 
+    private void startFromRecord(Block block) {
+        if (!(block.getState() instanceof Jukebox jukebox)) return;
+        if (!ItemUtils.isCdiscDisc(jukebox.getRecord())) return;
+
+        LavaPlayerManager apm = plugin.getAudioPlayerManager();
+        if (!apm.getSessions(block).isEmpty()) return;
+
+        if (!jukebox.hasRecord()) {
+            apm.stopPlaying(block, apm.getGeneration(block));
+            return;
+        }
+
+        ItemStack record = jukebox.getRecord();
+        ItemMeta meta = record.getItemMeta();
+        if (meta == null) {
+            apm.stopPlaying(block, apm.getGeneration(block));
+            return;
+        }
+
+        PersistentDataContainer pdc = meta.getPersistentDataContainer();
+        NamespacedKey urlKey = new NamespacedKey("cdisc", "cdisc_url");
+        NamespacedKey fallbackUrlKey = new NamespacedKey("cdisc", "cdisc_fallback_url");
+        NamespacedKey titleKey = new NamespacedKey("cdisc", "cdisc_title");
+        NamespacedKey authorKey = new NamespacedKey("cdisc", "cdisc_author");
+        NamespacedKey musicFetchKey = new NamespacedKey("cdisc", "music_fetch");
+        String query = pdc.get(urlKey, PersistentDataType.STRING);
+        String fallbackQuery = pdc.get(fallbackUrlKey, PersistentDataType.STRING);
+        String discTitle = pdc.get(titleKey, PersistentDataType.STRING);
+        String discAuthor = pdc.get(authorKey, PersistentDataType.STRING);
+        String musicFetch = pdc.get(musicFetchKey, PersistentDataType.STRING);
+
+        if (query == null) {
+            apm.stopPlaying(block, apm.getGeneration(block));
+            return;
+        }
+
+        apm.seedQueue(block, record.clone());
+        apm.startPlaying(block, query, fallbackQuery, discTitle, discAuthor, musicFetch);
+    }
+
     private void handleWorldEvent(org.bukkit.entity.Player player, WorldEventPacketInterceptor.WorldEventPacket event) {
         try {
             Location loc = new Location(player.getWorld(), event.x(), event.y(), event.z());
@@ -211,48 +255,7 @@ public class JukeboxListener implements Listener {
             if (!(state instanceof Jukebox jukebox)) return;
 
             if (event.effectId() == EFFECT_RECORD_START) {
-                ItemStack record = jukebox.getRecord();
-                boolean isCustom = ItemUtils.isCdiscDisc(record);
-
-                if (isCustom) {
-                    LavaPlayerManager apm = plugin.getAudioPlayerManager();
-
-                    if (!apm.getSessions(jukebox.getBlock()).isEmpty()) {
-                        return;
-                    }
-
-                    if (!jukebox.hasRecord()) {
-                        apm.stopPlaying(jukebox.getBlock(), apm.getGeneration(jukebox.getBlock()));
-                        return;
-                    }
-
-                    ItemStack r2 = jukebox.getRecord();
-                    ItemMeta m2 = r2.getItemMeta();
-                    if (m2 == null) {
-                        apm.stopPlaying(jukebox.getBlock(), apm.getGeneration(jukebox.getBlock()));
-                        return;
-                    }
-
-                    PersistentDataContainer pdc = m2.getPersistentDataContainer();
-                    NamespacedKey urlKey = new NamespacedKey("cdisc", "cdisc_url");
-                    NamespacedKey fallbackUrlKey = new NamespacedKey("cdisc", "cdisc_fallback_url");
-                    NamespacedKey titleKey = new NamespacedKey("cdisc", "cdisc_title");
-                    NamespacedKey authorKey = new NamespacedKey("cdisc", "cdisc_author");
-                    NamespacedKey musicFetchKey = new NamespacedKey("cdisc", "music_fetch");
-                    String query = pdc.get(urlKey, PersistentDataType.STRING);
-                    String fallbackQuery = pdc.get(fallbackUrlKey, PersistentDataType.STRING);
-                    String discTitle = pdc.get(titleKey, PersistentDataType.STRING);
-                    String discAuthor = pdc.get(authorKey, PersistentDataType.STRING);
-                    String musicFetch = pdc.get(musicFetchKey, PersistentDataType.STRING);
-
-                    if (query == null) {
-                        apm.stopPlaying(jukebox.getBlock(), apm.getGeneration(jukebox.getBlock()));
-                        return;
-                    }
-
-                    apm.seedQueue(jukebox.getBlock(), jukebox.getRecord().clone());
-                    apm.startPlaying(jukebox.getBlock(), query, fallbackQuery, discTitle, discAuthor, musicFetch);
-                }
+                startFromRecord(jukebox.getBlock());
             }
 
             if (event.effectId() == EFFECT_RECORD_STOP) {

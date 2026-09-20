@@ -38,7 +38,6 @@ import java.io.File;
 import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -52,8 +51,9 @@ public class LavaPlayerManager {
     private final TrackLoader trackLoader;
     private final NowPlayingBroadcaster broadcaster;
 
-    private final Map<Block, List<AudioSession>> sessions = new HashMap<>();
-    private final Map<Block, Integer> generation = new HashMap<>();
+    // Track-end callbacks read both of these on a LavaPlayer thread while the main thread writes them.
+    private final Map<Block, List<AudioSession>> sessions = new ConcurrentHashMap<>();
+    private final Map<Block, Integer> generation = new ConcurrentHashMap<>();
 
     private final Map<Block, SoundAnchor> anchors = new ConcurrentHashMap<>();
 
@@ -750,6 +750,10 @@ public class LavaPlayerManager {
         String resolved = trackLoader.resolveQuery(query);
         if (resolved == null || voiceBackend == null) return;
 
+        // Anything left here would keep playing unheard and make the next disc
+        // look like it is already running.
+        if (hasActiveSession(block)) stopPlaying(block, getGeneration(block));
+
         AudioPlayer player = trackLoader.createPlayer();
 
         SoundAnchor anchor = anchorManager.createFor(block);
@@ -869,26 +873,27 @@ public class LavaPlayerManager {
             }
 
             @Override public void noMatches() {
-                if (fallbackQuery != null) {
-                    stopPlaying(ref.get(), gen);
-                    startPlaying(ref.get(), fallbackQuery, null, discTitle, discAuthor, null);
-                } else {
-                    stopPlaying(ref.get(), gen);
-                }
+                fallBack(ref, gen, fallbackQuery, discTitle, discAuthor);
             }
 
             @Override public void loadFailed(FriendlyException e) {
                 e.printStackTrace();
-                if (fallbackQuery != null) {
-                    stopPlaying(ref.get(), gen);
-                    startPlaying(ref.get(), fallbackQuery, null, discTitle, discAuthor, null);
-                } else {
-                    stopPlaying(ref.get(), gen);
-                }
+                fallBack(ref, gen, fallbackQuery, discTitle, discAuthor);
             }
         };
 
         trackLoader.load(resolved, musicFetch, discTitle, discAuthor, handler);
+    }
+
+    // Load callbacks arrive on a LavaPlayer thread, and both halves spawn and remove
+    // entities, which the server refuses off the main thread.
+    private void fallBack(BlockRef ref, int gen, String fallbackQuery, String discTitle, String discAuthor) {
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            stopPlaying(ref.get(), gen);
+            if (fallbackQuery != null) {
+                startPlaying(ref.get(), fallbackQuery, null, discTitle, discAuthor, null);
+            }
+        });
     }
 
     public void setOnSessionEnded(Consumer<Block> callback) {
