@@ -455,6 +455,10 @@ public final class Config {
         return (float) Math.max(0.1, cfg().getDouble("lyrics.view-range", 1.0));
     }
 
+    public SneakMode getSneakMode() {
+        return SneakMode.parse(cfg().getString("sneak-mode", "toggle"), SneakMode.TOGGLE);
+    }
+
     public boolean isPlayerDialogEnabled() {
         return cfg().getBoolean("player-dialog", true);
     }

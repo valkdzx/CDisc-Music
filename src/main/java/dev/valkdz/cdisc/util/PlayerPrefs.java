@@ -17,6 +17,9 @@ public final class PlayerPrefs {
     private static final NamespacedKey LYRICS_SIDEBAR =
             new NamespacedKey(Main.getInstance(), "cdisc_lyrics_sidebar");
 
+    private static final NamespacedKey SNEAK_MODE =
+            new NamespacedKey(Main.getInstance(), "cdisc_sneak_mode");
+
     public static final int VOLUME_FOLLOWS_JUKEBOX = -1;
 
     private PlayerPrefs() {
@@ -77,6 +80,17 @@ public final class PlayerPrefs {
         boolean next = !showsLyricsScoreboard(player);
         setLyricsScoreboard(player, next);
         return next;
+    }
+
+    public static SneakMode sneakMode(Player player, SneakMode byDefault) {
+        String stored = container(player).get(SNEAK_MODE, PersistentDataType.STRING);
+        return stored == null ? byDefault : SneakMode.parse(stored, byDefault);
+    }
+
+    public static void setSneakMode(Player player, SneakMode mode) {
+        // Written for every mode, never removed: a player's own choice has to survive
+        // the server changing sneak-mode under them.
+        container(player).set(SNEAK_MODE, PersistentDataType.STRING, mode.key());
     }
 
     public static boolean toggleTrackMessages(Player player) {

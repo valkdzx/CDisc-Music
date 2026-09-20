@@ -173,6 +173,10 @@ cdisc:
   logs_failed: "No se pudo subir el registro: %s"
   hold_disc: "¡Ten un disco de música en la mano!"
   player_only: "Eso hay que ejecutarlo en el juego. Desde la consola funciona %s."
+  sneak_toggle: "Agáchate junto a una gramola para abrirla, y agáchate otra vez para cerrarla."
+  sneak_release: "Una gramola solo está abierta mientras mantengas pulsado agacharse."
+  sneak_off: "Agacharse junto a una gramola ya no hace nada: el disco entra y sale como siempre."
+  sneak_usage: "Uso: /cdisc sneak <toggle|release|off>"
 convert:
   done: "Convertido en un disco de CDisc: %s"
   already: "Ese disco ya es de CDisc."

@@ -66,7 +66,7 @@ actions:
     messages: true
     # Switching between the classic screen and the 1.21.6+ dialog
     screen: true
-    # /cdisc player info and status, which only read
+    # /cdisc player info and status, and /cdisc sneak, which picks what crouching does
     info: true
 
   ### The queue behind the jukebox

@@ -173,6 +173,10 @@ cdisc:
   logs_failed: "Couldn't upload the log: %s"
   hold_disc: "Hold a music disc in your hand!"
   player_only: "That one has to be run in game. From the console, %s is what works."
+  sneak_toggle: "Crouch at a jukebox to open it, and crouch again to close it."
+  sneak_release: "A jukebox opens only while you hold crouch."
+  sneak_off: "Crouching at a jukebox now does nothing: a disc goes in and out as usual."
+  sneak_usage: "Use: /cdisc sneak <toggle|release|off>"
 convert:
   done: "Converted to a CDisc disc: %s"
   already: "That disc is already a CDisc one."

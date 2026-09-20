@@ -8,6 +8,7 @@ import dev.valkdz.cdisc.permission.Action;
 import dev.valkdz.cdisc.permission.Perms;
 import dev.valkdz.cdisc.util.ItemUtils;
 import dev.valkdz.cdisc.util.PvDiscs;
+import dev.valkdz.cdisc.util.SneakMode;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -69,6 +70,7 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
             case "player" -> playerSub.handle(p, parts);
             case "pair" -> pairSub.handle(p, parts);
             case "messages" -> messages(p, parts);
+            case "sneak" -> sneak(p, parts);
             default -> p.sendMessage("§c" + message(p, "cdisc.unknown", parts[0]));
         }
         return true;
@@ -171,6 +173,25 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
         dev.valkdz.cdisc.util.PlayerPrefs.setTrackMessages(p, on);
         p.sendMessage("§a" + message(p,
                 on ? "gui.track_messages.enabled" : "gui.track_messages.disabled"));
+    }
+
+    private void sneak(Player p, String[] parts) {
+        if (!allowed(p, Action.PLAYER_INFO)) return;
+
+        SneakMode current = plugin.getTrackProgressDisplay().sneakMode(p);
+        SneakMode mode = parts.length > 1 ? SneakMode.byKey(parts[1]) : current.next();
+        if (mode == null) {
+            p.sendMessage("§c" + message(p, "cdisc.sneak_usage"));
+            return;
+        }
+
+        dev.valkdz.cdisc.util.PlayerPrefs.setSneakMode(p, mode);
+        plugin.getTrackProgressDisplay().stopWatching(p);
+        p.sendMessage("§a" + message(p, switch (mode) {
+            case TOGGLE -> "cdisc.sneak_toggle";
+            case RELEASE -> "cdisc.sneak_release";
+            case OFF -> "cdisc.sneak_off";
+        }));
     }
 
     private void admin(CommandSender sender, String sub, String[] parts) {
@@ -455,6 +476,7 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
                     playerEntry("player", Action.PLAYER_GUI, sender),
                     playerEntry("pair", Action.PAIR_LIST, sender),
                     playerEntry("messages", Action.PLAYER_MESSAGES, sender),
+                    playerEntry("sneak", Action.PLAYER_INFO, sender),
                     adminEntry("admin", sender)
             ).filter(java.util.Objects::nonNull);
 
@@ -490,6 +512,11 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
         }
         if (args[0].equalsIgnoreCase("messages") && args.length == 2) {
             return Stream.of("on", "off")
+                    .filter(s -> s.startsWith(args[1].toLowerCase(Locale.ROOT)))
+                    .toList();
+        }
+        if (args[0].equalsIgnoreCase("sneak") && args.length == 2) {
+            return Stream.of("toggle", "release", "off")
                     .filter(s -> s.startsWith(args[1].toLowerCase(Locale.ROOT)))
                     .toList();
         }

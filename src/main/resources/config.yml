@@ -149,6 +149,15 @@ lyrics:
 # A paused one stays paused, and a live stream resumes at whatever is broadcast now.
 resume-playback: true
 
+### Crouching at a jukebox
+# Crouching at a playing jukebox shows its progress bar and lets a right-click open
+# the screen instead of ejecting the disc.
+# toggle (one press turns it on, the next turns it off) | release (shown only while the
+# key is held down) | off (crouching does nothing, so a disc goes in and out as usual).
+# Each player picks their own with /cdisc sneak toggle|release|off; this is what a player
+# who never did gets.
+sneak-mode: toggle
+
 ### Player screen as a dialog
 # 1.21.6+ only, ignored on Spigot. Buttons say what they do in words, but the
 # progress bar stops being live: a dialog is a snapshot, redrawn on each press.

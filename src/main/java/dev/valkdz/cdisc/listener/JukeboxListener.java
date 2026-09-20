@@ -7,6 +7,7 @@ import dev.valkdz.cdisc.audio.AudioSession;
 import dev.valkdz.cdisc.audio.LavaPlayerManager;
 import dev.valkdz.cdisc.net.WorldEventPacketInterceptor;
 import dev.valkdz.cdisc.util.ItemUtils;
+import dev.valkdz.cdisc.util.SneakMode;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -121,6 +122,7 @@ public class JukeboxListener implements Listener {
         if (e.getHand() != EquipmentSlot.HAND) return;
         Player player = e.getPlayer();
         if (!player.isSneaking()) return;
+        if (plugin.getTrackProgressDisplay().sneakMode(player) == SneakMode.OFF) return;
 
         ItemStack held = player.getInventory().getItemInMainHand();
         if (held != null && !held.getType().isAir()) return;

@@ -173,6 +173,10 @@ cdisc:
   logs_failed: "Das Log konnte nicht hochgeladen werden: %s"
   hold_disc: "Halt eine Musikplatte in der Hand!"
   player_only: "Das muss im Spiel laufen. Von der Konsole aus geht %s."
+  sneak_toggle: "Schleiche an einer Jukebox, um sie zu öffnen, und noch einmal, um sie zu schließen."
+  sneak_release: "Eine Jukebox ist nur offen, solange du die Schleichtaste hältst."
+  sneak_off: "Schleichen an einer Jukebox tut jetzt nichts: die Platte geht wie gewohnt rein und raus."
+  sneak_usage: "Verwendung: /cdisc sneak <toggle|release|off>"
 convert:
   done: "In eine CDisc-Platte umgewandelt: %s"
   already: "Diese Platte ist bereits eine von CDisc."

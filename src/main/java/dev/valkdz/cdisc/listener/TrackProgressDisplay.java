@@ -3,6 +3,8 @@ package dev.valkdz.cdisc.listener;
 import dev.valkdz.cdisc.Main;
 import dev.valkdz.cdisc.audio.LavaPlayerManager;
 import dev.valkdz.cdisc.util.ItemUtils;
+import dev.valkdz.cdisc.util.PlayerPrefs;
+import dev.valkdz.cdisc.util.SneakMode;
 import dev.valkdz.cdisc.util.Chat;
 import dev.valkdz.cdisc.util.TimeUtils;
 import org.bukkit.Bukkit;
@@ -37,6 +39,8 @@ public class TrackProgressDisplay extends BukkitRunnable implements Listener {
     private final Map<UUID, Block> watchedBlocks = new ConcurrentHashMap<>();
 
     private final Set<UUID> showingHint = ConcurrentHashMap.newKeySet();
+
+    private final Set<UUID> sneakHeld = ConcurrentHashMap.newKeySet();
     private final Main plugin;
 
     public TrackProgressDisplay(Main plugin) {
@@ -63,20 +67,30 @@ public class TrackProgressDisplay extends BukkitRunnable implements Listener {
         dropState(player.getUniqueId());
     }
 
+    public SneakMode sneakMode(Player player) {
+        return PlayerPrefs.sneakMode(player, plugin.cdiscConfig().getSneakMode());
+    }
+
     @EventHandler
     public void onToggleSneak(PlayerToggleSneakEvent e) {
-        if (!e.isSneaking()) return;
-
         Player player = e.getPlayer();
         UUID id = player.getUniqueId();
 
-        Block target;
-        try {
-            target = player.getTargetBlockExact(MAX_TARGET_DISTANCE);
-        } catch (Exception ex) {
-            target = null;
+        if (!e.isSneaking()) {
+            if (sneakHeld.contains(id)) stopWatching(player);
+            return;
         }
+
+        SneakMode mode = sneakMode(player);
+        if (mode == SneakMode.OFF) return;
+
+        Block target = targetBlock(player);
         if (!isPlayableJukebox(target)) return;
+
+        if (mode == SneakMode.RELEASE) {
+            hold(id, target);
+            return;
+        }
 
         if (!watching.remove(id)) {
             watching.add(id);
@@ -85,8 +99,38 @@ public class TrackProgressDisplay extends BukkitRunnable implements Listener {
         }
     }
 
+    private void hold(UUID id, Block block) {
+        watching.add(id);
+        watchedBlocks.put(id, block);
+        sneakHeld.add(id);
+    }
+
+    private Block targetBlock(Player player) {
+        try {
+            return player.getTargetBlockExact(MAX_TARGET_DISTANCE);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    // A release-mode player can be crouching before they look at the jukebox, and
+    // the sneak event has already been and gone by then.
+    private void pickUpHeldSneaks() {
+        for (Player player : plugin.getServer().getOnlinePlayers()) {
+            if (!player.isSneaking() || watching.contains(player.getUniqueId())) continue;
+            if (sneakMode(player) != SneakMode.RELEASE) continue;
+
+            Block target = targetBlock(player);
+            if (isPlayableJukebox(target)
+                    && plugin.getAudioPlayerManager().hasActiveSession(target)) {
+                hold(player.getUniqueId(), target);
+            }
+        }
+    }
+
     @Override
     public void run() {
+        pickUpHeldSneaks();
         if (watching.isEmpty()) return;
 
         LavaPlayerManager apm = plugin.getAudioPlayerManager();
@@ -99,13 +143,12 @@ public class TrackProgressDisplay extends BukkitRunnable implements Listener {
                 continue;
             }
 
-            Block target;
-            try {
-                target = player.getTargetBlockExact(MAX_TARGET_DISTANCE);
-            } catch (Exception e) {
-                target = null;
+            if (sneakHeld.contains(id) && !player.isSneaking()) {
+                stopWatching(player);
+                continue;
             }
 
+            Block target = targetBlock(player);
             boolean lookingAtPlayer = isPlayableJukebox(target);
             if (lookingAtPlayer) {
                 watchedBlocks.put(id, target);
@@ -194,6 +237,7 @@ public class TrackProgressDisplay extends BukkitRunnable implements Listener {
         if (bar != null) bar.removeAll();
         watchedBlocks.remove(id);
         showingHint.remove(id);
+        sneakHeld.remove(id);
     }
 
     public void clearAll() {
@@ -203,6 +247,7 @@ public class TrackProgressDisplay extends BukkitRunnable implements Listener {
         bossBars.clear();
         watchedBlocks.clear();
         showingHint.clear();
+        sneakHeld.clear();
         watching.clear();
     }
 
