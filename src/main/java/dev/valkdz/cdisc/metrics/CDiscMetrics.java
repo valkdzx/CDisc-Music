@@ -40,7 +40,6 @@ public final class CDiscMetrics {
         }
 
         Metrics metrics = new Metrics(plugin, SERVICE_ID);
-        Config cfg = plugin.cdiscConfig();
 
         metrics.addCustomChart(new SingleLineChart("tracks_played",
                 () -> TRACKS_PLAYED.getAndSet(0)));
@@ -51,31 +50,6 @@ public final class CDiscMetrics {
             if (plugin.getVoiceBackendManager() == null) return "none";
 
             return plugin.getVoiceBackendManager().getMode();
-        }));
-
-        metrics.addCustomChart(new SimplePie("youtube_fallback_api",
-                () -> String.valueOf(cfg.getYoutubeCustomApi())));
-        metrics.addCustomChart(new SimplePie("fast_create",
-                () -> String.valueOf(cfg.isYoutubeFastCreate())));
-        metrics.addCustomChart(new SimplePie("update_checker",
-                () -> String.valueOf(cfg.isUpdateCheckerEnabled())));
-
-        metrics.addCustomChart(new AdvancedPie("enabled_sources", () -> {
-            Map<String, Integer> values = new HashMap<>();
-            if (cfg.isYoutubeEnabled()) values.put("YouTube", 1);
-            if (cfg.isSoundcloudEnabled()) values.put("SoundCloud", 1);
-            if (cfg.isSpotifyEnabled()) values.put("Spotify", 1);
-            if (cfg.isYandexMusicEnabled()) values.put("Yandex Music", 1);
-            if (cfg.isVkMusicEnabled()) values.put("VK Music", 1);
-            if (cfg.isTwitchEnabled()) values.put("Twitch", 1);
-            if (cfg.isMixcloudEnabled()) values.put("Mixcloud", 1);
-            if (cfg.isTiktokEnabled()) values.put("TikTok", 1);
-            if (cfg.isRedditEnabled()) values.put("Reddit", 1);
-            if (cfg.isVimeoEnabled()) values.put("Vimeo", 1);
-            if (cfg.isOcremixEnabled()) values.put("OCReMix", 1);
-            if (cfg.isBandcampEnabled()) values.put("Bandcamp", 1);
-            if (cfg.isHttpEnabled()) values.put("HTTP", 1);
-            return values;
         }));
 
         return metrics;
