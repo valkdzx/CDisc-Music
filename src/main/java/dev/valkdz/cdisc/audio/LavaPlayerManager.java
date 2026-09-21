@@ -95,7 +95,8 @@ public class LavaPlayerManager {
 
     public void saveQueues(boolean async) {
         evictSpentQueues();
-        if (!queuesChanged()) return;
+        boolean migrated = queueStore.migratePending();
+        if (!migrated && !queuesChanged()) return;
 
         queueStore.save(queues, async);
 
@@ -125,6 +126,9 @@ public class LavaPlayerManager {
 
             if (plugin.getJukeboxViewers() != null && plugin.getJukeboxViewers().isClaimed(block)) return false;
             if (plugin.getQueueGuiManager() != null && plugin.getQueueGuiManager().hasViewer(block)) return false;
+
+            // Its copy inside the jukebox outlives this map, so let it go only once that is gone.
+            if (!queueStore.clearBlock(block)) return false;
 
             savedRevisions.remove(block);
             return true;
@@ -1025,6 +1029,7 @@ public class LavaPlayerManager {
         if (live != null) return live;
 
         DiscQueue restored = queueStore.take(block);
+        if (restored == null) restored = queueStore.readBlock(block);
         if (restored == null) return null;
         queues.put(block, restored);
         return restored;
@@ -1040,6 +1045,7 @@ public class LavaPlayerManager {
         queues.remove(block);
 
         queueStore.forget(block);
+        queueStore.clearBlock(block);
         savedRevisions.remove(block);
         return queue == null ? Collections.emptyList() : queue.drainAll();
     }
@@ -1054,6 +1060,7 @@ public class LavaPlayerManager {
             if (queue.isEmpty()) {
                 queues.remove(block);
                 queueStore.forget(block);
+                queueStore.clearBlock(block);
                 savedRevisions.remove(block);
             }
 
@@ -1302,6 +1309,8 @@ public class LavaPlayerManager {
 
         savedRevisions.remove(from);
         queueStore.forget(from);
+        queueStore.clearBlock(from);
+        queueStore.forget(to);
 
         moveEntry(blockRefs, from, to);
         BlockRef ref = blockRefs.get(to);
