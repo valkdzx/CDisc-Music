@@ -13,6 +13,7 @@ import dev.valkdz.cdisc.permission.Action;
 import dev.valkdz.cdisc.util.BeaconUtils;
 import dev.valkdz.cdisc.util.Config;
 import dev.valkdz.cdisc.util.HeadUtils;
+import dev.valkdz.cdisc.util.Tasks;
 import dev.valkdz.cdisc.util.TimeUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -25,7 +26,6 @@ import org.bukkit.block.data.BlockData;
 import org.bukkit.block.data.Levelled;
 import org.bukkit.inventory.meta.BlockDataMeta;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.scheduler.BukkitTask;
 
 import dev.valkdz.cdisc.speaker.SpeakerGroup;
 import dev.valkdz.cdisc.speaker.SpeakerSettings;
@@ -72,7 +72,7 @@ public class PlayerGuiManager {
 
     private final Map<UUID, String> lastLyrics = new ConcurrentHashMap<>();
     private final Main plugin;
-    private BukkitTask titleUpdateTask;
+    private Tasks.Handle titleUpdateTask;
 
     public PlayerGuiManager(Main plugin) {
         this.plugin = plugin;
@@ -80,7 +80,7 @@ public class PlayerGuiManager {
 
     public void start() {
 
-        titleUpdateTask = Bukkit.getScheduler().runTaskTimer(plugin, this::refreshOpenScreens, 0L, 10L);
+        titleUpdateTask = Tasks.globalTimer(plugin, this::refreshOpenScreens, 1L, 10L);
     }
 
     public void stop() {
@@ -102,15 +102,22 @@ public class PlayerGuiManager {
             String progress_duration = TimeUtils.formatCompact(info.duration());
             for (Player player : entry.getValue()) {
                 if (!player.isOnline()) continue;
-                InventoryView view = player.getOpenInventory();
-                if (!(view.getTopInventory().getHolder() instanceof PlayerGuiHolder holder) || !holder.getBlock().equals(block)) continue;
 
-                String title = info.live()
-                        ? plugin.getMessageManager().get(player, "gui.title_live")
-                        : plugin.getMessageManager().get(player, "gui.title_progress", progress_position, progress_duration);
-                view.setTitle(title);
+                Tasks.onEntity(plugin, player, () -> {
+                    InventoryView view = player.getOpenInventory();
+                    if (!(view.getTopInventory().getHolder() instanceof PlayerGuiHolder holder)
+                            || !holder.getBlock().equals(block)) {
+                        return;
+                    }
 
-                refreshLyricsItem(player, view.getTopInventory(), block, info);
+                    String title = info.live()
+                            ? plugin.getMessageManager().get(player, "gui.title_live")
+                            : plugin.getMessageManager().get(player, "gui.title_progress",
+                                    progress_position, progress_duration);
+                    view.setTitle(title);
+
+                    refreshLyricsItem(player, view.getTopInventory(), block, info);
+                });
             }
         }
     }
@@ -193,7 +200,7 @@ public class PlayerGuiManager {
         Set<Player> viewers = openViewers.remove(block);
         if (viewers == null) return;
         for (Player p : viewers) {
-            if (p.isOnline()) p.closeInventory();
+            if (p.isOnline()) Tasks.onEntity(plugin, p, p::closeInventory);
         }
     }
 

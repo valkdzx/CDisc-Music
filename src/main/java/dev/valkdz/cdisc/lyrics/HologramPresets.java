@@ -102,7 +102,7 @@ public final class HologramPresets {
             saveNow();
             return;
         }
-        plugin.getServer().getScheduler().runTaskAsynchronously(plugin, this::saveNow);
+        dev.valkdz.cdisc.util.Tasks.async(plugin, this::saveNow);
     }
 
     public void saveNow() {

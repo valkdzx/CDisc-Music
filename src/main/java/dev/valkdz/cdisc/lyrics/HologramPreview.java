@@ -2,6 +2,7 @@ package dev.valkdz.cdisc.lyrics;
 
 import dev.valkdz.cdisc.Main;
 import dev.valkdz.cdisc.util.DisplayCompat;
+import dev.valkdz.cdisc.util.Tasks;
 import org.bukkit.Bukkit;
 import org.bukkit.Color;
 import org.bukkit.Location;
@@ -12,11 +13,9 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.TextDisplay;
 import org.bukkit.persistence.PersistentDataType;
-import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Transformation;
 import org.joml.Vector3f;
 
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -42,9 +41,9 @@ public final class HologramPreview {
     private final Main plugin;
     private final NamespacedKey previewKey;
 
-    private final Map<UUID, TextDisplay> shown = new HashMap<>();
+    private final Map<UUID, TextDisplay> shown = new java.util.concurrent.ConcurrentHashMap<>();
 
-    private BukkitTask follow;
+    private Tasks.Handle follow;
 
     public HologramPreview(Main plugin) {
         this.plugin = plugin;
@@ -52,6 +51,9 @@ public final class HologramPreview {
     }
 
     public int sweepOrphans() {
+        // Folia has no world-wide entity view from the global thread, and none of these persist.
+        if (Tasks.isFolia()) return 0;
+
         int removed = 0;
         for (World world : plugin.getServer().getWorlds()) {
             for (Entity entity : world.getEntities()) {
@@ -79,7 +81,7 @@ public final class HologramPreview {
             shown.put(player.getUniqueId(), display);
         } else {
             apply(display, style);
-            display.teleport(location);
+            Tasks.teleport(display, location);
         }
 
         display.setText(sampleText(player, style));
@@ -94,7 +96,7 @@ public final class HologramPreview {
 
     public void hideAll() {
         for (TextDisplay display : shown.values()) {
-            display.remove();
+            Tasks.onEntity(plugin, display, display::remove);
         }
         shown.clear();
         stopFollowingIfIdle();
@@ -195,20 +197,23 @@ public final class HologramPreview {
     private void startFollowing() {
         if (follow != null || !plugin.isEnabled()) return;
 
-        follow = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+        follow = Tasks.globalTimer(plugin, () -> {
             Iterator<Map.Entry<UUID, TextDisplay>> it = shown.entrySet().iterator();
             while (it.hasNext()) {
                 Map.Entry<UUID, TextDisplay> entry = it.next();
                 Player owner = Bukkit.getPlayer(entry.getKey());
+                TextDisplay display = entry.getValue();
 
-                if (owner == null || gone(entry.getValue())) {
-                    entry.getValue().remove();
+                if (owner == null || gone(display)) {
+                    Tasks.onEntity(plugin, display, display::remove);
                     it.remove();
                     continue;
                 }
 
-                Location location = inFrontOf(owner);
-                if (location != null) entry.getValue().teleport(location);
+                Tasks.onEntity(plugin, owner, () -> {
+                    Location location = inFrontOf(owner);
+                    if (location != null) Tasks.teleport(display, location);
+                });
             }
             stopFollowingIfIdle();
         }, FOLLOW_TICKS, FOLLOW_TICKS);

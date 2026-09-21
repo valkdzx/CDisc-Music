@@ -219,7 +219,10 @@ final class ConfigDialog {
     // Every click is re-checked on the main thread: the window may outlive the right to use it.
     private static void handle(Main plugin, Session session, int generation, Audience audience,
                                Consumer<Player> action) {
-        PlayerDialog.onMainThread(plugin, () -> {
+        Player owner = org.bukkit.Bukkit.getPlayer(session.owner);
+        if (owner == null) return;
+
+        PlayerDialog.onMainThread(plugin, owner, () -> {
             if (!(audience instanceof Player player) || !player.getUniqueId().equals(session.owner)) {
                 return;
             }

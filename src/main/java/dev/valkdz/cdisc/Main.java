@@ -17,6 +17,7 @@ import dev.valkdz.cdisc.portable.PortableJukeboxManager;
 import dev.valkdz.cdisc.update.UpdateChecker;
 import dev.valkdz.cdisc.util.Config;
 import dev.valkdz.cdisc.util.MessageManager;
+import dev.valkdz.cdisc.util.Tasks;
 import dev.valkdz.cdisc.voice.VoiceBackendManager;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -222,7 +223,7 @@ public final class Main extends JavaPlugin {
             getLogger().info("Removed " + strayLyrics + " leftover lyrics hologram(s) from a previous session.");
         }
 
-        getServer().getScheduler().runTaskLater(this, () -> {
+        Tasks.globalLater(this, () -> {
             if (isEnabled() && playbackResume != null) {
                 playbackResume.resumeLoadedChunks();
             }
@@ -244,10 +245,7 @@ public final class Main extends JavaPlugin {
             playbackResume.save();
         }
         if (trackProgressDisplay != null) {
-            try {
-                trackProgressDisplay.cancel();
-            } catch (IllegalStateException ignored) {
-            }
+            trackProgressDisplay.stop();
             trackProgressDisplay.clearAll();
         }
         if (playerGuiManager != null) {
@@ -356,7 +354,7 @@ public final class Main extends JavaPlugin {
         java.nio.file.Path folder = localMusic.root();
         if (folder == null) return;
 
-        getServer().getScheduler().runTaskAsynchronously(this, () -> {
+        Tasks.async(this, () -> {
             boolean empty;
             try (java.util.stream.Stream<java.nio.file.Path> entries =
                          java.nio.file.Files.list(folder)) {

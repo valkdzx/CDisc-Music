@@ -11,9 +11,9 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.text.Normalizer;
-import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class MessageManager {
 
@@ -27,7 +27,7 @@ public class MessageManager {
     private static final String NAME_PATTERN = "[A-Za-z0-9_-]{2,32}";
 
     private final Main plugin;
-    private final Map<String, FileConfiguration> locales = new HashMap<>();
+    private final Map<String, FileConfiguration> locales = new ConcurrentHashMap<>();
 
     private String forced;
 

@@ -1,7 +1,9 @@
 package dev.valkdz.cdisc.voice.anchor;
 
+import dev.valkdz.cdisc.util.Tasks;
 import org.bukkit.Location;
 import org.bukkit.entity.Entity;
+import org.bukkit.plugin.Plugin;
 
 public final class SoundAnchor {
 
@@ -18,12 +20,14 @@ public final class SoundAnchor {
 
     private static final double MOVED_ENOUGH = 1.0E-4;
 
-    private Entity entity;
+    private final Plugin plugin;
+    private volatile Entity entity;
     private final AnchorType type;
 
-    private Location sentTo;
+    private volatile Location sentTo;
 
-    SoundAnchor(Entity entity, AnchorType type) {
+    SoundAnchor(Plugin plugin, Entity entity, AnchorType type) {
+        this.plugin = plugin;
         this.entity = entity;
         this.type = type;
     }
@@ -45,8 +49,10 @@ public final class SoundAnchor {
         entity = fresh;
         sentTo = null;
 
-        if (old.getVehicle() != null) old.leaveVehicle();
-        old.remove();
+        Tasks.onEntity(plugin, old, () -> {
+            if (old.getVehicle() != null) old.leaveVehicle();
+            old.remove();
+        });
     }
 
     public AnchorType type() {
@@ -58,37 +64,45 @@ public final class SoundAnchor {
     }
 
     public void parkAt(Location location) {
-        if (!isAlive()) return;
-        if (entity.getVehicle() != null) {
-            entity.leaveVehicle();
-        }
-        sentTo = location.clone();
-        entity.teleport(location);
+        Entity riding = entity;
+        Tasks.onEntity(plugin, riding, () -> {
+            if (!isAlive()) return;
+            if (riding.getVehicle() != null) {
+                riding.leaveVehicle();
+            }
+            sentTo = location.clone();
+            Tasks.teleport(riding, location);
+        });
     }
 
     public void rideOn(Entity carrier) {
-        if (!isAlive()) return;
-        if (entity.getVehicle() == carrier) return;
-        if (entity.getVehicle() != null) {
-            entity.leaveVehicle();
-        }
-        sentTo = null;
-        carrier.addPassenger(entity);
+        Entity rider = entity;
+        Tasks.onEntity(plugin, carrier, () -> {
+            if (!isAlive()) return;
+            if (rider.getVehicle() == carrier) return;
+            if (rider.getVehicle() != null) {
+                rider.leaveVehicle();
+            }
+            sentTo = null;
+            carrier.addPassenger(rider);
+        });
     }
 
     public void followAt(Location location) {
-        if (!isAlive()) return;
-        if (entity.getVehicle() != null) {
-            entity.leaveVehicle();
-            sentTo = null;
-        }
-
         // A teleport is a tracker update for every player nearby, and this is called every
         // tick, so a carrier who is standing still must not pay for one.
         if (!moved(location)) return;
 
-        sentTo = location.clone();
-        entity.teleport(location);
+        Entity moving = entity;
+        Tasks.onEntity(plugin, moving, () -> {
+            if (!isAlive()) return;
+            if (moving.getVehicle() != null) {
+                moving.leaveVehicle();
+            }
+
+            sentTo = location.clone();
+            Tasks.teleport(moving, location);
+        });
     }
 
     private boolean moved(Location to) {
@@ -107,10 +121,13 @@ public final class SoundAnchor {
     }
 
     public void remove() {
-        if (entity.getVehicle() != null) {
-            entity.leaveVehicle();
-        }
+        Entity going = entity;
         sentTo = null;
-        entity.remove();
+        Tasks.onEntity(plugin, going, () -> {
+            if (going.getVehicle() != null) {
+                going.leaveVehicle();
+            }
+            going.remove();
+        });
     }
 }

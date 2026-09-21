@@ -6,6 +6,7 @@ import dev.valkdz.cdisc.util.ItemUtils;
 import dev.valkdz.cdisc.util.PlayerPrefs;
 import dev.valkdz.cdisc.util.SneakMode;
 import dev.valkdz.cdisc.util.Chat;
+import dev.valkdz.cdisc.util.Tasks;
 import dev.valkdz.cdisc.util.TimeUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -18,14 +19,13 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerToggleSneakEvent;
-import org.bukkit.scheduler.BukkitRunnable;
 
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class TrackProgressDisplay extends BukkitRunnable implements Listener {
+public class TrackProgressDisplay implements Listener {
 
     private static final int MAX_TARGET_DISTANCE = 6;
 
@@ -42,6 +42,8 @@ public class TrackProgressDisplay extends BukkitRunnable implements Listener {
 
     private final Set<UUID> sneakHeld = ConcurrentHashMap.newKeySet();
     private final Main plugin;
+
+    private Tasks.Handle task;
 
     public TrackProgressDisplay(Main plugin) {
         this.plugin = plugin;
@@ -120,16 +122,17 @@ public class TrackProgressDisplay extends BukkitRunnable implements Listener {
             if (!player.isSneaking() || watching.contains(player.getUniqueId())) continue;
             if (sneakMode(player) != SneakMode.RELEASE) continue;
 
-            Block target = targetBlock(player);
-            if (isPlayableJukebox(target)
-                    && plugin.getAudioPlayerManager().hasActiveSession(target)) {
-                hold(player.getUniqueId(), target);
-            }
+            Tasks.onEntity(plugin, player, () -> {
+                Block target = targetBlock(player);
+                if (isPlayableJukebox(target)
+                        && plugin.getAudioPlayerManager().hasActiveSession(target)) {
+                    hold(player.getUniqueId(), target);
+                }
+            });
         }
     }
 
-    @Override
-    public void run() {
+    private void run() {
         pickUpHeldSneaks();
         if (watching.isEmpty()) return;
 
@@ -143,41 +146,45 @@ public class TrackProgressDisplay extends BukkitRunnable implements Listener {
                 continue;
             }
 
-            if (sneakHeld.contains(id) && !player.isSneaking()) {
+            Tasks.onEntity(plugin, player, () -> follow(apm, id, player));
+        }
+    }
+
+    private void follow(LavaPlayerManager apm, UUID id, Player player) {
+        if (sneakHeld.contains(id) && !player.isSneaking()) {
+            stopWatching(player);
+            return;
+        }
+
+        Block target = targetBlock(player);
+        boolean lookingAtPlayer = isPlayableJukebox(target);
+        if (lookingAtPlayer) {
+            watchedBlocks.put(id, target);
+        }
+
+        Block block = watchedBlocks.get(id);
+        if (block == null) {
+
+            clearHint(id, player);
+            return;
+        }
+
+        LavaPlayerManager.PlaybackInfo info = apm.getPlaybackInfo(block);
+        if (info == null) {
+
+            if (!apm.hasActiveSession(block)) {
                 stopWatching(player);
-                continue;
             }
+            return;
+        }
 
-            Block target = targetBlock(player);
-            boolean lookingAtPlayer = isPlayableJukebox(target);
-            if (lookingAtPlayer) {
-                watchedBlocks.put(id, target);
-            }
+        updateBossBar(player, info);
 
-            Block block = watchedBlocks.get(id);
-            if (block == null) {
+        if (lookingAtPlayer) {
+            showHint(id, player);
+        } else {
 
-                clearHint(id, player);
-                continue;
-            }
-
-            LavaPlayerManager.PlaybackInfo info = apm.getPlaybackInfo(block);
-            if (info == null) {
-
-                if (!apm.hasActiveSession(block)) {
-                    stopWatching(player);
-                }
-                continue;
-            }
-
-            updateBossBar(player, info);
-
-            if (lookingAtPlayer) {
-                showHint(id, player);
-            } else {
-
-                clearHint(id, player);
-            }
+            clearHint(id, player);
         }
     }
 
@@ -252,6 +259,13 @@ public class TrackProgressDisplay extends BukkitRunnable implements Listener {
     }
 
     public void start() {
-        runTaskTimer(plugin, 0L, 5L);
+        task = Tasks.globalTimer(plugin, this::run, 1L, 5L);
+    }
+
+    public void stop() {
+        if (task != null) {
+            task.cancel();
+            task = null;
+        }
     }
 }

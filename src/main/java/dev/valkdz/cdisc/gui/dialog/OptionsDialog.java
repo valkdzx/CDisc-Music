@@ -124,13 +124,13 @@ final class OptionsDialog {
                 .build();
 
         ActionButton apply = PlayerDialog.button(plugin, player, "apply", (view, listener) ->
-                PlayerDialog.onMainThread(plugin, () -> {
+                PlayerDialog.onMainThread(plugin, player, () -> {
                     apply(plugin, player, block, view, shown);
                     PlayerDialog.open(plugin, player, block);
                 }));
 
         ActionButton back = PlayerDialog.button(plugin, player, "back", (view, listener) ->
-                PlayerDialog.onMainThread(plugin, () -> PlayerDialog.open(plugin, player, block)));
+                PlayerDialog.onMainThread(plugin, player, () -> PlayerDialog.open(plugin, player, block)));
 
         PlayerDialog.audience(player).showDialog(Dialog.create(factory -> factory.empty()
                 .base(base)

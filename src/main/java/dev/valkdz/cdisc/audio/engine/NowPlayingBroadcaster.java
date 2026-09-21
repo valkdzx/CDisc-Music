@@ -3,11 +3,11 @@ package dev.valkdz.cdisc.audio.engine;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
 import dev.valkdz.cdisc.Main;
 import dev.valkdz.cdisc.util.Chat;
+import dev.valkdz.cdisc.util.Tasks;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
-import org.bukkit.scheduler.BukkitRunnable;
 
 import java.text.Normalizer;
 import java.util.function.Predicate;
@@ -54,30 +54,28 @@ public class NowPlayingBroadcaster {
             if (p.getLocation().distanceSquared(origin) > (double) hearDistance * hearDistance) continue;
 
             String finalMsg = msg;
-            new BukkitRunnable() {
-                int tick = 0;
+            Tasks.Handle[] fade = new Tasks.Handle[1];
+            int[] tick = {0};
 
-                @Override
-                public void run() {
-                    if (tick >= TOTAL_TICKS || !stillActive.test(block)) {
-                        Chat.clearActionBar(p);
-                        cancel();
-                        return;
-                    }
-
-                    int segment = Math.min(tick / ticksPerTransition, transitions - 1);
-                    int start = GRADIENT[segment];
-                    int end = GRADIENT[segment + 1];
-                    float ratio = (tick % ticksPerTransition) / (float) ticksPerTransition;
-
-                    int r = channel(start, 16, end, ratio);
-                    int g = channel(start, 8, end, ratio);
-                    int b = channel(start, 0, end, ratio);
-
-                    Chat.actionBar(p, finalMsg != null ? finalMsg : " ", r, g, b);
-                    tick++;
+            fade[0] = Tasks.entityTimer(plugin, p, () -> {
+                if (tick[0] >= TOTAL_TICKS || !stillActive.test(block)) {
+                    Chat.clearActionBar(p);
+                    if (fade[0] != null) fade[0].cancel();
+                    return;
                 }
-            }.runTaskTimer(plugin, 0L, 1L);
+
+                int segment = Math.min(tick[0] / ticksPerTransition, transitions - 1);
+                int start = GRADIENT[segment];
+                int end = GRADIENT[segment + 1];
+                float ratio = (tick[0] % ticksPerTransition) / (float) ticksPerTransition;
+
+                int r = channel(start, 16, end, ratio);
+                int g = channel(start, 8, end, ratio);
+                int b = channel(start, 0, end, ratio);
+
+                Chat.actionBar(p, finalMsg != null ? finalMsg : " ", r, g, b);
+                tick[0]++;
+            }, 1L, 1L);
         }
     }
 }

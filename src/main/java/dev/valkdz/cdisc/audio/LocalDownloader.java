@@ -6,6 +6,7 @@ import dev.valkdz.cdisc.audio.sabr.DirectAudioTrack;
 import dev.valkdz.cdisc.audio.sabr.SabrAudioTrack;
 import dev.valkdz.cdisc.audio.sabr.SabrSeekableInputStream;
 import dev.valkdz.cdisc.util.SafeUrl;
+import dev.valkdz.cdisc.util.Tasks;
 import org.bukkit.Bukkit;
 
 import java.io.IOException;
@@ -96,7 +97,7 @@ public final class LocalDownloader {
                 result = new Result(Status.IO_ERROR, describe(e));
             }
             Result finished = result;
-            Bukkit.getScheduler().runTask(plugin, () -> callback.accept(finished));
+            Tasks.global(plugin, () -> callback.accept(finished));
         });
     }
 
@@ -397,7 +398,7 @@ public final class LocalDownloader {
             throw e;
         }
 
-        Bukkit.getScheduler().runTask(plugin, limits.library()::reload);
+        Tasks.global(plugin, limits.library()::reload);
         return new Result(Status.OK, name);
     }
 

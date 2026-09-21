@@ -7,7 +7,7 @@ import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrackInfo;
 import dev.valkdz.cdisc.Main;
 import dev.valkdz.cdisc.audio.engine.TrackLoader;
-import org.bukkit.Bukkit;
+import dev.valkdz.cdisc.util.Tasks;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
@@ -70,21 +70,21 @@ public final class TrackDownloader {
 
                 int rest = tracks.size() - 1;
                 if (rest > 0) {
-                    onServerThread(() -> sender.sendMessage("§e" + message(sender,
+                    onServerThread(sender, () -> sender.sendMessage("§e" + message(sender,
                             "playlist.truncated", String.valueOf(rest))));
                 }
             }
 
             @Override public void noMatches() {
                 String hint = LoadDiagnosis.explain(plugin, asPlayer(sender), query);
-                onServerThread(() -> {
+                onServerThread(sender, () -> {
                     sender.sendMessage("§c" + message(sender, "lavaplayer.track.notfound"));
                     if (hint != null) sender.sendMessage("§7" + hint);
                 });
             }
 
             @Override public void loadFailed(FriendlyException e) {
-                onServerThread(() -> sender.sendMessage("§c" + message(sender,
+                onServerThread(sender, () -> sender.sendMessage("§c" + message(sender,
                         "lavaplayer.track.error", String.valueOf(e.getMessage()))));
             }
         });
@@ -117,24 +117,24 @@ public final class TrackDownloader {
                                 found, found.getInfo().title, addressOf(found, query)))
                         .toList();
 
-                onServerThread(() -> plugin.getSearchResults()
+                onServerThread(sender, () -> plugin.getSearchResults()
                         .show(sender, query, shown, SearchResults.Kind.DOWNLOAD));
             }
 
             private void offer(AudioTrack only) {
-                onServerThread(() -> pick(sender, only, addressOf(only, query), null));
+                onServerThread(sender, () -> pick(sender, only, addressOf(only, query), null));
             }
 
             @Override public void noMatches() {
                 String hint = LoadDiagnosis.explain(plugin, asPlayer(sender), query);
-                onServerThread(() -> {
+                onServerThread(sender, () -> {
                     sender.sendMessage("§c" + message(sender, "lavaplayer.track.notfound"));
                     if (hint != null) sender.sendMessage("§7" + hint);
                 });
             }
 
             @Override public void loadFailed(FriendlyException e) {
-                onServerThread(() -> sender.sendMessage("§c" + message(sender,
+                onServerThread(sender, () -> sender.sendMessage("§c" + message(sender,
                         "lavaplayer.track.error", String.valueOf(e.getMessage()))));
             }
         });
@@ -148,7 +148,7 @@ public final class TrackDownloader {
     private void save(CommandSender sender, AudioTrack track, String address, String desiredName) {
 
         if (track.getInfo().isStream) {
-            onServerThread(() -> sender.sendMessage("§c" + message(sender, "download.is_stream")));
+            onServerThread(sender, () -> sender.sendMessage("§c" + message(sender, "download.is_stream")));
             return;
         }
 
@@ -213,11 +213,12 @@ public final class TrackDownloader {
         return plugin.getMessageManager().get(asPlayer(sender), path, args);
     }
 
-    private void onServerThread(Runnable action) {
-        if (Bukkit.isPrimaryThread()) {
+    private void onServerThread(CommandSender sender, Runnable action) {
+        Player player = asPlayer(sender);
+        if (player == null) {
             action.run();
             return;
         }
-        Bukkit.getScheduler().runTask(plugin, action);
+        Tasks.onEntity(plugin, player, action);
     }
 }

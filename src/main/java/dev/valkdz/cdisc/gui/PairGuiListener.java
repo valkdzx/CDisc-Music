@@ -4,7 +4,7 @@ import dev.valkdz.cdisc.Main;
 import dev.valkdz.cdisc.speaker.SpeakerGroup;
 import dev.valkdz.cdisc.speaker.SpeakerGroupManager;
 import dev.valkdz.cdisc.speaker.SpeakerSettings;
-import org.bukkit.Bukkit;
+import dev.valkdz.cdisc.util.Tasks;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
@@ -220,9 +220,9 @@ public final class PairGuiListener implements Listener {
 
         if (naming != null) {
             // Chat events arrive asynchronously; everything below touches the world.
-            Bukkit.getScheduler().runTask(plugin, () -> createNamed(player, naming, typed));
+            Tasks.region(plugin, naming, () -> createNamed(player, naming, typed));
         } else {
-            Bukkit.getScheduler().runTask(plugin, () -> renameSpeaker(player, tagging, typed));
+            Tasks.region(plugin, tagging, () -> renameSpeaker(player, tagging, typed));
         }
     }
 

@@ -8,7 +8,7 @@ import dev.valkdz.cdisc.audio.LavaPlayerManager;
 import dev.valkdz.cdisc.net.WorldEventPacketInterceptor;
 import dev.valkdz.cdisc.util.ItemUtils;
 import dev.valkdz.cdisc.util.SneakMode;
-import org.bukkit.Bukkit;
+import dev.valkdz.cdisc.util.Tasks;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -91,7 +91,8 @@ public class JukeboxListener implements Listener {
         BlockKey key = new BlockKey(player.getWorld().getUID(), event.x(), event.y(), event.z());
         boolean isCustom = customDiscBlocks.contains(key) || queueControlled.contains(key);
 
-        Bukkit.getScheduler().runTask(plugin, () -> handleWorldEvent(player, event));
+        Tasks.region(plugin, new Location(player.getWorld(), event.x(), event.y(), event.z()),
+                () -> handleWorldEvent(player, event));
 
         return isCustom;
     }
@@ -152,7 +153,7 @@ public class JukeboxListener implements Listener {
 
         // The record lands after this event, and the record-start packet the start used to
         // wait for never arrives if another plugin's handler swallows it first.
-        Bukkit.getScheduler().runTask(plugin, () -> startFromRecord(block));
+        Tasks.region(plugin, block, () -> startFromRecord(block));
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -163,7 +164,7 @@ public class JukeboxListener implements Listener {
         Block block = jukebox.getBlock();
         customDiscBlocks.add(BlockKey.of(block));
 
-        Bukkit.getScheduler().runTask(plugin, () -> {
+        Tasks.region(plugin, block, () -> {
             if (block.getType() == Material.JUKEBOX
                     && block.getState() instanceof Jukebox after
                     && ItemUtils.isCdiscDisc(after.getRecord())) {
@@ -180,7 +181,7 @@ public class JukeboxListener implements Listener {
 
         Block block = jukebox.getBlock();
 
-        Bukkit.getScheduler().runTask(plugin, () -> {
+        Tasks.region(plugin, block, () -> {
             if (block.getType() != Material.JUKEBOX) return;
             if (block.getState() instanceof Jukebox after && after.hasRecord()) return;
 
@@ -200,7 +201,7 @@ public class JukeboxListener implements Listener {
         if (!(block.getState() instanceof Jukebox jukebox) || !jukebox.hasRecord()) return;
         if (!ItemUtils.isCdiscDisc(jukebox.getRecord())) return;
 
-        Bukkit.getScheduler().runTask(plugin, () -> {
+        Tasks.region(plugin, block, () -> {
             if (block.getType() != Material.JUKEBOX) return;
             if (block.getState() instanceof Jukebox after && after.hasRecord()) return;
             plugin.getAudioPlayerManager().handlePhysicalEject(block);

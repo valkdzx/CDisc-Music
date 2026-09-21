@@ -7,6 +7,7 @@ import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
 import dev.valkdz.cdisc.Main;
 import dev.valkdz.cdisc.util.Chat;
 import dev.valkdz.cdisc.util.ItemUtils;
+import dev.valkdz.cdisc.util.Tasks;
 import dev.valkdz.cdisc.util.TimeUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -45,7 +46,9 @@ public final class PlaylistGuiManager {
     public void stop() {
         for (UUID id : List.copyOf(openScreens.keySet())) {
             Player player = Bukkit.getPlayer(id);
-            if (player != null && player.isOnline()) player.closeInventory();
+            if (player != null && player.isOnline()) {
+                Tasks.onEntity(plugin, player, player::closeInventory);
+            }
         }
         openScreens.clear();
     }
@@ -95,7 +98,7 @@ public final class PlaylistGuiManager {
                     reply(player, "§e", "playlist.some_too_long", String.valueOf(omitted));
                 }
                 String name = playlist.getName() == null ? "?" : playlist.getName();
-                Bukkit.getScheduler().runTask(plugin, () -> open(player, query, name, tracks));
+                Tasks.entity(plugin, player, () -> open(player, query, name, tracks));
             }
 
             @Override
@@ -116,7 +119,7 @@ public final class PlaylistGuiManager {
     }
 
     private void reply(Player player, String colour, String key, String... args) {
-        Bukkit.getScheduler().runTask(plugin, () ->
+        Tasks.entity(plugin, player, () ->
                 player.sendMessage(colour + plugin.getMessageManager().get(player, key, args)));
     }
 
@@ -220,7 +223,7 @@ public final class PlaylistGuiManager {
             handOver(player, discs);
             return;
         }
-        Bukkit.getScheduler().runTask(plugin, () -> handOver(player, discs));
+        Tasks.entity(plugin, player, () -> handOver(player, discs));
     }
 
     private void handOver(Player player, List<ItemStack> discs) {

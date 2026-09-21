@@ -30,6 +30,9 @@ final class Diagnostics {
         List<String> out = new ArrayList<>();
 
         out.add("&6CDisc " + plugin.getDescription().getVersion() + " &7— what works right now");
+        if (dev.valkdz.cdisc.util.Tasks.isFolia()) {
+            out.add("&7Folia: every jukebox, hologram and screen is driven by the region that owns it.");
+        }
         out.add("");
 
         out.add("&fServer's own files");

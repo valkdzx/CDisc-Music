@@ -7,6 +7,7 @@ import dev.valkdz.cdisc.Main;
 import dev.valkdz.cdisc.audio.LavaPlayerManager;
 import dev.valkdz.cdisc.audio.queue.DiscQueue;
 import dev.valkdz.cdisc.util.DiscStorage;
+import dev.valkdz.cdisc.util.Tasks;
 import dev.valkdz.cdisc.voice.anchor.SoundAnchor;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -21,7 +22,6 @@ import org.bukkit.inventory.InventoryView;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
-import org.bukkit.scheduler.BukkitTask;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -45,8 +45,8 @@ public final class PortableJukeboxManager {
     private final Map<UUID, List<Carry>> carries = new ConcurrentHashMap<>();
 
     private final Map<UUID, Integer> handleSlots = new ConcurrentHashMap<>();
-    private BukkitTask particleTask;
-    private BukkitTask followTask;
+    private Tasks.Handle particleTask;
+    private Tasks.Handle followTask;
 
     public PortableJukeboxManager(Main plugin) {
         this.plugin = plugin;
@@ -57,9 +57,9 @@ public final class PortableJukeboxManager {
 
     public void start() {
         long period = Math.max(20L, plugin.cdiscConfig().getPortableParticleTicks());
-        particleTask = Bukkit.getScheduler().runTaskTimer(plugin, this::emitParticles, period, period);
+        particleTask = Tasks.globalTimer(plugin, this::emitParticles, period, period);
 
-        followTask = Bukkit.getScheduler().runTaskTimer(plugin, this::followCarriers, 1L, 1L);
+        followTask = Tasks.globalTimer(plugin, this::followCarriers, 1L, 1L);
     }
 
     public void stop() {
@@ -184,20 +184,25 @@ public final class PortableJukeboxManager {
         for (Carry carry : allCarries()) {
             Player carrier = Bukkit.getPlayer(carry.carrier());
             if (carrier == null || !carrier.isOnline()) continue;
-            endIfHandleGone(carrier, carry);
 
-            List<Carry> held = carries.get(carry.carrier());
-            if (held == null || !held.contains(carry)) continue;
-
-            SoundAnchor anchor = carry.anchor();
-            if (anchor == null || !anchor.isAlive()) continue;
-
-            if (!anchor.inWorld(carrier.getWorld())) {
-                followIntoWorld(carry, carrier);
-                continue;
-            }
-            anchor.followAt(audioPointFor(carrier));
+            Tasks.onEntity(plugin, carrier, () -> followCarrier(carry, carrier));
         }
+    }
+
+    private void followCarrier(Carry carry, Player carrier) {
+        endIfHandleGone(carrier, carry);
+
+        List<Carry> held = carries.get(carry.carrier());
+        if (held == null || !held.contains(carry)) return;
+
+        SoundAnchor anchor = carry.anchor();
+        if (anchor == null || !anchor.isAlive()) return;
+
+        if (!anchor.inWorld(carrier.getWorld())) {
+            followIntoWorld(carry, carrier);
+            return;
+        }
+        anchor.followAt(audioPointFor(carrier));
     }
 
     public void placeBack(Carry carry, Block target) {
@@ -410,8 +415,9 @@ public final class PortableJukeboxManager {
         for (Carry carry : allCarries()) {
             Player carrier = Bukkit.getPlayer(carry.carrier());
             if (carrier == null || !carrier.isOnline()) continue;
-            carrier.getWorld().spawnParticle(Particle.NOTE,
-                    carrier.getLocation().add(0, 2.2, 0), 1, 0.2, 0.1, 0.2, 1.0);
+
+            Tasks.onEntity(plugin, carrier, () -> carrier.getWorld().spawnParticle(Particle.NOTE,
+                    carrier.getLocation().add(0, 2.2, 0), 1, 0.2, 0.1, 0.2, 1.0));
         }
     }
 

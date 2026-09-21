@@ -8,6 +8,7 @@ import dev.valkdz.cdisc.permission.Action;
 import dev.valkdz.cdisc.speaker.SpeakerSettings;
 import dev.valkdz.cdisc.util.BeaconUtils;
 import dev.valkdz.cdisc.util.PlayerPrefs;
+import dev.valkdz.cdisc.util.Tasks;
 import dev.valkdz.cdisc.util.TimeUtils;
 import io.papermc.paper.dialog.Dialog;
 import io.papermc.paper.registry.data.dialog.ActionButton;
@@ -20,17 +21,15 @@ import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickCallback;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
-import org.bukkit.Bukkit;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
-import org.bukkit.scheduler.BukkitTask;
 
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 final class PlayerDialog {
 
@@ -45,7 +44,7 @@ final class PlayerDialog {
             .lifetime(Duration.ofSeconds(30))
             .build();
 
-    private static final Map<UUID, BukkitTask> WATCHING = new HashMap<>();
+    private static final Map<UUID, Tasks.Handle> WATCHING = new ConcurrentHashMap<>();
 
     private PlayerDialog() {
     }
@@ -55,7 +54,7 @@ final class PlayerDialog {
         if (!draw(plugin, player, block)) return;
 
         long every = Math.max(1, plugin.cdiscConfig().getPlayerDialogRefreshTicks());
-        WATCHING.put(player.getUniqueId(), Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+        WATCHING.put(player.getUniqueId(), Tasks.entityTimer(plugin, player, () -> {
             if (!player.isOnline()) {
                 stop(player);
                 return;
@@ -65,7 +64,7 @@ final class PlayerDialog {
     }
 
     static void stop(Player player) {
-        BukkitTask task = WATCHING.remove(player.getUniqueId());
+        Tasks.Handle task = WATCHING.remove(player.getUniqueId());
         if (task != null) task.cancel();
     }
 
@@ -100,7 +99,7 @@ final class PlayerDialog {
                 .build();
 
         ActionButton exit = button(plugin, player, "close",
-                (view, listener) -> onMainThread(plugin, () -> leave(player)));
+                (view, listener) -> onMainThread(plugin, player, () -> leave(player)));
 
         List<ActionButton> buttons = buttons(plugin, player, block, info);
 
@@ -208,7 +207,7 @@ final class PlayerDialog {
         }
 
         buttons.add(button(plugin, player, "options", (view, listener) ->
-                onMainThread(plugin, () -> {
+                onMainThread(plugin, player, () -> {
 
                     stop(player);
                     OptionsDialog.open(plugin, player, block);
@@ -268,7 +267,7 @@ final class PlayerDialog {
     private static ActionButton act(Main plugin, Player player, Block block,
                                     String name, Runnable action) {
         return button(plugin, player, name, (view, listener) ->
-                onMainThread(plugin, () -> {
+                onMainThread(plugin, player, () -> {
                     action.run();
                     draw(plugin, player, block);
                 }));
@@ -277,7 +276,7 @@ final class PlayerDialog {
     private static ActionButton leaving(Main plugin, Player player,
                                         String name, Runnable action) {
         return button(plugin, player, name, (view, listener) ->
-                onMainThread(plugin, () -> {
+                onMainThread(plugin, player, () -> {
                     leave(player);
                     action.run();
                 }));
@@ -292,12 +291,8 @@ final class PlayerDialog {
                 DialogAction.customClick(callback, CLICKS));
     }
 
-    static void onMainThread(Main plugin, Runnable action) {
-        if (Bukkit.isPrimaryThread()) {
-            action.run();
-            return;
-        }
-        Bukkit.getScheduler().runTask(plugin, action);
+    static void onMainThread(Main plugin, Player player, Runnable action) {
+        Tasks.onEntity(plugin, player, action);
     }
 
     private static DialogBody message(Component component) {

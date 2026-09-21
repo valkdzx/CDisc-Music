@@ -1,7 +1,7 @@
 package dev.valkdz.cdisc.gui;
 
 import dev.valkdz.cdisc.Main;
-import org.bukkit.Bukkit;
+import dev.valkdz.cdisc.util.Tasks;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -55,7 +55,7 @@ public final class PlaylistGuiListener implements Listener {
             return;
         }
 
-        Bukkit.getScheduler().runTask(plugin,
+        Tasks.entity(plugin, player,
                 () -> plugin.getPlaylistGuiManager().harvest(holder, top));
     }
 
@@ -75,7 +75,7 @@ public final class PlaylistGuiListener implements Listener {
             e.setCancelled(true);
             return;
         }
-        Bukkit.getScheduler().runTask(plugin,
+        Tasks.entity(plugin, e.getWhoClicked(),
                 () -> plugin.getPlaylistGuiManager().harvest(holder, top));
     }
 

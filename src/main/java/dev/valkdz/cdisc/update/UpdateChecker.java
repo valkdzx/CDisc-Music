@@ -3,13 +3,13 @@ package dev.valkdz.cdisc.update;
 import com.sedmelluq.discord.lavaplayer.tools.JsonBrowser;
 import dev.valkdz.cdisc.Main;
 import dev.valkdz.cdisc.util.Chat;
+import dev.valkdz.cdisc.util.Tasks;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
-import org.bukkit.scheduler.BukkitTask;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -48,7 +48,7 @@ public class UpdateChecker implements Listener {
 
     private volatile boolean projectMissing;
 
-    private BukkitTask task;
+    private Tasks.Handle task;
 
     public UpdateChecker(Main plugin) {
         this.plugin = plugin;
@@ -79,11 +79,10 @@ public class UpdateChecker implements Listener {
         long periodTicks = plugin.cdiscConfig().getUpdateIntervalHours() * 72_000L;
 
         if (periodTicks <= 0) {
-            task = Bukkit.getScheduler().runTaskAsynchronously(plugin, this::runCheck);
+            task = Tasks.async(plugin, this::runCheck);
         } else {
 
-            task = Bukkit.getScheduler()
-                    .runTaskTimerAsynchronously(plugin, this::runCheck, 100L, periodTicks);
+            task = Tasks.asyncTimer(plugin, this::runCheck, 100L, periodTicks);
         }
     }
 
@@ -164,10 +163,10 @@ public class UpdateChecker implements Listener {
                     + (autoUpdate ? " It was not downloaded automatically." : ""));
         }
 
-        Bukkit.getScheduler().runTask(plugin, () -> {
+        Tasks.global(plugin, () -> {
             if (!plugin.cdiscConfig().isUpdateNotifyOps()) return;
             for (Player p : Bukkit.getOnlinePlayers()) {
-                if (p.isOp()) notifyPlayer(p);
+                if (p.isOp()) Tasks.onEntity(plugin, p, () -> notifyPlayer(p));
             }
         });
     }
@@ -180,7 +179,7 @@ public class UpdateChecker implements Listener {
         Player player = event.getPlayer();
         if (!player.isOp()) return;
 
-        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+        Tasks.entityLater(plugin, player, () -> {
             if (player.isOnline()) notifyPlayer(player);
         }, 40L);
     }

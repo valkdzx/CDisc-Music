@@ -39,7 +39,7 @@ public class MultiVoiceBackend implements VoiceBackend {
     }
 
     public void startListenerAssignment(org.bukkit.plugin.Plugin plugin) {
-        org.bukkit.Bukkit.getScheduler().runTaskTimer(plugin, this::refreshAssignment,
+        dev.valkdz.cdisc.util.Tasks.globalTimer(plugin, this::refreshAssignment,
                 ASSIGNMENT_INTERVAL_TICKS, ASSIGNMENT_INTERVAL_TICKS);
     }
 

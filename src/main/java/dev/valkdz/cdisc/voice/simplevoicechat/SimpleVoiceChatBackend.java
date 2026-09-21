@@ -9,14 +9,13 @@ import de.maxhenkel.voicechat.api.audiochannel.LocationalAudioChannel;
 import de.maxhenkel.voicechat.api.audiochannel.StaticAudioChannel;
 import de.maxhenkel.voicechat.api.opus.OpusEncoder;
 import dev.valkdz.cdisc.speaker.SpeakerSettings;
+import dev.valkdz.cdisc.util.Tasks;
 import dev.valkdz.cdisc.voice.PcmShaper;
 import dev.valkdz.cdisc.voice.VoiceBackend;
 import dev.valkdz.cdisc.voice.VoiceSession;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Entity;
-import org.bukkit.scheduler.BukkitRunnable;
-import org.bukkit.scheduler.BukkitTask;
 
 import java.util.Objects;
 import java.util.Set;
@@ -116,7 +115,7 @@ public class SimpleVoiceChatBackend implements VoiceBackend {
 
         private volatile StaticAudioChannel lingeringChannel;
 
-        private volatile BukkitTask handoff;
+        private volatile Tasks.Handle handoff;
         private volatile boolean closed;
 
         // One encoder per output: two speakers fed from the same decode must be able
@@ -336,33 +335,32 @@ public class SimpleVoiceChatBackend implements VoiceBackend {
 
         private void scheduleHandoff(UUID listener) {
             cancelHandoff();
-            handoff = new BukkitRunnable() {
-                private int waited = 0;
+            Tasks.Handle[] watch = new Tasks.Handle[1];
+            int[] waited = {0};
 
-                @Override
-                public void run() {
+            watch[0] = Tasks.globalTimer(dev.valkdz.cdisc.Main.getInstance(), () -> {
 
-                    if (closed || !Objects.equals(listener, privateListener)) {
-                        cancel();
-                        return;
-                    }
-
-                    boolean live = privateFrames >= HANDOFF_FRAMES;
-                    if (!live && waited < HANDOFF_TIMEOUT_TICKS) {
-                        waited++;
-                        return;
-                    }
-
-                    filteredCarrier = listener;
-                    applyFilters();
-                    cancel();
-
-                    if (!live) {
-                        warn("static feed for " + listener + " never started; "
-                                + "handing over anyway, audio may drop out");
-                    }
+                if (closed || !Objects.equals(listener, privateListener)) {
+                    watch[0].cancel();
+                    return;
                 }
-            }.runTaskTimer(dev.valkdz.cdisc.Main.getInstance(), 1L, 1L);
+
+                boolean live = privateFrames >= HANDOFF_FRAMES;
+                if (!live && waited[0] < HANDOFF_TIMEOUT_TICKS) {
+                    waited[0]++;
+                    return;
+                }
+
+                filteredCarrier = listener;
+                applyFilters();
+                watch[0].cancel();
+
+                if (!live) {
+                    warn("static feed for " + listener + " never started; "
+                            + "handing over anyway, audio may drop out");
+                }
+            }, 1L, 1L);
+            handoff = watch[0];
         }
 
         private void stopPrivateAfter(long ticks) {
@@ -378,15 +376,12 @@ public class SimpleVoiceChatBackend implements VoiceBackend {
 
             if (outgoing == null) return;
 
-            new BukkitRunnable() {
-                @Override
-                public void run() {
-                    if (lingeringChannel == outgoing) {
-                        lingeringChannel = null;
-                    }
-                    releaseTargets(outgoing);
+            Tasks.globalLater(dev.valkdz.cdisc.Main.getInstance(), () -> {
+                if (lingeringChannel == outgoing) {
+                    lingeringChannel = null;
                 }
-            }.runTaskLater(dev.valkdz.cdisc.Main.getInstance(), ticks);
+                releaseTargets(outgoing);
+            }, ticks);
         }
 
         private void stopPrivate() {
@@ -403,7 +398,7 @@ public class SimpleVoiceChatBackend implements VoiceBackend {
         }
 
         private void cancelHandoff() {
-            BukkitTask task = handoff;
+            Tasks.Handle task = handoff;
             handoff = null;
             if (task != null) task.cancel();
         }

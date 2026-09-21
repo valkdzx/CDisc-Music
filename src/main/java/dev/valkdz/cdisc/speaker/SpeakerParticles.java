@@ -1,18 +1,17 @@
 package dev.valkdz.cdisc.speaker;
 
 import dev.valkdz.cdisc.Main;
-import org.bukkit.Bukkit;
+import dev.valkdz.cdisc.util.Tasks;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Particle;
 import org.bukkit.World;
 import org.bukkit.block.Block;
-import org.bukkit.scheduler.BukkitTask;
 
 public final class SpeakerParticles {
 
     private final Main plugin;
-    private BukkitTask task;
+    private Tasks.Handle task;
 
     public SpeakerParticles(Main plugin) {
         this.plugin = plugin;
@@ -21,7 +20,7 @@ public final class SpeakerParticles {
     public void start() {
 
         long period = Math.max(20L, plugin.cdiscConfig().getPortableParticleTicks());
-        task = Bukkit.getScheduler().runTaskTimer(plugin, this::emit, period, period);
+        task = Tasks.globalTimer(plugin, this::emit, period, period);
     }
 
     public void stop() {
@@ -33,15 +32,21 @@ public final class SpeakerParticles {
 
     private void emit() {
         for (SpeakerGroup group : plugin.getSpeakerGroupManager().all()) {
-            Block main = blockIfLoaded(group.main());
+            Tasks.inRegion(plugin, group.main(), () -> emitGroup(group));
+        }
+    }
 
-            if (main == null || !plugin.getAudioPlayerManager().hasActiveSession(main)) continue;
+    private void emitGroup(SpeakerGroup group) {
+        Block main = blockIfLoaded(group.main());
 
-            emitAt(main);
-            for (Location speaker : group.speakers()) {
+        if (main == null || !plugin.getAudioPlayerManager().hasActiveSession(main)) return;
+
+        emitAt(main);
+        for (Location speaker : group.speakers()) {
+            Tasks.inRegion(plugin, speaker, () -> {
                 Block block = blockIfLoaded(speaker);
                 if (block != null) emitAt(block);
-            }
+            });
         }
     }
 

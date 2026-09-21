@@ -3,7 +3,7 @@ package dev.valkdz.cdisc.audio;
 import com.sedmelluq.discord.lavaplayer.container.MediaContainerDetection;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
 import dev.valkdz.cdisc.Main;
-import org.bukkit.Bukkit;
+import dev.valkdz.cdisc.util.Tasks;
 
 import java.io.File;
 import java.io.IOException;
@@ -147,7 +147,7 @@ public final class LocalMusicLibrary {
         };
 
         if (plugin.isEnabled()) {
-            Bukkit.getScheduler().runTaskAsynchronously(plugin, task);
+            Tasks.async(plugin, task);
         } else {
             task.run();
         }

@@ -1,6 +1,7 @@
 package dev.valkdz.cdisc.audio.queue;
 
 import dev.valkdz.cdisc.Main;
+import dev.valkdz.cdisc.util.Tasks;
 import org.bukkit.Bukkit;
 import org.bukkit.NamespacedKey;
 import org.bukkit.World;
@@ -188,7 +189,7 @@ public final class QueueStore {
         String text = cfg.saveToString();
         int written = count;
         if (async && plugin.isEnabled()) {
-            Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> write(text, written));
+            Tasks.async(plugin, () -> write(text, written));
         } else {
             write(text, written);
         }

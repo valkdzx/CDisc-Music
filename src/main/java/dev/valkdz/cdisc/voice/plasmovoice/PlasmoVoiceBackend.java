@@ -1,11 +1,11 @@
 package dev.valkdz.cdisc.voice.plasmovoice;
 
+import dev.valkdz.cdisc.util.Tasks;
 import dev.valkdz.cdisc.voice.VoiceBackend;
 import dev.valkdz.cdisc.voice.VoiceSession;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Entity;
-import org.bukkit.scheduler.BukkitRunnable;
 import su.plo.voice.api.server.PlasmoVoiceServer;
 import su.plo.voice.api.server.audio.line.ServerSourceLine;
 import su.plo.voice.api.server.audio.source.AudioSender;
@@ -358,39 +358,37 @@ public class PlasmoVoiceBackend implements VoiceBackend {
         }
 
         private void scheduleHandoff(UUID listener, PcmQueueFrameProvider provider) {
-            new BukkitRunnable() {
-                private int waited = 0;
-                private int settling = 0;
+            Tasks.Handle[] watch = new Tasks.Handle[1];
+            int[] waited = {0};
+            int[] settling = {0};
 
-                @Override
-                public void run() {
+            watch[0] = Tasks.globalTimer(dev.valkdz.cdisc.Main.getInstance(), () -> {
 
-                    if (closed || !Objects.equals(listener, directListener)) {
-                        cancel();
-                        return;
-                    }
-
-                    boolean live = provider.hasDelivered();
-                    if (!live && waited < HANDOFF_TIMEOUT_TICKS) {
-                        waited++;
-                        return;
-                    }
-
-                    if (live && settling < HANDOFF_SETTLE_TICKS) {
-                        settling++;
-                        return;
-                    }
-
-                    filteredCarrier = listener;
-                    applyFilters();
-                    cancel();
-
-                    if (!live) {
-                        warn("direct feed for " + listener + " never started; "
-                                + "handing over anyway, audio may drop out");
-                    }
+                if (closed || !Objects.equals(listener, directListener)) {
+                    watch[0].cancel();
+                    return;
                 }
-            }.runTaskTimer(dev.valkdz.cdisc.Main.getInstance(), 1L, 1L);
+
+                boolean live = provider.hasDelivered();
+                if (!live && waited[0] < HANDOFF_TIMEOUT_TICKS) {
+                    waited[0]++;
+                    return;
+                }
+
+                if (live && settling[0] < HANDOFF_SETTLE_TICKS) {
+                    settling[0]++;
+                    return;
+                }
+
+                filteredCarrier = listener;
+                applyFilters();
+                watch[0].cancel();
+
+                if (!live) {
+                    warn("direct feed for " + listener + " never started; "
+                            + "handing over anyway, audio may drop out");
+                }
+            }, 1L, 1L);
         }
 
         private void stopDirectAfter(long ticks) {
@@ -406,25 +404,22 @@ public class PlasmoVoiceBackend implements VoiceBackend {
 
             if (sender == null && provider == null && source == null) return;
 
-            new BukkitRunnable() {
-                @Override
-                public void run() {
-                    if (lingeringProvider == provider) lingeringProvider = null;
-                    if (sender != null) {
-                        try {
-                            sender.stop();
-                        } catch (Exception ignored) {
-                        }
-                    }
-                    if (provider != null) provider.close();
-                    if (source != null) {
-                        try {
-                            source.remove();
-                        } catch (Exception ignored) {
-                        }
+            Tasks.globalLater(dev.valkdz.cdisc.Main.getInstance(), () -> {
+                if (lingeringProvider == provider) lingeringProvider = null;
+                if (sender != null) {
+                    try {
+                        sender.stop();
+                    } catch (Exception ignored) {
                     }
                 }
-            }.runTaskLater(dev.valkdz.cdisc.Main.getInstance(), ticks);
+                if (provider != null) provider.close();
+                if (source != null) {
+                    try {
+                        source.remove();
+                    } catch (Exception ignored) {
+                    }
+                }
+            }, ticks);
         }
 
         private static UUID uuidOf(VoicePlayer player) {

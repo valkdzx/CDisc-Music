@@ -7,6 +7,7 @@ import dev.valkdz.cdisc.audio.queue.PlayedPolicy;
 import dev.valkdz.cdisc.permission.Action;
 import dev.valkdz.cdisc.speaker.SpeakerGroup;
 import dev.valkdz.cdisc.util.HeadUtils;
+import dev.valkdz.cdisc.util.Tasks;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
@@ -111,7 +112,7 @@ public class QueueGuiManager {
         if (viewers == null) return;
 
         for (Player p : viewers) {
-            if (p.isOnline()) p.closeInventory();
+            if (p.isOnline()) Tasks.onEntity(plugin, p, p::closeInventory);
         }
     }
 
@@ -147,7 +148,7 @@ public class QueueGuiManager {
     }
 
     public void schedulePersist(Block block, Inventory inventory) {
-        Bukkit.getScheduler().runTask(plugin, () -> persist(inventory, block));
+        Tasks.region(plugin, block, () -> persist(inventory, block));
     }
 
     private static ItemStack copyOf(ItemStack item) {

@@ -2,8 +2,7 @@ package dev.valkdz.cdisc.youtube;
 
 import dev.lavalink.youtube.clients.Web;
 import dev.valkdz.cdisc.Main;
-import org.bukkit.Bukkit;
-import org.bukkit.scheduler.BukkitTask;
+import dev.valkdz.cdisc.util.Tasks;
 
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -25,8 +24,8 @@ public final class PoTokenService {
     private final VisitorRenewal renewal = new VisitorRenewal();
     private final TokenCache cache;
 
-    private BukkitTask task;
-    private BukkitTask watchdog;
+    private Tasks.Handle task;
+    private Tasks.Handle watchdog;
 
     private volatile long seenStamp;
 
@@ -106,13 +105,12 @@ public final class PoTokenService {
 
     private void schedule(long delayTicks) {
         int gen = generation;
-        task = Bukkit.getScheduler().runTaskLaterAsynchronously(
-                plugin, () -> refresh(gen), Math.max(1L, delayTicks));
+        task = Tasks.asyncLater(plugin, () -> refresh(gen), Math.max(1L, delayTicks));
     }
 
     private void startWatchdog() {
         int gen = generation;
-        watchdog = Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, () -> {
+        watchdog = Tasks.asyncTimer(plugin, () -> {
             if (gen != generation || !plugin.isEnabled()) return;
 
             long stamp = cache.lastModified();
@@ -259,7 +257,7 @@ public final class PoTokenService {
     private void hop(int gen, Runnable action) {
         if (gen != generation || !plugin.isEnabled()) return;
         try {
-            Bukkit.getScheduler().runTask(plugin, action);
+            Tasks.global(plugin, action);
         } catch (IllegalStateException e) {
 
         }

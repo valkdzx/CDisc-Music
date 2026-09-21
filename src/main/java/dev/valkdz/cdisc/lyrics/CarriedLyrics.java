@@ -6,6 +6,7 @@ import dev.valkdz.cdisc.portable.PortableJukeboxManager;
 import dev.valkdz.cdisc.util.Config;
 import dev.valkdz.cdisc.util.DisplayCompat;
 import dev.valkdz.cdisc.util.PlayerPrefs;
+import dev.valkdz.cdisc.util.Tasks;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Color;
@@ -18,7 +19,6 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.TextDisplay;
 import org.bukkit.persistence.PersistentDataType;
-import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.scoreboard.DisplaySlot;
 import org.bukkit.scoreboard.Objective;
 import org.bukkit.scoreboard.Scoreboard;
@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public final class CarriedLyrics {
 
@@ -60,10 +61,10 @@ public final class CarriedLyrics {
     private final LyricsService service;
     private final NamespacedKey displayKey;
 
-    private final Map<UUID, Shown> shown = new HashMap<>();
+    private final Map<UUID, Shown> shown = new ConcurrentHashMap<>();
 
-    private BukkitTask task;
-    private BukkitTask followTask;
+    private Tasks.Handle task;
+    private Tasks.Handle followTask;
 
     private double audienceRangeSquared = MIN_AUDIENCE_RANGE * MIN_AUDIENCE_RANGE;
 
@@ -110,11 +111,11 @@ public final class CarriedLyrics {
     public void start() {
         stop();
 
-        task = Bukkit.getScheduler().runTaskTimer(plugin, this::tick, 5L, 5L);
+        task = Tasks.globalTimer(plugin, this::tick, 5L, 5L);
 
         // The words are written a few ticks apart, but they follow the carrier as often as
         // the sound does, or they trail behind the player they belong to.
-        followTask = Bukkit.getScheduler().runTaskTimer(plugin, this::follow, 1L, 1L);
+        followTask = Tasks.globalTimer(plugin, this::follow, 1L, 1L);
     }
 
     public void stop() {
@@ -138,11 +139,13 @@ public final class CarriedLyrics {
             Player player = Bukkit.getPlayer(entry.getKey());
             if (player == null) continue;
 
-            Location at = player.getLocation().add(0, HEIGHT, 0);
-            for (Overhead group : state.overhead.values()) {
-                if (gone(group.entity)) continue;
-                moveTo(group, at);
-            }
+            Tasks.onEntity(plugin, player, () -> {
+                Location at = player.getLocation().add(0, HEIGHT, 0);
+                for (Overhead group : state.overhead.values()) {
+                    if (gone(group.entity)) continue;
+                    moveTo(group, at);
+                }
+            });
         }
     }
 
@@ -160,7 +163,7 @@ public final class CarriedLyrics {
         }
 
         group.sentTo = at;
-        group.entity.teleport(at);
+        Tasks.teleport(group.entity, at);
     }
 
     public void clearAll() {
@@ -170,6 +173,9 @@ public final class CarriedLyrics {
     }
 
     public int sweepOrphans() {
+        // Folia has no world-wide entity view from the global thread, and none of these persist.
+        if (Tasks.isFolia()) return 0;
+
         int removed = 0;
         for (World world : plugin.getServer().getWorlds()) {
             for (Entity entity : world.getEntities()) {
@@ -209,7 +215,7 @@ public final class CarriedLyrics {
         HologramStyle defaults = HologramStyle.fromConfig(config);
         for (Player player : Bukkit.getOnlinePlayers()) {
             if (!wants(player, portable)) continue;
-            draw(player, portable, config, defaults);
+            Tasks.onEntity(plugin, player, () -> draw(player, portable, config, defaults));
         }
     }
 
@@ -405,7 +411,8 @@ public final class CarriedLyrics {
                 if (viewer != null) viewer.hideEntity(plugin, group.entity);
             }
 
-            group.entity.remove();
+            TextDisplay going = group.entity;
+            Tasks.onEntity(plugin, going, going::remove);
             group.entity = null;
         }
         group.shownTo.clear();
@@ -487,7 +494,8 @@ public final class CarriedLyrics {
 
         if (player != null && player.isOnline() && state.board != null
                 && player.getScoreboard().equals(state.board)) {
-            player.setScoreboard(Bukkit.getScoreboardManager().getMainScoreboard());
+            Tasks.onEntity(plugin, player,
+                    () -> player.setScoreboard(Bukkit.getScoreboardManager().getMainScoreboard()));
         }
         state.board = null;
         state.objective = null;

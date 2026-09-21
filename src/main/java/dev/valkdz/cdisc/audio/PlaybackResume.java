@@ -2,8 +2,10 @@ package dev.valkdz.cdisc.audio;
 
 import dev.valkdz.cdisc.Main;
 import dev.valkdz.cdisc.audio.queue.RepeatMode;
+import dev.valkdz.cdisc.util.Tasks;
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
+import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
 import org.bukkit.World;
 import org.bukkit.block.Block;
@@ -103,7 +105,8 @@ public final class PlaybackResume implements Listener {
                 World world = Bukkit.getWorld(entry.world());
                 if (world == null) continue;
                 if (!world.isChunkLoaded(entry.x() >> 4, entry.z() >> 4)) continue;
-                resume(entry);
+                Tasks.inRegion(plugin, new Location(world, entry.x(), entry.y(), entry.z()),
+                        () -> resume(entry));
             }
         }
     }
@@ -117,7 +120,9 @@ public final class PlaybackResume implements Listener {
                 chunk.getWorld().getName() + ":" + chunk.getX() + ":" + chunk.getZ());
         if (entries == null) return;
 
-        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+        Location middle = new Location(chunk.getWorld(),
+                (chunk.getX() << 4) + 8, 0, (chunk.getZ() << 4) + 8);
+        Tasks.regionLater(plugin, middle, () -> {
             for (Entry entry : entries) resume(entry);
         }, 20L);
     }

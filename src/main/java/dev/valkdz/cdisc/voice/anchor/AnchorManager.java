@@ -1,6 +1,7 @@
 package dev.valkdz.cdisc.voice.anchor;
 
 import dev.valkdz.cdisc.Main;
+import dev.valkdz.cdisc.util.Tasks;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -30,7 +31,7 @@ public final class AnchorManager {
 
     public SoundAnchor createAt(Location location) {
         AnchorType type = plugin.cdiscConfig().getAnchorType();
-        return new SoundAnchor(spawn(type, location), type);
+        return new SoundAnchor(plugin, spawn(type, location), type);
     }
 
     public void moveTo(SoundAnchor anchor, Location location) {
@@ -69,6 +70,9 @@ public final class AnchorManager {
     }
 
     public int sweepOrphans() {
+        // Folia has no world-wide entity view from the global thread, and none of these persist.
+        if (Tasks.isFolia()) return 0;
+
         int removed = 0;
         for (World world : plugin.getServer().getWorlds()) {
             for (Entity entity : world.getEntities()) {

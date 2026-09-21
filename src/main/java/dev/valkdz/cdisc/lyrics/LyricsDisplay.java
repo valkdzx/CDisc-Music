@@ -4,6 +4,7 @@ import dev.valkdz.cdisc.Main;
 import dev.valkdz.cdisc.audio.LavaPlayerManager;
 import dev.valkdz.cdisc.util.Config;
 import dev.valkdz.cdisc.util.DisplayCompat;
+import dev.valkdz.cdisc.util.Tasks;
 import org.bukkit.Bukkit;
 import org.bukkit.Color;
 import org.bukkit.Location;
@@ -15,7 +16,6 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.TextDisplay;
 import org.bukkit.persistence.PersistentDataType;
-import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Transformation;
 import org.joml.Vector3f;
 
@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public final class LyricsDisplay {
 
@@ -52,11 +53,11 @@ public final class LyricsDisplay {
     private final LyricsService service;
     private final NamespacedKey displayKey;
 
-    private final Map<Block, Hologram> states = new HashMap<>();
+    private final Map<Block, Hologram> states = new ConcurrentHashMap<>();
 
-    private final Set<UUID> awaiting = new HashSet<>();
+    private final Set<UUID> awaiting = ConcurrentHashMap.newKeySet();
 
-    private BukkitTask task;
+    private Tasks.Handle task;
 
     private int sweepIn = SWEEP_TICKS;
 
@@ -137,7 +138,7 @@ public final class LyricsDisplay {
     public void start() {
         stop();
 
-        task = Bukkit.getScheduler().runTaskTimer(plugin, this::tick, 1L, 1L);
+        task = Tasks.globalTimer(plugin, this::tick, 1L, 1L);
     }
 
     public void stop() {
@@ -207,40 +208,37 @@ public final class LyricsDisplay {
         UUID who = player.getUniqueId();
         if (!awaiting.add(who)) return;
 
-        new org.bukkit.scheduler.BukkitRunnable() {
-            private int asked = 0;
+        Tasks.Handle[] poll = new Tasks.Handle[1];
+        int[] asked = {0};
 
-            @Override
-            public void cancel() {
-                awaiting.remove(who);
-                super.cancel();
+        Runnable give = () -> {
+            awaiting.remove(who);
+            if (poll[0] != null) poll[0].cancel();
+        };
+
+        poll[0] = Tasks.entityTimer(plugin, player, () -> {
+            if (!player.isOnline() || !LyricsPrefs.isEnabled(block)) {
+                give.run();
+                return;
             }
 
-            @Override
-            public void run() {
-                if (!player.isOnline() || !LyricsPrefs.isEnabled(block)) {
-                    cancel();
-                    return;
-                }
-
-                LavaPlayerManager.PlaybackInfo now =
-                        plugin.getAudioPlayerManager().getPlaybackInfo(block);
-                if (now == null || !query.cacheKey().equals(
-                        LyricsQuery.of(now.author(), now.title(), now.duration()).cacheKey())) {
-                    cancel();
-                    return;
-                }
-
-                if (settled(player, service.lookup(query))) {
-                    cancel();
-                    return;
-                }
-                if (++asked >= ANSWER_POLL_LIMIT) {
-                    say(player, "§7", "gui.lyrics.status_slow");
-                    cancel();
-                }
+            LavaPlayerManager.PlaybackInfo now =
+                    plugin.getAudioPlayerManager().getPlaybackInfo(block);
+            if (now == null || !query.cacheKey().equals(
+                    LyricsQuery.of(now.author(), now.title(), now.duration()).cacheKey())) {
+                give.run();
+                return;
             }
-        }.runTaskTimer(plugin, ANSWER_POLL_TICKS, ANSWER_POLL_TICKS);
+
+            if (settled(player, service.lookup(query))) {
+                give.run();
+                return;
+            }
+            if (++asked[0] >= ANSWER_POLL_LIMIT) {
+                say(player, "§7", "gui.lyrics.status_slow");
+                give.run();
+            }
+        }, ANSWER_POLL_TICKS, ANSWER_POLL_TICKS);
     }
 
     private void say(Player player, String colour, String key) {
@@ -248,6 +246,9 @@ public final class LyricsDisplay {
     }
 
     public int sweepOrphans() {
+        // Folia has no world-wide entity view from the global thread, and none of these persist.
+        if (Tasks.isFolia()) return 0;
+
         int removed = 0;
         for (World world : plugin.getServer().getWorlds()) {
             for (Entity entity : world.getEntities()) {
@@ -315,7 +316,8 @@ public final class LyricsDisplay {
                 if (viewer != null) viewer.hideEntity(plugin, variant.entity);
             }
 
-            variant.entity.remove();
+            TextDisplay going = variant.entity;
+            Tasks.onEntity(plugin, going, going::remove);
             variant.entity = null;
         }
         variant.shownTo.clear();
@@ -347,35 +349,39 @@ public final class LyricsDisplay {
 
             HologramStyle defaults = HologramStyle.fromConfig(config);
             for (Block block : active) {
-                update(block, apm, config, defaults);
+                Tasks.inRegion(plugin, block, () -> update(block, apm, config, defaults));
             }
         }
 
         if (--sweepIn <= 0) {
             sweepIn = SWEEP_TICKS;
-            int stale = sweepStale(active);
-            if (stale > 0) {
-                plugin.getLogger().warning("Removed " + stale + " stale lyrics hologram(s) "
-                        + "found floating over a playing jukebox.");
-            }
+            sweepStale(active);
         }
     }
 
-    private int sweepStale(Set<Block> active) {
-        int removed = 0;
+    private void sweepStale(Set<Block> active) {
         for (Block block : active) {
-            World world = block.getWorld();
-            if (!world.isChunkLoaded(block.getX() >> 4, block.getZ() >> 4)) continue;
-
-            for (Entity entity : world.getNearbyEntities(
-                    block.getLocation().add(0.5, 0.5, 0.5),
-                    SWEEP_RADIUS, SWEEP_HEIGHT, SWEEP_RADIUS)) {
-                if (!isOurs(entity) || isMine(entity)) continue;
-                entity.remove();
-                removed++;
-            }
+            Tasks.inRegion(plugin, block, () -> sweepAround(block));
         }
-        return removed;
+    }
+
+    private void sweepAround(Block block) {
+        World world = block.getWorld();
+        if (!world.isChunkLoaded(block.getX() >> 4, block.getZ() >> 4)) return;
+
+        int removed = 0;
+        for (Entity entity : world.getNearbyEntities(
+                block.getLocation().add(0.5, 0.5, 0.5),
+                SWEEP_RADIUS, SWEEP_HEIGHT, SWEEP_RADIUS)) {
+            if (!isOurs(entity) || isMine(entity)) continue;
+            entity.remove();
+            removed++;
+        }
+
+        if (removed > 0) {
+            plugin.getLogger().warning("Removed " + removed + " stale lyrics hologram(s) "
+                    + "found floating over a playing jukebox.");
+        }
     }
 
     private void update(Block block, LavaPlayerManager apm, Config config,
@@ -557,7 +563,7 @@ public final class LyricsDisplay {
             variant.viewersChanged = true;
             fresh = true;
         } else if (moved(variant.entity.getLocation(), location)) {
-            variant.entity.teleport(location);
+            Tasks.teleport(variant.entity, location);
         }
 
         if (variant.viewersChanged) showToViewers(variant);

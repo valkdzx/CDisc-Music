@@ -3,9 +3,9 @@ package dev.valkdz.cdisc.horn;
 import dev.valkdz.cdisc.Main;
 import dev.valkdz.cdisc.audio.LavaPlayerManager;
 import dev.valkdz.cdisc.util.ItemUtils;
+import dev.valkdz.cdisc.util.Tasks;
 import dev.valkdz.cdisc.voice.VoiceSession;
 import dev.valkdz.cdisc.voice.anchor.SoundAnchor;
-import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.SoundCategory;
 import org.bukkit.entity.Player;
@@ -19,7 +19,6 @@ import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.scheduler.BukkitTask;
 
 import java.util.ArrayList;
 import java.util.Map;
@@ -42,7 +41,7 @@ public final class HornPlayer implements Listener {
         thread.setDaemon(true);
         return thread;
     });
-    private BukkitTask task;
+    private Tasks.Handle task;
 
     private static final class Blast {
         final Player player;
@@ -69,7 +68,7 @@ public final class HornPlayer implements Listener {
     }
 
     public void start() {
-        task = Bukkit.getScheduler().runTaskTimer(plugin, this::tick, 1L, 1L);
+        task = Tasks.globalTimer(plugin, this::tick, 1L, 1L);
     }
 
     public void stop() {
@@ -175,16 +174,20 @@ public final class HornPlayer implements Listener {
         long now = System.currentTimeMillis();
 
         for (Blast blast : new ArrayList<>(blasts.values())) {
-            Player player = blast.player;
-            if (blast.finished || !player.isOnline() || player.isDead() || !blast.anchor.isAlive()
-                    || !blast.anchor.inWorld(player.getWorld())) {
-                end(blast);
-                continue;
-            }
-            blast.anchor.followAt(player.getLocation());
-
-            if (!blast.started && now - blast.blownAt > LOAD_TIMEOUT_MS) end(blast);
+            Tasks.onEntity(plugin, blast.player, () -> follow(blast, now));
         }
+    }
+
+    private void follow(Blast blast, long now) {
+        Player player = blast.player;
+        if (blast.finished || !player.isOnline() || player.isDead() || !blast.anchor.isAlive()
+                || !blast.anchor.inWorld(player.getWorld())) {
+            end(blast);
+            return;
+        }
+        blast.anchor.followAt(player.getLocation());
+
+        if (!blast.started && now - blast.blownAt > LOAD_TIMEOUT_MS) end(blast);
     }
 
     private void end(Blast blast) {

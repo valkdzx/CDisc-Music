@@ -1,7 +1,7 @@
 # CDisc
 
-Music discs for Spigot and Paper that play real audio through a voice-chat mod,
-audible to everyone standing near the jukebox.
+Music discs for Spigot, Paper and Folia that play real audio through a voice-chat
+mod, audible to everyone standing near the jukebox.
 
 ## Playing something in the first minute
 

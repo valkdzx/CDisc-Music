@@ -224,7 +224,7 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
         List<String> doctor = Diagnostics.report(plugin);
         sender.sendMessage("§7" + message(sender, "cdisc.logs_uploading"));
 
-        plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
+        dev.valkdz.cdisc.util.Tasks.async(plugin, () -> {
             List<String> reply;
             try {
                 reply = List.of(
@@ -235,7 +235,7 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
                 reply = List.of("§c" + message(sender, "cdisc.logs_failed", String.valueOf(e.getMessage())));
             }
             List<String> lines = reply;
-            plugin.getServer().getScheduler().runTask(plugin, () -> lines.forEach(sender::sendMessage));
+            dev.valkdz.cdisc.util.Tasks.global(plugin, () -> lines.forEach(sender::sendMessage));
         });
     }
 

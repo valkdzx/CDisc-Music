@@ -21,6 +21,7 @@ import dev.valkdz.cdisc.speaker.SpeakerGroup;
 import dev.valkdz.cdisc.speaker.SpeakerSettings;
 import dev.valkdz.cdisc.util.Config;
 import dev.valkdz.cdisc.util.ItemUtils;
+import dev.valkdz.cdisc.util.Tasks;
 import dev.valkdz.cdisc.util.TimeUtils;
 import dev.valkdz.cdisc.voice.VoiceBackend;
 import dev.valkdz.cdisc.voice.VoiceSession;
@@ -69,7 +70,7 @@ public class LavaPlayerManager {
     private final Map<Block, Integer> savedRevisions = new ConcurrentHashMap<>();
 
     private final QueueStore queueStore;
-    private org.bukkit.scheduler.BukkitTask queueSaveTask;
+    private Tasks.Handle queueSaveTask;
 
     private final java.util.Set<Block> shuffled = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
@@ -90,7 +91,7 @@ public class LavaPlayerManager {
 
     public void startQueuePersistence() {
         queueStore.load();
-        queueSaveTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> saveQueues(true), 100L, 40L);
+        queueSaveTask = Tasks.globalTimer(plugin, () -> saveQueues(true), 100L, 40L);
     }
 
     public void saveQueues(boolean async) {
@@ -181,31 +182,37 @@ public class LavaPlayerManager {
         SpeakerGroup group = plugin.getSpeakerGroupManager().groupAt(main);
         if (group == null || !group.isMain(main.getLocation())) return;
 
-        Map<Block, SpeakerOutput> attached = new ConcurrentHashMap<>();
+        Map<Block, SpeakerOutput> attached =
+                speakerOutputs.computeIfAbsent(main, k -> new ConcurrentHashMap<>());
         for (org.bukkit.Location location : group.speakers()) {
             org.bukkit.World world = location.getWorld();
             if (world == null) continue;
-            if (!world.isChunkLoaded(location.getBlockX() >> 4, location.getBlockZ() >> 4)) continue;
 
-            Block speaker = location.getBlock();
-            if (speaker.getType() != Material.JUKEBOX) {
+            Tasks.inRegion(plugin, location, () -> attachSpeaker(main, session, group, location, attached));
+        }
+    }
 
-                plugin.getSpeakerGroupManager().removeSpeaker(group, speaker);
-                continue;
-            }
+    private void attachSpeaker(Block main, AudioSession session, SpeakerGroup group,
+                               org.bukkit.Location location, Map<Block, SpeakerOutput> attached) {
+        org.bukkit.World world = location.getWorld();
+        if (!world.isChunkLoaded(location.getBlockX() >> 4, location.getBlockZ() >> 4)) return;
 
-            SoundAnchor anchor = anchorManager.createFor(speaker);
-            VoiceSession output = voiceBackend.createSyncedEntitySession(
-                    anchor.entity(), effectiveDistance(main));
-            if (output == null) {
-                anchor.remove();
-                continue;
-            }
-            session.addSpeakerOutput(output);
-            attached.put(speaker, new SpeakerOutput(anchor, output));
+        Block speaker = location.getBlock();
+        if (speaker.getType() != Material.JUKEBOX) {
+
+            plugin.getSpeakerGroupManager().removeSpeaker(group, speaker);
+            return;
         }
 
-        if (!attached.isEmpty()) speakerOutputs.put(main, attached);
+        SoundAnchor anchor = anchorManager.createFor(speaker);
+        VoiceSession output = voiceBackend.createSyncedEntitySession(
+                anchor.entity(), effectiveDistance(main));
+        if (output == null) {
+            anchor.remove();
+            return;
+        }
+        session.addSpeakerOutput(output);
+        attached.put(speaker, new SpeakerOutput(anchor, output));
     }
 
     private void detachSpeakers(Block main) {
@@ -217,6 +224,10 @@ public class LavaPlayerManager {
     public void attachSpeakerLive(Block main, Block speaker) {
         List<AudioSession> list = sessions.get(main);
         if (list == null || list.isEmpty() || voiceBackend == null) return;
+        if (!Tasks.owns(speaker.getLocation())) {
+            Tasks.region(plugin, speaker, () -> attachSpeakerLive(main, speaker));
+            return;
+        }
         if (speaker.getType() != Material.JUKEBOX) return;
 
         Map<Block, SpeakerOutput> attached =
@@ -417,7 +428,7 @@ public class LavaPlayerManager {
                         library.titleFor(relative, loaded[i].getInfo().title),
                         LocalMusicLibrary.PREFIX + relative));
             }
-            Bukkit.getScheduler().runTask(plugin, () -> {
+            Tasks.entity(plugin, player, () -> {
                 if (entries.isEmpty()) {
                     player.sendMessage("§c" + plugin.getMessageManager()
                             .get(player, "lavaplayer.track.notfound"));
@@ -472,7 +483,7 @@ public class LavaPlayerManager {
 
                 int rest = playlist.getTracks().size() - 1;
                 if (rest > 0) {
-                    Bukkit.getScheduler().runTask(plugin, () ->
+                    Tasks.entity(plugin, player, () ->
                             player.sendMessage("§e" + plugin.getMessageManager()
                                     .get(player, "playlist.truncated", String.valueOf(rest))));
                 }
@@ -481,14 +492,14 @@ public class LavaPlayerManager {
             @Override public void noMatches() {
 
                 String hint = LoadDiagnosis.explain(plugin, player, query);
-                Bukkit.getScheduler().runTask(plugin, () -> {
+                Tasks.entity(plugin, player, () -> {
                     player.sendMessage("§c" + plugin.getMessageManager().get(player, "lavaplayer.track.notfound"));
                     if (hint != null) player.sendMessage("§7" + hint);
                 });
             }
 
             @Override public void loadFailed(FriendlyException e) {
-                Bukkit.getScheduler().runTask(plugin, () ->
+                Tasks.entity(plugin, player, () ->
                         player.sendMessage("§c" + plugin.getMessageManager()
                                 .get(player, "lavaplayer.track.error", String.valueOf(e.getMessage()))));
             }
@@ -514,16 +525,18 @@ public class LavaPlayerManager {
 
         String url = config.getYoutubeSetupGuideUrl();
 
-        Bukkit.getScheduler().runTask(plugin, () -> {
+        Tasks.global(plugin, () -> {
             for (Player op : Bukkit.getOnlinePlayers()) {
                 if (!dev.valkdz.cdisc.permission.Perms.isAdmin(op)) continue;
 
-                op.sendMessage("§c" + plugin.getMessageManager()
-                        .get(op, "diagnose.youtube_operator"));
-                op.sendMessage("§7" + plugin.getMessageManager()
-                        .get(op, url.isEmpty()
-                                ? "diagnose.youtube_operator_where"
-                                : "diagnose.youtube_operator_link", localised(url, op)));
+                Tasks.onEntity(plugin, op, () -> {
+                    op.sendMessage("§c" + plugin.getMessageManager()
+                            .get(op, "diagnose.youtube_operator"));
+                    op.sendMessage("§7" + plugin.getMessageManager()
+                            .get(op, url.isEmpty()
+                                    ? "diagnose.youtube_operator_where"
+                                    : "diagnose.youtube_operator_link", localised(url, op)));
+                });
             }
         });
     }
@@ -562,21 +575,21 @@ public class LavaPlayerManager {
                         .map(found -> new SearchResults.Entry(
                                 found, found.getInfo().title, addressOf(found, query)))
                         .toList();
-                Bukkit.getScheduler().runTask(plugin, () ->
+                Tasks.entity(plugin, player, () ->
                         plugin.getSearchResults().show(player, query, shown));
             }
 
             @Override public void noMatches() {
 
                 String hint = LoadDiagnosis.explain(plugin, player, query);
-                Bukkit.getScheduler().runTask(plugin, () -> {
+                Tasks.entity(plugin, player, () -> {
                     player.sendMessage("§c" + plugin.getMessageManager().get(player, "lavaplayer.track.notfound"));
                     if (hint != null) player.sendMessage("§7" + hint);
                 });
             }
 
             @Override public void loadFailed(FriendlyException e) {
-                Bukkit.getScheduler().runTask(plugin, () ->
+                Tasks.entity(plugin, player, () ->
                         player.sendMessage("§c" + plugin.getMessageManager()
                                 .get(player, "lavaplayer.track.error", String.valueOf(e.getMessage()))));
             }
@@ -608,7 +621,7 @@ public class LavaPlayerManager {
                 : refusal.equals("perms.track_too_long") ? "perms.search_all_too_long"
                 : refusal;
         String limit = TimeUtils.format(plugin.getPermissions().maxTrackSeconds() * 1000L);
-        Bukkit.getScheduler().runTask(plugin, () ->
+        Tasks.entity(plugin, player, () ->
                 player.sendMessage("§c" + plugin.getMessageManager().get(player, key, limit)));
     }
 
@@ -637,7 +650,7 @@ public class LavaPlayerManager {
         if (GoatHorns.isHorn(item)) {
             String refusal = GoatHorns.refusal(plugin, player, track.getInfo());
             if (refusal != null) {
-                Bukkit.getScheduler().runTask(plugin, () -> player.sendMessage("§c" + refusal));
+                Tasks.entity(plugin, player, () -> player.sendMessage("§c" + refusal));
                 return;
             }
         }
@@ -647,7 +660,7 @@ public class LavaPlayerManager {
                         player, track.getInfo().isStream, track.getInfo().length);
         if (rejection != null) {
             int maxSeconds = plugin.getPermissions().maxTrackSeconds();
-            Bukkit.getScheduler().runTask(plugin, () ->
+            Tasks.entity(plugin, player, () ->
                     player.sendMessage("§c" + plugin.getMessageManager()
                             .get(player, rejection, TimeUtils.format(maxSeconds * 1000L))));
             return;
@@ -685,7 +698,7 @@ public class LavaPlayerManager {
         boolean isYoutube = trackLoader.isYoutubeIdentifier(resolved);
 
         if (!isYoutube || !trackLoader.hasCustomApi() || plugin.cdiscConfig().isYoutubeFastCreate()) {
-            Bukkit.getScheduler().runTask(plugin, () ->
+            Tasks.entity(plugin, player, () ->
                     stored(player, item, track, query, null, titleN, authorN, null));
             return;
         }
@@ -696,7 +709,7 @@ public class LavaPlayerManager {
 
         trackLoader.probePlayability(track).whenComplete((playable, ex) -> {
             if (playable) {
-                Bukkit.getScheduler().runTask(plugin, () ->
+                Tasks.entity(plugin, player, () ->
                         stored(player, item, track, query, null, titleN, authorN, "lavaplayer"));
                 return;
             }
@@ -705,13 +718,13 @@ public class LavaPlayerManager {
 
             AudioTrack backendTrack = backendAhead.join();
             if (backendTrack == null) {
-                Bukkit.getScheduler().runTask(plugin, () ->
+                Tasks.entity(plugin, player, () ->
                         player.sendMessage("§c" + plugin.getMessageManager()
                                 .get(player, "lavaplayer.track.notfound")));
                 return;
             }
             String backendUrl = trackLoader.backendStreamUrlFor(videoId);
-            Bukkit.getScheduler().runTask(plugin, () ->
+            Tasks.entity(plugin, player, () ->
                     stored(player, item, track, backendUrl, query, titleN, authorN, "backend"));
         });
     }
@@ -751,6 +764,14 @@ public class LavaPlayerManager {
 
     public void startPlaying(Block block, String query, String fallbackQuery, String discTitle, String discAuthor,
                              String musicFetch, long startAtMs) {
+        // The anchor entity is spawned below, so a call arriving from a loader thread has
+        // to be handed to whichever thread owns this jukebox first.
+        if (!Tasks.owns(block.getLocation())) {
+            Tasks.region(plugin, block, () -> startPlaying(block, query, fallbackQuery,
+                    discTitle, discAuthor, musicFetch, startAtMs));
+            return;
+        }
+
         String resolved = trackLoader.resolveQuery(query);
         if (resolved == null || voiceBackend == null) return;
 
@@ -816,7 +837,7 @@ public class LavaPlayerManager {
                                 if (generation.getOrDefault(ref.get(), 0) != gen) return;
                                 if (replacement == null) {
                                     Bukkit.getLogger().severe("[CDisc] Nothing else could serve it either.");
-                                    Bukkit.getScheduler().runTask(plugin, () -> advanceOrStop(ref.get(), gen));
+                                    Tasks.region(plugin, ref.get(), () -> advanceOrStop(ref.get(), gen));
                                     return;
                                 }
                                 p.playTrack(replacement);
@@ -831,7 +852,7 @@ public class LavaPlayerManager {
                             return;
                         }
 
-                        Bukkit.getScheduler().runTask(plugin, () -> advanceOrStop(ref.get(), gen));
+                        Tasks.region(plugin, ref.get(), () -> advanceOrStop(ref.get(), gen));
                     }
 
                     @Override
@@ -892,7 +913,7 @@ public class LavaPlayerManager {
     // Load callbacks arrive on a LavaPlayer thread, and both halves spawn and remove
     // entities, which the server refuses off the main thread.
     private void fallBack(BlockRef ref, int gen, String fallbackQuery, String discTitle, String discAuthor) {
-        Bukkit.getScheduler().runTask(plugin, () -> {
+        Tasks.region(plugin, ref.get(), () -> {
             stopPlaying(ref.get(), gen);
             if (fallbackQuery != null) {
                 startPlaying(ref.get(), fallbackQuery, null, discTitle, discAuthor, null);
@@ -906,6 +927,10 @@ public class LavaPlayerManager {
 
     public void stopPlaying(Block block, int gen) {
         if (generation.getOrDefault(block, 0) != gen) return;
+        if (!Tasks.owns(block.getLocation())) {
+            Tasks.region(plugin, block, () -> stopPlaying(block, gen));
+            return;
+        }
         List<AudioSession> list = sessions.remove(block);
         if (list != null) list.forEach(AudioSession::stop);
         detachSpeakers(block);
@@ -1183,7 +1208,7 @@ public class LavaPlayerManager {
         BlockRef ref = blockRefs.get(block);
         String resolved = trackLoader.resolveQuery(query);
         if (resolved == null) {
-            Bukkit.getScheduler().runTask(plugin, () -> advanceOrStop(block, gen));
+            Tasks.region(plugin, block, () -> advanceOrStop(block, gen));
             return;
         }
         trackLoader.load(resolved, fetch, title, author, new AudioLoadResultHandler() {
@@ -1193,7 +1218,7 @@ public class LavaPlayerManager {
                 player.setVolume(plugin.cdiscConfig().getVolume());
                 broadcaster.broadcast(here(ref, block), audibleOrigin(here(ref, block)), track, title, author,
                         (int) effectiveDistance(here(ref, block)), LavaPlayerManager.this::hasActiveSession);
-                Bukkit.getScheduler().runTask(plugin, () -> refreshQueueGuis(here(ref, block)));
+                Tasks.region(plugin, here(ref, block), () -> refreshQueueGuis(here(ref, block)));
             }
 
             @Override public void playlistLoaded(AudioPlaylist p) {
@@ -1204,7 +1229,7 @@ public class LavaPlayerManager {
                 if (fallback != null) {
                     loadInto(here(ref, block), player, fallback, null, title, author, null, gen);
                 } else {
-                    Bukkit.getScheduler().runTask(plugin, () -> advanceOrStop(here(ref, block), gen));
+                    Tasks.region(plugin, here(ref, block), () -> advanceOrStop(here(ref, block), gen));
                 }
             }
 
@@ -1212,7 +1237,7 @@ public class LavaPlayerManager {
                 if (fallback != null) {
                     loadInto(here(ref, block), player, fallback, null, title, author, null, gen);
                 } else {
-                    Bukkit.getScheduler().runTask(plugin, () -> advanceOrStop(here(ref, block), gen));
+                    Tasks.region(plugin, here(ref, block), () -> advanceOrStop(here(ref, block), gen));
                 }
             }
         });
@@ -1274,6 +1299,10 @@ public class LavaPlayerManager {
 
     public void rebindAnchor(Block block, Location where) {
         if (where == null || where.getWorld() == null || voiceBackend == null) return;
+        if (!Tasks.owns(where)) {
+            Tasks.region(plugin, where, () -> rebindAnchor(block, where));
+            return;
+        }
 
         SoundAnchor anchor = anchors.get(block);
         List<AudioSession> playing = sessions.get(block);
