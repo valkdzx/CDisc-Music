@@ -317,6 +317,10 @@ gui:
     color_d: "rosa"
     color_e: "amarillo"
     color_f: "blanco"
+  local:
+    notice: "Otro jugador tiene abierta esta gramola: aquí solo tienes tus propios ajustes."
+    name: "Otro jugador la está controlando"
+    lore: "Aquí solo están tus propios ajustes"
   speaker:
     title: "Altavoz: %s"
     standalone: "&fGramola"

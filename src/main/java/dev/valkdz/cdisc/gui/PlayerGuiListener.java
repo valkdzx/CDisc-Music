@@ -44,6 +44,11 @@ public class PlayerGuiListener implements Listener {
             return;
         }
 
+        if (holder.isLocal()) {
+            onLocalClick(e, player, block);
+            return;
+        }
+
         Action needed = actionFor(e.getSlot(), playing, e.isRightClick());
         if (needed != null && !plugin.getPermissions().allows(player, needed)) return;
 
@@ -145,6 +150,49 @@ public class PlayerGuiListener implements Listener {
         if (stateChanged && e.getSlot() != PlayerGuiManager.SLOT_EXIT) {
             plugin.getPlayerGuiManager().refresh(player, block);
         }
+    }
+
+    private void onLocalClick(InventoryClickEvent e, Player player, Block block) {
+        PlayerActions actions = plugin.getPlayerActions();
+        int slot = e.getSlot();
+
+        if (slot == PlayerGuiManager.SLOT_EXIT) {
+            player.closeInventory();
+            return;
+        }
+
+        Action needed = switch (slot) {
+            case PlayerGuiManager.SLOT_LYRICS ->
+                    e.isRightClick() ? Action.LYRICS_PRESET : Action.LYRICS_TOGGLE;
+            case PlayerGuiManager.SLOT_TRACK_MESSAGES -> Action.PLAYER_MESSAGES;
+            case PlayerGuiManager.SLOT_LOCAL_VOLUME -> Action.PLAYER_LOCAL_VOLUME;
+            default -> null;
+        };
+        if (needed == null || !plugin.getPermissions().allows(player, needed)) return;
+
+        switch (slot) {
+            case PlayerGuiManager.SLOT_LYRICS -> {
+                if (!plugin.cdiscConfig().isLyricsEnabled()) return;
+                if (e.isRightClick()) {
+                    actions.openMyLyricsLook(player);
+                    return;
+                }
+                actions.cycleLyrics(player, block);
+            }
+            case PlayerGuiManager.SLOT_TRACK_MESSAGES -> actions.toggleTrackMessages(player);
+            case PlayerGuiManager.SLOT_LOCAL_VOLUME -> {
+                if (!plugin.getPlayerGuiManager().carries(player, block)) return;
+                if (e.isShiftClick()) {
+                    actions.followJukeboxVolume(player, block);
+                } else {
+                    actions.stepLocalVolume(player, block, !e.isRightClick());
+                }
+            }
+            default -> {
+                return;
+            }
+        }
+        plugin.getPlayerGuiManager().refresh(player, block);
     }
 
     private static Action actionFor(int slot, boolean playing, boolean rightClick) {

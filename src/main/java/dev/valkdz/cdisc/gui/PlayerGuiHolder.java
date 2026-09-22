@@ -8,11 +8,13 @@ public class PlayerGuiHolder implements InventoryHolder {
 
     private final Block block;
     private final int generation;
+    private final boolean local;
     private Inventory inventory;
 
-    public PlayerGuiHolder(Block block, int generation) {
+    public PlayerGuiHolder(Block block, int generation, boolean local) {
         this.block = block;
         this.generation = generation;
+        this.local = local;
     }
 
     public void setInventory(Inventory inventory) {
@@ -30,5 +32,9 @@ public class PlayerGuiHolder implements InventoryHolder {
 
     public int getGeneration() {
         return generation;
+    }
+
+    public boolean isLocal() {
+        return local;
     }
 }

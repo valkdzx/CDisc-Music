@@ -317,6 +317,10 @@ gui:
     color_d: "pink"
     color_e: "yellow"
     color_f: "white"
+  local:
+    notice: "Someone else has this jukebox open — you get only the settings that are yours alone."
+    name: "Someone else is at the controls"
+    lore: "Only your own settings are here"
   speaker:
     title: "Speaker: %s"
     standalone: "&fJukebox"

@@ -150,26 +150,31 @@ public class PlayerGuiManager {
             return;
         }
 
-        if (plugin.getJukeboxViewers().heldByOther(block, player)) {
+        boolean local = plugin.getJukeboxViewers().heldByOther(block, player);
+        if (local && !hasLocalControls(player, block)) {
             player.sendMessage("§c" + plugin.getMessageManager().get(player, "gui.queue.busy"));
             return;
         }
 
-        if (dev.valkdz.cdisc.gui.dialog.Dialogs.playerScreenWanted(plugin, player)
+        if (!local && dev.valkdz.cdisc.gui.dialog.Dialogs.playerScreenWanted(plugin, player)
                 && dev.valkdz.cdisc.gui.dialog.Dialogs.openPlayer(plugin, player, block)) {
             return;
         }
 
         int gen = apm.getGeneration(block);
-        PlayerGuiHolder holder = new PlayerGuiHolder(block, gen);
+        PlayerGuiHolder holder = new PlayerGuiHolder(block, gen, local);
 
         String title = plugin.getMessageManager().get(player, "gui.title");
-        Inventory inventory = Bukkit.createInventory(holder, sizeFor(), title);
+        Inventory inventory = Bukkit.createInventory(holder, local ? GUI_SIZE : sizeFor(), title);
         holder.setInventory(inventory);
 
         refresh(player, inventory, block);
         player.openInventory(inventory);
-        plugin.getJukeboxViewers().claim(block, player);
+        if (local) {
+            player.sendMessage("§7" + plugin.getMessageManager().get(player, "gui.local.notice"));
+        } else {
+            plugin.getJukeboxViewers().claim(block, player);
+        }
 
         openViewers.computeIfAbsent(block, b -> ConcurrentHashMap.newKeySet()).add(player);
     }
@@ -213,9 +218,62 @@ public class PlayerGuiManager {
         refresh(player, top, block);
     }
 
+    private boolean hasLocalControls(Player player, Block block) {
+        return (plugin.cdiscConfig().isLyricsEnabled()
+                && (may(player, Action.LYRICS_TOGGLE) || may(player, Action.LYRICS_PRESET)))
+                || may(player, Action.PLAYER_MESSAGES)
+                || (may(player, Action.PLAYER_LOCAL_VOLUME) && carries(player, block));
+    }
+
+    private void refreshLocal(Player player, Inventory inventory, Block block,
+                              LavaPlayerManager.PlaybackInfo info) {
+        ItemStack filler = fillerPane();
+        for (int slot = 0; slot < inventory.getSize(); slot++) {
+            inventory.setItem(slot, filler);
+        }
+
+        inventory.setItem(SLOT_INFO, buildLocalNoticeItem(player));
+        inventory.setItem(SLOT_EXIT, buildExitItem(player));
+
+        ItemStack lyrics = may(player, Action.LYRICS_TOGGLE) || may(player, Action.LYRICS_PRESET)
+                ? buildLyricsItem(player, block, info) : null;
+        inventory.setItem(SLOT_LYRICS, lyrics != null ? lyrics : filler);
+        rememberLyrics(player, lyrics);
+
+        inventory.setItem(SLOT_TRACK_MESSAGES, may(player, Action.PLAYER_MESSAGES)
+                ? buildTrackMessagesItem(player) : filler);
+
+        ItemStack local = may(player, Action.PLAYER_LOCAL_VOLUME)
+                ? buildLocalVolumeItem(player, block) : null;
+        inventory.setItem(SLOT_LOCAL_VOLUME, local != null ? local : filler);
+    }
+
+    private ItemStack buildLocalNoticeItem(Player player) {
+        ItemStack item = new ItemStack(Material.STRUCTURE_VOID);
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            meta.setDisplayName("§e" + plugin.getMessageManager().get(player, "gui.local.name"));
+            meta.setLore(List.of("§7" + plugin.getMessageManager().get(player, "gui.local.lore")));
+            item.setItemMeta(meta);
+        }
+        return item;
+    }
+
+    boolean carries(Player player, Block block) {
+        if (plugin.getPortableJukeboxManager() == null) return false;
+
+        var carry = plugin.getPortableJukeboxManager().carryOfBlock(block);
+        return carry != null && carry.carrier().equals(player.getUniqueId());
+    }
+
     private void refresh(Player player, Inventory inventory, Block block) {
         LavaPlayerManager apm = plugin.getAudioPlayerManager();
         LavaPlayerManager.PlaybackInfo info = apm.getPlaybackInfo(block);
+
+        if (inventory.getHolder() instanceof PlayerGuiHolder holder && holder.isLocal()) {
+            refreshLocal(player, inventory, block, info);
+            return;
+        }
 
         ItemStack filler = fillerPane();
         for (int slot = 9; slot < inventory.getSize(); slot++) {
@@ -315,10 +373,7 @@ public class PlayerGuiManager {
     }
 
     private ItemStack buildLocalVolumeItem(Player player, Block block) {
-        if (plugin.getPortableJukeboxManager() == null) return null;
-
-        var carry = plugin.getPortableJukeboxManager().carryOfBlock(block);
-        if (carry == null || !carry.carrier().equals(player.getUniqueId())) return null;
+        if (!carries(player, block)) return null;
 
         int own = PlayerPrefs.localVolume(player);
         int jukebox = SpeakerSettings.of(block).volume();
