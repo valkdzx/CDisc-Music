@@ -402,6 +402,10 @@ public final class Config {
         return colors(cfg().getString("lyrics.color.other", "&7"));
     }
 
+    public String getLyricsTrackColor() {
+        return colors(cfg().getString("lyrics.color.track", "&6"));
+    }
+
     public int getLyricsFadeTicks() {
         return Math.max(0, Math.min(20, cfg().getInt("lyrics.animation.fade-ticks", 6)));
     }

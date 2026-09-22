@@ -128,7 +128,7 @@ public class PlayerGuiListener implements Listener {
                     actions.openMyLyricsLook(player);
                     break;
                 }
-                actions.toggleLyrics(player, block);
+                actions.cycleLyrics(player, block);
             }
             case PlayerGuiManager.SLOT_TRACK_MESSAGES -> actions.toggleTrackMessages(player);
             case PlayerGuiManager.SLOT_EXIT -> player.closeInventory();

@@ -79,7 +79,10 @@ speaker-group:
 # set one up in /cdisc preset, and that preset wins over everything here.
 lyrics:
   enabled: true
-  # What a jukebox nobody has decided about does.
+  # What a player who has not chosen sees over jukeboxes: true the words, false nothing.
+  # Each player picks their own with /cdisc lyrics or the paper in the GUI:
+  # off | lyrics | track_lyrics (words, then track and time) | time_lyrics (words, then time)
+  # | track (track and time) | time
   default-on: false
 
   # Asked in order until one has the song. lrclib is one request and more accurate;
@@ -104,6 +107,8 @@ lyrics:
   color:
     current: "&f"
     other: "&7"
+    # The "Track - Artist [00:00 / 03:24]" line some players read under the words.
+    track: "&6"
 
   animation:
     # Ticks a line takes to travel between the two colours. 0 turns it off.
@@ -124,7 +129,8 @@ lyrics:
   # Plate behind the text: 0 none, 255 solid, 60 roughly a nametag.
   background-opacity: 60
 
-  # How solid the words are, 0 to 255. Parted for the sung line in /cdisc preset.
+  # How solid the words are, 0 to 255. Parted for the sung line and the track line
+  # in /cdisc preset.
   text-opacity: 255
 
   # 0 to 15. -1 leaves the words lit by the world, so they go dark at night.

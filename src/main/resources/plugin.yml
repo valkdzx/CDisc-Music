@@ -7,4 +7,4 @@ author: valkdz
 softdepend: [voicechat, PlasmoVoice]
 commands:
   cdisc:
-    usage: /<command> [create|download|doctor|create-playlist|clear|convert|pair|player|reload] [args]
+    usage: /<command> [create|download|doctor|create-playlist|clear|convert|pair|player|lyrics|reload] [args]

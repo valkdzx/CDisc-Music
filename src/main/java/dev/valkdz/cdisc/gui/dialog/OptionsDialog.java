@@ -3,6 +3,7 @@ package dev.valkdz.cdisc.gui.dialog;
 import dev.valkdz.cdisc.Main;
 import dev.valkdz.cdisc.audio.LavaPlayerManager;
 import dev.valkdz.cdisc.gui.PlayerActions;
+import dev.valkdz.cdisc.lyrics.LyricsMode;
 import dev.valkdz.cdisc.lyrics.LyricsPrefs;
 import dev.valkdz.cdisc.permission.Action;
 import dev.valkdz.cdisc.speaker.SpeakerSettings;
@@ -13,6 +14,7 @@ import io.papermc.paper.registry.data.dialog.ActionButton;
 import io.papermc.paper.registry.data.dialog.DialogBase;
 import io.papermc.paper.registry.data.dialog.body.DialogBody;
 import io.papermc.paper.registry.data.dialog.input.DialogInput;
+import io.papermc.paper.registry.data.dialog.input.SingleOptionDialogInput;
 import io.papermc.paper.registry.data.dialog.type.DialogType;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
@@ -34,7 +36,7 @@ final class OptionsDialog {
     private static final String KEY_MESSAGES = "messages";
 
     private record Shown(long positionMs, int volume, int mine,
-                         boolean lyrics, boolean messages) {
+                         LyricsMode lyrics, boolean messages) {
     }
 
     private OptionsDialog() {
@@ -49,7 +51,7 @@ final class OptionsDialog {
                 info == null ? 0L : info.position(),
                 speaker.volume(),
                 PlayerPrefs.effectiveLocalVolume(player, speaker.volume()),
-                plugin.cdiscConfig().isLyricsEnabled() && LyricsPrefs.isEnabled(block),
+                LyricsPrefs.mode(player),
                 PlayerPrefs.showsTrackMessages(player));
 
         List<DialogInput> inputs = new ArrayList<>();
@@ -94,9 +96,15 @@ final class OptionsDialog {
         }
 
         if (plugin.cdiscConfig().isLyricsEnabled() && may(plugin, player, Action.LYRICS_TOGGLE)) {
-            inputs.add(DialogInput.bool(KEY_LYRICS,
-                            PlayerDialog.text(plugin, player, "gui.dialog.input_lyrics"))
-                    .initial(shown.lyrics())
+            List<SingleOptionDialogInput.OptionEntry> modes = new ArrayList<>();
+            for (LyricsMode mode : LyricsMode.values()) {
+                modes.add(SingleOptionDialogInput.OptionEntry.create(mode.key(),
+                        PlayerDialog.text(plugin, player, mode.messageKey()),
+                        mode == shown.lyrics()));
+            }
+            inputs.add(DialogInput.singleOption(KEY_LYRICS,
+                            PlayerDialog.text(plugin, player, "gui.dialog.input_lyrics"), modes)
+                    .width(INPUT_WIDTH)
                     .build());
         }
         if (may(plugin, player, Action.PLAYER_MESSAGES)) {
@@ -173,7 +181,7 @@ final class OptionsDialog {
             actions.setLocalVolume(player, block, Math.round(own));
         }
 
-        Boolean lyrics = view.getBoolean(KEY_LYRICS);
+        LyricsMode lyrics = LyricsMode.ofKey(view.getText(KEY_LYRICS));
         if (lyrics != null && lyrics != shown.lyrics()) {
             actions.setLyrics(player, block, lyrics);
         }

@@ -2,6 +2,7 @@ package dev.valkdz.cdisc.gui;
 
 import dev.valkdz.cdisc.Main;
 import dev.valkdz.cdisc.lyrics.HologramStyle;
+import dev.valkdz.cdisc.lyrics.LyricsPrefs;
 import dev.valkdz.cdisc.lyrics.LyricsStyle;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -90,6 +91,14 @@ public class LyricsGuiListener implements Listener {
                     LyricsGuiManager.OPACITY_STEP));
         }
 
+        if (slot == LyricsGuiManager.SLOT_TRACK_COLOR) {
+            return style.withTrackPrefix(cycled(style.trackPrefix(), forward));
+        }
+        if (slot == LyricsGuiManager.SLOT_TRACK_OPACITY) {
+            return style.withTrackOpacity(step(style.trackOpacity(), forward,
+                    LyricsGuiManager.OPACITY_STEP));
+        }
+
         int text = slot - LyricsGuiManager.SLOT_TEXT_FORMAT_FIRST;
         if (text >= 0 && text < LyricsGuiManager.FORMATS.length) {
             return style.withTextPrefix(LyricsStyle.toggleFormat(
@@ -100,6 +109,12 @@ public class LyricsGuiListener implements Listener {
         if (current >= 0 && current < LyricsGuiManager.FORMATS.length) {
             return style.withCurrentPrefix(LyricsStyle.toggleFormat(
                     style.currentPrefix(), LyricsGuiManager.FORMATS[current]));
+        }
+
+        int track = slot - LyricsGuiManager.SLOT_TRACK_FORMAT_FIRST;
+        if (track >= 0 && track < LyricsGuiManager.FORMATS.length) {
+            return style.withTrackPrefix(LyricsStyle.toggleFormat(
+                    style.trackPrefix(), LyricsGuiManager.FORMATS[track]));
         }
 
         return null;
@@ -186,5 +201,6 @@ public class LyricsGuiListener implements Listener {
     @EventHandler
     public void onQuit(PlayerQuitEvent e) {
         plugin.getHologramPreview().hide(e.getPlayer());
+        LyricsPrefs.forget(e.getPlayer().getUniqueId());
     }
 }

@@ -37,6 +37,11 @@ public class LyricsGuiManager {
     public static final int SLOT_CURRENT_OPACITY = 29;
     public static final int SLOT_CURRENT_FORMAT_FIRST = 31;
 
+    public static final int SLOT_TRACK_HEADER = 36;
+    public static final int SLOT_TRACK_COLOR = 37;
+    public static final int SLOT_TRACK_OPACITY = 38;
+    public static final int SLOT_TRACK_FORMAT_FIRST = 40;
+
     public static final int SLOT_PLACEMENT_HEADER = 9;
     public static final int SLOT_SIZE = 11;
     public static final int SLOT_HEIGHT = 12;
@@ -172,7 +177,8 @@ public class LyricsGuiManager {
 
         inventory.setItem(SLOT_TEXT_HEADER, header(player, Material.PAPER,
                 "gui.lyrics_look.header_text"));
-        inventory.setItem(SLOT_TEXT_COLOR, colorItem(player, style.textPrefix(), false));
+        inventory.setItem(SLOT_TEXT_COLOR, colorItem(player, style.textPrefix(),
+                "gui.lyrics_look.color_text"));
         inventory.setItem(SLOT_TEXT_OPACITY, opacityItem(player, Material.GLASS,
                 "gui.lyrics_look.text_opacity", style.textOpacity()));
         for (int i = 0; i < FORMATS.length; i++) {
@@ -181,11 +187,22 @@ public class LyricsGuiManager {
 
         inventory.setItem(SLOT_CURRENT_HEADER, header(player, Material.NAME_TAG,
                 "gui.lyrics_look.header_current"));
-        inventory.setItem(SLOT_CURRENT_COLOR, colorItem(player, style.currentPrefix(), true));
+        inventory.setItem(SLOT_CURRENT_COLOR, colorItem(player, style.currentPrefix(),
+                "gui.lyrics_look.color_current"));
         inventory.setItem(SLOT_CURRENT_OPACITY, opacityItem(player, Material.GLASS,
                 "gui.lyrics_look.current_opacity", style.currentOpacity()));
         for (int i = 0; i < FORMATS.length; i++) {
             inventory.setItem(SLOT_CURRENT_FORMAT_FIRST + i, formatItem(player, style.currentPrefix(), i));
+        }
+
+        inventory.setItem(SLOT_TRACK_HEADER, header(player, Material.JUKEBOX,
+                "gui.lyrics_look.header_track"));
+        inventory.setItem(SLOT_TRACK_COLOR, colorItem(player, style.trackPrefix(),
+                "gui.lyrics_look.color_track"));
+        inventory.setItem(SLOT_TRACK_OPACITY, opacityItem(player, Material.GLASS,
+                "gui.lyrics_look.track_opacity", style.trackOpacity()));
+        for (int i = 0; i < FORMATS.length; i++) {
+            inventory.setItem(SLOT_TRACK_FORMAT_FIRST + i, formatItem(player, style.trackPrefix(), i));
         }
     }
 
@@ -230,6 +247,8 @@ public class LyricsGuiManager {
         lore.add(colours.other() + plugin.getMessageManager().get(player, "gui.lyrics_look.sample_other"));
         lore.add(colours.current() + plugin.getMessageManager().get(player, "gui.lyrics_look.sample_current"));
         lore.add(colours.other() + plugin.getMessageManager().get(player, "gui.lyrics_look.sample_other"));
+        lore.add("");
+        lore.add(style.trackColor() + plugin.getMessageManager().get(player, "gui.lyrics_look.sample_track"));
 
         return simple(Material.PLAYER_HEAD,
                 plugin.getMessageManager().get(player, "gui.lyrics_look.preset_title"), lore);
@@ -313,7 +332,7 @@ public class LyricsGuiManager {
                 "§f" + plugin.getMessageManager().get(player, "gui.lyrics_look.background_color"), lore);
     }
 
-    private ItemStack colorItem(Player player, String prefix, boolean current) {
+    private ItemStack colorItem(Player player, String prefix, String key) {
         int index = indexOfColor(LyricsStyle.colorCode(prefix));
 
         List<String> lore = List.of(
@@ -323,9 +342,7 @@ public class LyricsGuiManager {
                 "§8" + plugin.getMessageManager().get(player, "gui.lyrics_look.hint_cycle"));
 
         return simple(index < 0 ? Material.WHITE_WOOL : COLOR_WOOL[index],
-                "§f" + plugin.getMessageManager().get(player,
-                        current ? "gui.lyrics_look.color_current" : "gui.lyrics_look.color_text"),
-                lore);
+                "§f" + plugin.getMessageManager().get(player, key), lore);
     }
 
     private String colorName(Player player, int index) {

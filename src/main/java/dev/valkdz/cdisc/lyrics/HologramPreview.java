@@ -30,6 +30,7 @@ public final class HologramPreview {
     private static final long FOLLOW_TICKS = 5L;
 
     private static final long SAMPLE_POSITION = 60_000L;
+    private static final long SAMPLE_DURATION = 204_000L;
 
     private static final int SAMPLE_LINES = 13;
     private static final int SAMPLE_PHRASES = 4;
@@ -115,7 +116,12 @@ public final class HologramPreview {
                 1f);
 
         List<String> lines = LyricsRenderer.window(sample, SAMPLE_POSITION, options);
-        return lines.isEmpty() ? " " : String.join("\n", lines);
+        lines.add(" ");
+        lines.add(style.trackColor() + LyricsMode.TRACK_LYRICS.header(
+                plugin.getMessageManager().get(player, "gui.lyrics_look.preview_title"),
+                plugin.getMessageManager().get(player, "gui.lyrics_look.preview_author"),
+                SAMPLE_POSITION, SAMPLE_DURATION));
+        return String.join("\n", lines);
     }
 
     private String sampleLrc(Player player) {

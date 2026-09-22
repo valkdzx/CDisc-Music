@@ -181,7 +181,6 @@ public final class Main extends JavaPlugin {
         audioPlayerManager.setOnSessionEnded(block -> {
             playerGuiManager.forceCloseFor(block);
             lyricsDisplay.clear(block);
-            dev.valkdz.cdisc.lyrics.LyricsPrefs.forget(block);
             dev.valkdz.cdisc.speaker.SpeakerSettings.forget(block);
             queueGuiManager.forceCloseFor(block);
             jukeboxViewers.clear(block);

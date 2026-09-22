@@ -18,6 +18,7 @@ class HologramStyleTest {
                 0x123456, 61, 7,
                 "§7§l", 200,
                 "§f§o", 245,
+                "§e§n", 190,
                 8, 2.3, 260, 3, 4,
                 true, true, 11, false, false);
     }
@@ -46,6 +47,8 @@ class HologramStyleTest {
         assertEquals(original.textOpacity(), back.textOpacity(), "textOpacity");
         assertEquals(original.currentPrefix(), back.currentPrefix(), "currentPrefix");
         assertEquals(original.currentOpacity(), back.currentOpacity(), "currentOpacity");
+        assertEquals(original.trackPrefix(), back.trackPrefix(), "trackPrefix");
+        assertEquals(original.trackOpacity(), back.trackOpacity(), "trackOpacity");
         assertEquals(original.size(), back.size(), "size");
         assertEquals(original.height(), back.height(), 0.0001, "height");
         assertEquals(original.lineWidth(), back.lineWidth(), "lineWidth");
@@ -150,6 +153,7 @@ class HologramStyleTest {
                 0xFEDCBA, 12, HologramStyle.BRIGHTNESS_WORLD,
                 "§8", 33,
                 "§e", 44,
+                "§6", 88,
                 1, 0.4, 55, 0, 0,
                 false, false, 1, true, true);
     }

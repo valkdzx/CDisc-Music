@@ -19,11 +19,13 @@ import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.util.Transformation;
 import org.joml.Vector3f;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -43,6 +45,12 @@ public final class LyricsDisplay {
     };
 
     private static final float LINE_HEIGHT = 0.25f;
+
+    private static final int FOOTER_DROP_LINES = 2;
+
+    private static final int FOOTER_SINK_LINES = 1;
+
+    private static final int FOOTER_LINE_WIDTH = 1000;
 
     private static final int SWEEP_TICKS = 20 * 60;
 
@@ -69,17 +77,30 @@ public final class LyricsDisplay {
         this.displayKey = new NamespacedKey(plugin, "cdisc_lyrics_display");
     }
 
+    private record Seat(HologramStyle style, LyricsMode mode) {
+    }
+
     private static final class Variant {
 
         final HologramStyle style;
+
+        final LyricsMode mode;
 
         final Set<UUID> viewers = new HashSet<>();
 
         final Set<UUID> shownTo = new HashSet<>();
 
+        final Set<UUID> footerShownTo = new HashSet<>();
+
         TextDisplay entity;
 
+        TextDisplay footer;
+
         String lastText;
+
+        String lastFooter;
+
+        String lastHeader;
 
         boolean viewersChanged;
 
@@ -95,12 +116,15 @@ public final class LyricsDisplay {
 
         boolean pendingRelease;
 
-        Variant(HologramStyle style) {
-            this.style = style;
+        Variant(Seat seat) {
+            this.style = seat.style();
+            this.mode = seat.mode();
         }
 
         void rewind() {
             lastText = null;
+            lastFooter = null;
+            lastHeader = null;
             lastFrame = Long.MIN_VALUE;
             lastIndex = Integer.MIN_VALUE;
             lastFirst = Integer.MIN_VALUE;
@@ -112,7 +136,7 @@ public final class LyricsDisplay {
 
     private static final class Hologram {
 
-        final Map<HologramStyle, Variant> variants = new HashMap<>();
+        final Map<Seat, Variant> variants = new HashMap<>();
 
         final Map<UUID, Variant> seats = new HashMap<>();
 
@@ -124,6 +148,8 @@ public final class LyricsDisplay {
         int audienceIn;
 
         SyncedLyrics lyrics;
+
+        boolean wantedLyrics;
 
         void resetForNewTrack() {
             lyrics = null;
@@ -217,7 +243,7 @@ public final class LyricsDisplay {
         };
 
         poll[0] = Tasks.entityTimer(plugin, player, () -> {
-            if (!player.isOnline() || !LyricsPrefs.isEnabled(block)) {
+            if (!player.isOnline() || !LyricsPrefs.mode(player).showsLyrics()) {
                 give.run();
                 return;
             }
@@ -267,7 +293,7 @@ public final class LyricsDisplay {
     private boolean isMine(Entity entity) {
         for (Hologram state : states.values()) {
             for (Variant variant : state.variants.values()) {
-                if (entity.equals(variant.entity)) return true;
+                if (entity.equals(variant.entity) || entity.equals(variant.footer)) return true;
             }
         }
         return false;
@@ -322,7 +348,24 @@ public final class LyricsDisplay {
         }
         variant.shownTo.clear();
         variant.lastText = null;
+        variant.lastHeader = null;
         variant.lastFrame = Long.MIN_VALUE;
+        dropFooter(variant);
+    }
+
+    private void dropFooter(Variant variant) {
+        if (variant.footer != null) {
+            for (UUID id : variant.footerShownTo) {
+                Player viewer = Bukkit.getPlayer(id);
+                if (viewer != null) viewer.hideEntity(plugin, variant.footer);
+            }
+
+            TextDisplay going = variant.footer;
+            Tasks.onEntity(plugin, going, going::remove);
+            variant.footer = null;
+        }
+        variant.footerShownTo.clear();
+        variant.lastFooter = null;
     }
 
     private void tick() {
@@ -390,7 +433,8 @@ public final class LyricsDisplay {
 
         LavaPlayerManager.PlaybackInfo info = apm.getPlaybackInfo(block);
 
-        if (info == null || info.live()) {
+        if (info == null || info.live() || (plugin.getPortableJukeboxManager() != null
+                && plugin.getPortableJukeboxManager().isCarried(block))) {
             clearVariants(state);
             return;
         }
@@ -401,60 +445,65 @@ public final class LyricsDisplay {
             state.resetForNewTrack();
         }
 
-        if (--state.recheckIn <= 0) {
-            state.recheckIn = Math.max(1, config.getLyricsUpdateTicks());
-            state.lyrics = resolve(block, info);
-        }
-
-        if (state.lyrics == null) {
-
-            clearVariants(state);
-            return;
-        }
-
-        render(block, state, info, config, defaults);
-    }
-
-    private SyncedLyrics resolve(Block block, LavaPlayerManager.PlaybackInfo info) {
-
-        if (!LyricsPrefs.isEnabled(block)) return null;
-
-        if (plugin.getPortableJukeboxManager() != null
-                && plugin.getPortableJukeboxManager().isCarried(block)) {
-            return null;
-        }
-
-        LyricsService.Result result = service.lookup(
-                LyricsQuery.of(info.author(), info.title(), info.duration()));
-        return result.isFound() ? result.lyrics() : null;
-    }
-
-    private void render(Block block, Hologram state, LavaPlayerManager.PlaybackInfo info,
-                        Config config, HologramStyle defaults) {
         if (--state.audienceIn <= 0) {
             state.audienceIn = AUDIENCE_TICKS;
             seatAudience(block, state, defaults);
         }
         if (state.variants.isEmpty()) return;
 
-        long position = info.position();
-        SyncedLyrics lyrics = state.lyrics;
+        boolean wantsLyrics = false;
+        for (Variant variant : state.variants.values()) {
+            wantsLyrics |= variant.mode.showsLyrics();
+        }
+        if (wantsLyrics && !state.wantedLyrics) state.recheckIn = 0;
+        state.wantedLyrics = wantsLyrics;
 
-        int index = lyrics.indexAt(position);
+        if (--state.recheckIn <= 0) {
+            state.recheckIn = Math.max(1, config.getLyricsUpdateTicks());
+            state.lyrics = wantsLyrics ? lookup(info) : null;
+        }
+
+        render(block, state, info, config);
+    }
+
+    private SyncedLyrics lookup(LavaPlayerManager.PlaybackInfo info) {
+        LyricsService.Result result = service.lookup(
+                LyricsQuery.of(info.author(), info.title(), info.duration()));
+        return result.isFound() ? result.lyrics() : null;
+    }
+
+    private void render(Block block, Hologram state, LavaPlayerManager.PlaybackInfo info,
+                        Config config) {
+        long position = info.position();
+        SyncedLyrics found = state.lyrics;
+        int foundIndex = found == null ? -1 : found.indexAt(position);
 
         long fullCountdownMs = config.getLyricsCountdownSeconds() * 1000L;
-        int countdownStep = LyricsRenderer.countdownStep(lyrics, position, fullCountdownMs);
+        int foundCountdown = LyricsRenderer.countdownStep(found, position, fullCountdownMs);
 
         for (Variant variant : state.variants.values()) {
+            SyncedLyrics lyrics = variant.mode.showsLyrics() ? found : null;
+            String header = variant.mode.header(
+                    info.title(), info.author(), position, info.duration());
+            if (lyrics == null && header == null) {
+                dropEntity(variant);
+                continue;
+            }
+
+            int index = lyrics == null ? -1 : foundIndex;
+            int countdownStep = lyrics == null ? 0 : foundCountdown;
             step(variant, index);
 
             long frame = ((long) index << 32) | ((long) (countdownStep & 0xFFFF) << 16)
                     | (variant.fadeLeft & 0xFFFF);
+            boolean sameFrame = frame == variant.lastFrame
+                    && Objects.equals(header, variant.lastHeader);
 
-            if (draw(block, variant, lyrics, position, fullCountdownMs,
-                    frame == variant.lastFrame, config)) {
+            if (draw(block, variant, lyrics, header, position, fullCountdownMs,
+                    sameFrame, config)) {
 
                 variant.lastFrame = frame;
+                variant.lastHeader = header;
                 advanceSlide(variant);
             }
 
@@ -469,13 +518,15 @@ public final class LyricsDisplay {
         while (seated.hasNext()) {
             Map.Entry<UUID, Variant> entry = seated.next();
             Player viewer = Bukkit.getPlayer(entry.getKey());
+            Variant variant = entry.getValue();
 
-            if (viewer != null && inRange(viewer, block) && entry.getValue().style
-                    .equals(presets.orDefault(entry.getKey(), defaults))) {
+            if (viewer != null && inRange(viewer, block)
+                    && variant.mode == LyricsPrefs.mode(viewer)
+                    && variant.style.equals(presets.orDefault(entry.getKey(), defaults))) {
                 continue;
             }
 
-            leave(entry.getValue(), entry.getKey(), viewer);
+            leave(variant, entry.getKey(), viewer);
             seated.remove();
         }
 
@@ -483,8 +534,11 @@ public final class LyricsDisplay {
             UUID id = online.getUniqueId();
             if (state.seats.containsKey(id) || !inRange(online, block)) continue;
 
-            Variant variant = state.variants
-                    .computeIfAbsent(presets.orDefault(id, defaults), Variant::new);
+            LyricsMode mode = LyricsPrefs.mode(online);
+            if (mode == LyricsMode.OFF) continue;
+
+            Variant variant = state.variants.computeIfAbsent(
+                    new Seat(presets.orDefault(id, defaults), mode), Variant::new);
 
             variant.viewers.add(id);
             variant.viewersChanged = true;
@@ -505,6 +559,9 @@ public final class LyricsDisplay {
         if (variant.shownTo.remove(id) && viewer != null && !gone(variant.entity)) {
             viewer.hideEntity(plugin, variant.entity);
         }
+        if (variant.footerShownTo.remove(id) && viewer != null && !gone(variant.footer)) {
+            viewer.hideEntity(plugin, variant.footer);
+        }
     }
 
     private void showToViewers(Variant variant) {
@@ -518,6 +575,17 @@ public final class LyricsDisplay {
 
             viewer.showEntity(plugin, variant.entity);
             variant.shownTo.add(id);
+        }
+
+        if (gone(variant.footer)) return;
+        for (UUID id : variant.viewers) {
+            if (variant.footerShownTo.contains(id)) continue;
+
+            Player viewer = Bukkit.getPlayer(id);
+            if (viewer == null) continue;
+
+            viewer.showEntity(plugin, variant.footer);
+            variant.footerShownTo.add(id);
         }
     }
 
@@ -536,21 +604,28 @@ public final class LyricsDisplay {
         variant.lastFirst = first;
 
         if (scrolled && style.fadeTicks() > 0 && style.slide()) {
-
             variant.slidePending = true;
         }
     }
 
-    private boolean draw(Block block, Variant variant, SyncedLyrics lyrics, long position,
-                         long fullCountdownMs, boolean sameFrame, Config config) {
+    private boolean draw(Block block, Variant variant, SyncedLyrics lyrics, String header,
+                         long position, long fullCountdownMs, boolean sameFrame,
+                         Config config) {
         HologramStyle style = variant.style;
 
-        Location location = hologramLocation(block, style.height());
-        if (location == null) {
+        Location base = hologramLocation(block, style.height());
+        if (base == null) {
 
             dropEntity(variant);
             return false;
         }
+
+        // Under the words the track line is its own entity, so sliding the words leaves it still.
+        String footer = lyrics != null ? header : null;
+        float line = LINE_HEIGHT * scaleFor(style.size());
+        Location footerAt = base.clone().subtract(0, FOOTER_SINK_LINES * line, 0);
+        Location location = footer == null ? base
+                : footerAt.clone().add(0, FOOTER_DROP_LINES * line, 0);
 
         boolean fresh = false;
         if (gone(variant.entity)) {
@@ -566,9 +641,25 @@ public final class LyricsDisplay {
             Tasks.teleport(variant.entity, location);
         }
 
+        boolean freshFooter = false;
+        if (footer != null) {
+            freshFooter = placeFooter(variant, footerAt, style, config);
+            if (variant.footer == null) footer = null;
+        } else {
+            dropFooter(variant);
+        }
+
         if (variant.viewersChanged) showToViewers(variant);
 
-        if (sameFrame && !fresh && variant.lastText != null) return true;
+        if (footer != null) {
+            String footerText = style.trackColor() + footer;
+            if (!footerText.equals(variant.lastFooter)) {
+                variant.footer.setText(footerText);
+                variant.lastFooter = footerText;
+            }
+        }
+
+        if (sameFrame && !fresh && !freshFooter && variant.lastText != null) return true;
 
         LyricsRenderer.Options options = new LyricsRenderer.Options(
                 style.linesBefore(), style.linesAfter(),
@@ -577,7 +668,9 @@ public final class LyricsDisplay {
                 config.getLyricsCountdownFilled(), config.getLyricsCountdownEmpty(),
                 fadeProgress(variant));
 
-        List<String> lines = LyricsRenderer.window(lyrics, position, options);
+        List<String> lines = new ArrayList<>();
+        if (lyrics != null) lines.addAll(LyricsRenderer.window(lyrics, position, options));
+        if (lyrics == null && header != null) lines.add(style.trackColor() + header);
         if (lines.isEmpty()) {
             dropEntity(variant);
             return false;
@@ -588,6 +681,22 @@ public final class LyricsDisplay {
             variant.entity.setText(text);
             variant.lastText = text;
         }
+        return true;
+    }
+
+    private boolean placeFooter(Variant variant, Location at, HologramStyle style,
+                                Config config) {
+        if (!gone(variant.footer)) {
+            if (moved(variant.footer.getLocation(), at)) Tasks.teleport(variant.footer, at);
+            return false;
+        }
+
+        dropFooter(variant);
+        variant.footer = spawn(at, style, config);
+        if (variant.footer == null) return false;
+
+        variant.footer.setLineWidth(FOOTER_LINE_WIDTH);
+        variant.viewersChanged = true;
         return true;
     }
 

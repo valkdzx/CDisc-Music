@@ -4,6 +4,7 @@ import dev.valkdz.cdisc.Main;
 import dev.valkdz.cdisc.audio.LavaPlayerManager;
 import dev.valkdz.cdisc.audio.queue.DiscQueue;
 import dev.valkdz.cdisc.audio.queue.RepeatMode;
+import dev.valkdz.cdisc.lyrics.LyricsMode;
 import dev.valkdz.cdisc.lyrics.LyricsPrefs;
 import dev.valkdz.cdisc.speaker.SpeakerSettings;
 import dev.valkdz.cdisc.util.BeaconUtils;
@@ -24,8 +25,8 @@ public final class PlayerActions {
         return plugin.getAudioPlayerManager();
     }
 
-    private String message(Player player, String key) {
-        return plugin.getMessageManager().get(player, key);
+    private String message(Player player, String key, Object... args) {
+        return plugin.getMessageManager().get(player, key, args);
     }
 
     public void startFromIdle(Block block, int direction) {
@@ -176,20 +177,24 @@ public final class PlayerActions {
                 on ? "gui.track_messages.enabled" : "gui.track_messages.disabled"));
     }
 
-    public void toggleLyrics(Player player, Block block) {
+    public void cycleLyrics(Player player, Block block) {
         if (!plugin.cdiscConfig().isLyricsEnabled()) return;
-        setLyrics(player, block, !LyricsPrefs.isEnabled(block));
+        setLyrics(player, block, LyricsPrefs.mode(player).next());
     }
 
-    public void setLyrics(Player player, Block block, boolean on) {
+    public void setLyrics(Player player, Block block, LyricsMode mode) {
         if (!plugin.cdiscConfig().isLyricsEnabled()) return;
 
-        LyricsPrefs.setEnabled(block, on);
-        if (!on) plugin.getLyricsDisplay().clear(block);
-        Chat.actionBar(player, "§a" + message(player,
-                on ? "gui.lyrics.enabled" : "gui.lyrics.disabled"));
+        chooseLyrics(player, mode);
+        Chat.actionBar(player, "§a" + message(player, "gui.lyrics.mode_set",
+                message(player, mode.messageKey())));
 
-        if (on) plugin.getLyricsDisplay().announce(player, block);
+        if (mode.showsLyrics()) plugin.getLyricsDisplay().announce(player, block);
+    }
+
+    public void chooseLyrics(Player player, LyricsMode mode) {
+        LyricsPrefs.setMode(player, mode);
+        plugin.presetChanged(player);
     }
 
     public void openQueue(Player player, Block block) {

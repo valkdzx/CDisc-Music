@@ -167,8 +167,8 @@ final class Diagnostics {
                     plugin.getHologramPresets().size() + " player(s) with a look of their own"));
 
             if (!config.isLyricsDefaultOn()) {
-                out.add("  &7Off on a jukebox nobody has asked — the paper in its GUI");
-                out.add("  &7turns it on, and right-clicking it opens your own look.");
+                out.add("  &7Nothing shows for a player who has not asked — /cdisc lyrics,");
+                out.add("  &7or the paper in a jukebox's GUI, picks what they see.");
             }
         }
 

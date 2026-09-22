@@ -230,7 +230,7 @@ public final class CarriedLyrics {
 
         LavaPlayerManager apm = plugin.getAudioPlayerManager();
         LavaPlayerManager.PlaybackInfo info = apm.getPlaybackInfo(origin);
-        if (info == null || info.live() || !LyricsPrefs.isEnabled(origin)) {
+        if (info == null || info.live()) {
             hide(player);
             return;
         }
@@ -345,7 +345,8 @@ public final class CarriedLyrics {
             Map.Entry<UUID, Overhead> entry = seated.next();
             Player viewer = Bukkit.getPlayer(entry.getKey());
 
-            if (viewer != null && inRange(viewer, carrier) && entry.getValue().style
+            if (viewer != null && inRange(viewer, carrier)
+                    && LyricsPrefs.mode(viewer).showsLyrics() && entry.getValue().style
                     .equals(presets.orDefault(entry.getKey(), defaults))) {
                 continue;
             }
@@ -356,7 +357,10 @@ public final class CarriedLyrics {
 
         for (Player online : Bukkit.getOnlinePlayers()) {
             UUID id = online.getUniqueId();
-            if (state.seats.containsKey(id) || !inRange(online, carrier)) continue;
+            if (state.seats.containsKey(id) || !inRange(online, carrier)
+                    || !LyricsPrefs.mode(online).showsLyrics()) {
+                continue;
+            }
 
             Overhead group = state.overhead
                     .computeIfAbsent(presets.orDefault(id, defaults), Overhead::new);

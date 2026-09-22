@@ -83,7 +83,7 @@ actions:
 
   ### Words over the jukebox
   lyrics:
-    # Showing and hiding them
+    # Picking what you see over jukeboxes, for yourself only. /cdisc lyrics
     toggle: true
     # Your own look, drawn for you and nobody else. /cdisc preset
     preset: true

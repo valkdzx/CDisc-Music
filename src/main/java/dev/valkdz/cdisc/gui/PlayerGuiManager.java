@@ -4,6 +4,7 @@ import dev.valkdz.cdisc.Main;
 import dev.valkdz.cdisc.audio.LavaPlayerManager;
 import dev.valkdz.cdisc.audio.queue.DiscQueue;
 import dev.valkdz.cdisc.audio.queue.RepeatMode;
+import dev.valkdz.cdisc.lyrics.LyricsMode;
 import dev.valkdz.cdisc.lyrics.LyricsPrefs;
 import dev.valkdz.cdisc.lyrics.LyricsQuery;
 import dev.valkdz.cdisc.lyrics.LyricsRenderer;
@@ -415,7 +416,7 @@ public class PlayerGuiManager {
     private ItemStack buildLyricsItem(Player player, Block block, LavaPlayerManager.PlaybackInfo info) {
         if (!plugin.cdiscConfig().isLyricsEnabled()) return null;
 
-        boolean on = LyricsPrefs.isEnabled(block);
+        LyricsMode current = LyricsPrefs.mode(player);
 
         ItemStack item = new ItemStack(Material.PAPER);
         ItemMeta meta = item.getItemMeta();
@@ -424,7 +425,11 @@ public class PlayerGuiManager {
         meta.setDisplayName(plugin.getMessageManager().get(player, "gui.lyrics.name"));
 
         List<String> lore = new ArrayList<>();
-        lore.add(plugin.getMessageManager().get(player, on ? "gui.lyrics.shown" : "gui.lyrics.hidden"));
+        lore.add(plugin.getMessageManager().get(player, "gui.lyrics.mode_title"));
+        for (LyricsMode mode : LyricsMode.values()) {
+            lore.add((mode == current ? "§a▸ " : "§8  ")
+                    + plugin.getMessageManager().get(player, mode.messageKey()));
+        }
         lore.add(plugin.getMessageManager().get(player, "gui.lyrics.hint"));
         lore.add(plugin.getMessageManager().get(player, "gui.lyrics.hint_settings"));
 

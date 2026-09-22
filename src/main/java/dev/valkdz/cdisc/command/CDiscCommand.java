@@ -4,6 +4,8 @@ import dev.valkdz.cdisc.Main;
 import dev.valkdz.cdisc.audio.LocalMusicLibrary;
 import dev.valkdz.cdisc.gui.dialog.Dialogs;
 import dev.valkdz.cdisc.horn.GoatHorns;
+import dev.valkdz.cdisc.lyrics.LyricsMode;
+import dev.valkdz.cdisc.lyrics.LyricsPrefs;
 import dev.valkdz.cdisc.permission.Action;
 import dev.valkdz.cdisc.permission.Perms;
 import dev.valkdz.cdisc.util.ItemUtils;
@@ -71,6 +73,7 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
             case "pair" -> pairSub.handle(p, parts);
             case "messages" -> messages(p, parts);
             case "sneak" -> sneak(p, parts);
+            case "lyrics" -> lyrics(p, parts);
             default -> p.sendMessage("§c" + message(p, "cdisc.unknown", parts[0]));
         }
         return true;
@@ -173,6 +176,25 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
         dev.valkdz.cdisc.util.PlayerPrefs.setTrackMessages(p, on);
         p.sendMessage("§a" + message(p,
                 on ? "gui.track_messages.enabled" : "gui.track_messages.disabled"));
+    }
+
+    private void lyrics(Player p, String[] parts) {
+        if (!allowed(p, Action.LYRICS_TOGGLE)) return;
+        if (!plugin.cdiscConfig().isLyricsEnabled()) {
+            p.sendMessage("§c" + message(p, "gui.lyrics_look.disabled"));
+            return;
+        }
+
+        LyricsMode mode = parts.length > 1
+                ? LyricsMode.ofKey(parts[1].toLowerCase(Locale.ROOT).replace('-', '_'))
+                : LyricsPrefs.mode(p).next();
+        if (mode == null) {
+            p.sendMessage("§c" + message(p, "cdisc.lyrics_usage"));
+            return;
+        }
+
+        plugin.getPlayerActions().chooseLyrics(p, mode);
+        p.sendMessage("§a" + message(p, "gui.lyrics.mode_set", message(p, mode.messageKey())));
     }
 
     private void sneak(Player p, String[] parts) {
@@ -477,6 +499,8 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
                     playerEntry("pair", Action.PAIR_LIST, sender),
                     playerEntry("messages", Action.PLAYER_MESSAGES, sender),
                     playerEntry("sneak", Action.PLAYER_INFO, sender),
+                    plugin.cdiscConfig().isLyricsEnabled()
+                            ? playerEntry("lyrics", Action.LYRICS_TOGGLE, sender) : null,
                     adminEntry("admin", sender)
             ).filter(java.util.Objects::nonNull);
 
@@ -517,6 +541,12 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
         }
         if (args[0].equalsIgnoreCase("sneak") && args.length == 2) {
             return Stream.of("toggle", "release", "off")
+                    .filter(s -> s.startsWith(args[1].toLowerCase(Locale.ROOT)))
+                    .toList();
+        }
+        if (args[0].equalsIgnoreCase("lyrics") && args.length == 2) {
+            return Arrays.stream(LyricsMode.values())
+                    .map(LyricsMode::key)
                     .filter(s -> s.startsWith(args[1].toLowerCase(Locale.ROOT)))
                     .toList();
         }
