@@ -63,6 +63,12 @@ public class LyricsGuiManager {
     public static final int SLOT_PAGE = 49;
     public static final int SLOT_BACK = 53;
 
+    public static final int CONFIRM_PAGE = -1;
+    public static final int CONFIRM_SIZE = 9;
+    public static final int CONFIRM_SLOT_NO = 2;
+    public static final int CONFIRM_SLOT_INFO = 4;
+    public static final int CONFIRM_SLOT_YES = 6;
+
     public static final char[] FORMATS = {'l', 'o', 'n', 'm', 'k'};
 
     private static final String[] FORMAT_KEYS = {"bold", "italic", "underline", "strike", "magic"};
@@ -110,8 +116,34 @@ public class LyricsGuiManager {
         updatePreview(player, holder);
     }
 
+    public void openResetConfirm(Player player, LyricsGuiHolder from) {
+        LyricsGuiHolder holder = new LyricsGuiHolder(from.getOwner(), CONFIRM_PAGE, from.getPage());
+        Inventory inventory = Bukkit.createInventory(holder, CONFIRM_SIZE,
+                plugin.getMessageManager().get(player, "gui.lyrics_look.confirm_title"));
+        holder.setInventory(inventory);
+
+        ItemStack filler = simple(Material.GRAY_STAINED_GLASS_PANE, " ", List.of());
+        for (int slot = 0; slot < CONFIRM_SIZE; slot++) {
+            inventory.setItem(slot, filler);
+        }
+
+        inventory.setItem(CONFIRM_SLOT_NO, simple(Material.GREEN_WOOL,
+                plugin.getMessageManager().get(player, "gui.lyrics_look.confirm_no"),
+                List.of(plugin.getMessageManager().get(player, "gui.lyrics_look.confirm_no_lore"))));
+        inventory.setItem(CONFIRM_SLOT_INFO, simple(Material.BARRIER,
+                "§e" + plugin.getMessageManager().get(player, "gui.lyrics_look.confirm_title"),
+                List.of("§7" + plugin.getMessageManager().get(player, "gui.lyrics_look.reset_lore"))));
+        inventory.setItem(CONFIRM_SLOT_YES, simple(Material.RED_WOOL,
+                plugin.getMessageManager().get(player, "gui.lyrics_look.confirm_yes"),
+                List.of(plugin.getMessageManager().get(player, "gui.lyrics_look.confirm_yes_lore"),
+                        plugin.getMessageManager().get(player, "gui.lyrics_look.confirm_irreversible"))));
+
+        player.openInventory(inventory);
+    }
+
     public void refresh(Player player) {
         if (!(player.getOpenInventory().getTopInventory().getHolder() instanceof LyricsGuiHolder holder)) return;
+        if (holder.getPage() == CONFIRM_PAGE) return;
 
         fill(player, holder, holder.getInventory());
         player.updateInventory();

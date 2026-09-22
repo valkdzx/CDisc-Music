@@ -9,12 +9,18 @@ public class LyricsGuiHolder implements InventoryHolder {
 
     private final UUID owner;
     private final int page;
+    private final int returnPage;
 
     private Inventory inventory;
 
     public LyricsGuiHolder(UUID owner, int page) {
+        this(owner, page, page);
+    }
+
+    public LyricsGuiHolder(UUID owner, int page, int returnPage) {
         this.owner = owner;
         this.page = page;
+        this.returnPage = returnPage;
     }
 
     public void setInventory(Inventory inventory) {
@@ -32,5 +38,9 @@ public class LyricsGuiHolder implements InventoryHolder {
 
     public int getPage() {
         return page;
+    }
+
+    public int getReturnPage() {
+        return returnPage;
     }
 }

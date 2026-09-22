@@ -33,6 +33,20 @@ public class LyricsGuiListener implements Listener {
         int slot = e.getSlot();
         boolean forward = !e.isRightClick();
 
+        if (holder.getPage() == LyricsGuiManager.CONFIRM_PAGE) {
+            if (slot == LyricsGuiManager.CONFIRM_SLOT_YES) {
+                if (gui.isCustomised(holder)) {
+                    gui.reset(player, holder);
+                    player.sendMessage("§a" + plugin.getMessageManager()
+                            .get(player, "gui.lyrics_look.reset_done"));
+                }
+                gui.openPage(player, holder, holder.getReturnPage());
+            } else if (slot == LyricsGuiManager.CONFIRM_SLOT_NO) {
+                gui.openPage(player, holder, holder.getReturnPage());
+            }
+            return;
+        }
+
         if (slot == LyricsGuiManager.SLOT_BACK) {
             player.closeInventory();
             return;
@@ -46,8 +60,7 @@ public class LyricsGuiListener implements Listener {
 
         if (slot == LyricsGuiManager.SLOT_RESET) {
             if (!gui.isCustomised(holder)) return;
-            gui.reset(player, holder);
-            gui.refresh(player);
+            gui.openResetConfirm(player, holder);
             return;
         }
 
