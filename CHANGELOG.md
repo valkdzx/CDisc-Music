@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.1
+
+- ⚡ YouTube discs start faster. A disc now remembers what the plugin already learned about its track — the audio format, the length, whether it is live — so creating it and playing it no longer ask the backend for what is already known. A disc read directly from YouTube costs the backend nothing at all.
+- 🌍 A track YouTube refuses in the server's country is remembered as such. The first time costs one refused attempt; after that the disc goes straight to the backend, and the reason is named in the console instead of a bare "Video unavailable".
+- 🔎 Search shows videos this server cannot read directly. Results from the server and from the backend are merged, and a video only the backend can see is played through it without a pointless attempt at reading it here.
+- 🔁 When a track is blocked in the server's region and nothing can play it, the first available video of the same track is used instead, and the player is told so.
+- 📉 The backend is asked for less. The start of a track is no longer downloaded twice to work out its format, and the track details and stream address are now fetched at the same time rather than one after the other.
+- 🎤 Each player picks what floats over jukeboxes for themselves, with `/cdisc lyrics` or the paper in the player screen: the words, the words with the track and time under them, the words with the time, the track and time, the time alone, or nothing. The track line has its own colour, orange by default, in `/cdisc preset`. The on/off switch earlier versions kept on each jukebox is not carried over; `lyrics.default-on` decides for players who have not chosen.
+- 👥 A jukebox someone else has open no longer turns you away: you get a smaller screen with only what is yours — what you see over jukeboxes, your hologram look, track messages, and your own volume when you carry it.
+
 ## 2.0.2
 
 - 📯 Goat horns record sounds: `/cdisc create` with a horn in hand, then blow it to play the sound through voice chat. Up to 15 seconds by default (`goat-horn` in config.yml).
