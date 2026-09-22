@@ -82,6 +82,7 @@ lavaplayer:
     loaded: "Titel geladen: %s - %s [%s]"
     loading: "Titel wird geladen..."
     notfound: "Titel nicht gefunden!"
+    region_substituted: "Dieser Track ist in der Region des Servers nicht verfügbar — es wird das erste verfügbare Video abgespielt."
     error: "Fehler beim Laden: %s"
     invalid_query: "Da gibt es nichts zu suchen. Versuch local:<Datei> für die Musik des Servers, sc:<Wörter> für SoundCloud, yt:<Wörter> für YouTube, oder füg einen Link ein."
 local:

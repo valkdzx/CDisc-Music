@@ -17,6 +17,11 @@ public class ItemUtils {
     public static final NamespacedKey TITLE_KEY = new NamespacedKey(Main.getInstance(), "cdisc_title");
     public static final NamespacedKey AUTHOR_KEY = new NamespacedKey(Main.getInstance(), "cdisc_author");
     public static final NamespacedKey MUSIC_FETCH_KEY = new NamespacedKey(Main.getInstance(), "music_fetch");
+    public static final NamespacedKey CONTENT_TYPE_KEY = new NamespacedKey(Main.getInstance(), "cdisc_content_type");
+    public static final NamespacedKey LENGTH_KEY = new NamespacedKey(Main.getInstance(), "cdisc_length_ms");
+    public static final NamespacedKey LIVE_KEY = new NamespacedKey(Main.getInstance(), "cdisc_live");
+    public static final NamespacedKey GEO_KEY = new NamespacedKey(Main.getInstance(), "cdisc_geo");
+    public static final NamespacedKey HINT_AT_KEY = new NamespacedKey(Main.getInstance(), "cdisc_hint_at");
 
     public static boolean isDisc(ItemStack item) {
         return item != null && item.getType().toString().startsWith("MUSIC_DISC_");
@@ -56,10 +61,16 @@ public class ItemUtils {
 
     public static void saveTrackToDisc(ItemStack item, String query, String fallbackQuery, String title,
                                        String author, String musicFetch) {
+        saveTrackToDisc(item, query, fallbackQuery, title, author, musicFetch, null);
+    }
+
+    public static void saveTrackToDisc(ItemStack item, String query, String fallbackQuery, String title,
+                                       String author, String musicFetch, Hint hint) {
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return;
 
         PersistentDataContainer pdc = meta.getPersistentDataContainer();
+        writeHint(pdc, hint);
         pdc.set(URL_KEY, PersistentDataType.STRING, query);
         if (fallbackQuery != null && !fallbackQuery.equals(query)) {
             pdc.set(FALLBACK_URL_KEY, PersistentDataType.STRING, fallbackQuery);
@@ -82,7 +93,57 @@ public class ItemUtils {
         item.setItemMeta(meta);
     }
 
-    public record DiscData(String query, String fallback, String title, String author, String fetch) {}
+    private static final long HINT_TTL_MS = 14L * 24 * 60 * 60 * 1000;
+
+    public record Hint(String contentType, long lengthMs, boolean live, Boolean allowedHere,
+                       long writtenAt) {
+
+        public boolean fresh() {
+            return writtenAt > 0 && System.currentTimeMillis() - writtenAt < HINT_TTL_MS;
+        }
+    }
+
+    public record DiscData(String query, String fallback, String title, String author, String fetch,
+                           Hint hint) {}
+
+    private static void writeHint(PersistentDataContainer pdc, Hint hint) {
+        if (hint == null) {
+            pdc.remove(CONTENT_TYPE_KEY);
+            pdc.remove(LENGTH_KEY);
+            pdc.remove(LIVE_KEY);
+            pdc.remove(GEO_KEY);
+            pdc.remove(HINT_AT_KEY);
+            return;
+        }
+
+        if (hint.contentType() != null) {
+            pdc.set(CONTENT_TYPE_KEY, PersistentDataType.STRING, hint.contentType());
+        }
+        if (hint.lengthMs() > 0) {
+            pdc.set(LENGTH_KEY, PersistentDataType.LONG, hint.lengthMs());
+        }
+        pdc.set(LIVE_KEY, PersistentDataType.BYTE, (byte) (hint.live() ? 1 : 0));
+        if (hint.allowedHere() != null) {
+            pdc.set(GEO_KEY, PersistentDataType.BYTE, (byte) (hint.allowedHere() ? 1 : 0));
+        }
+        pdc.set(HINT_AT_KEY, PersistentDataType.LONG, System.currentTimeMillis());
+    }
+
+    private static Hint readHint(PersistentDataContainer pdc) {
+        Long writtenAt = pdc.get(HINT_AT_KEY, PersistentDataType.LONG);
+        if (writtenAt == null) return null;
+
+        Byte geo = pdc.get(GEO_KEY, PersistentDataType.BYTE);
+        Byte live = pdc.get(LIVE_KEY, PersistentDataType.BYTE);
+        Long length = pdc.get(LENGTH_KEY, PersistentDataType.LONG);
+
+        return new Hint(
+                pdc.get(CONTENT_TYPE_KEY, PersistentDataType.STRING),
+                length == null ? 0 : length,
+                live != null && live != 0,
+                geo == null ? null : geo != 0,
+                writtenAt);
+    }
 
     public static DiscData readDiscData(ItemStack item) {
         if (item == null) return null;
@@ -96,7 +157,8 @@ public class ItemUtils {
                 pdc.get(FALLBACK_URL_KEY, PersistentDataType.STRING),
                 pdc.get(TITLE_KEY, PersistentDataType.STRING),
                 pdc.get(AUTHOR_KEY, PersistentDataType.STRING),
-                pdc.get(MUSIC_FETCH_KEY, PersistentDataType.STRING)
+                pdc.get(MUSIC_FETCH_KEY, PersistentDataType.STRING),
+                readHint(pdc)
         );
     }
 
@@ -115,6 +177,7 @@ public class ItemUtils {
         meta.getPersistentDataContainer().remove(TITLE_KEY);
         meta.getPersistentDataContainer().remove(AUTHOR_KEY);
         meta.getPersistentDataContainer().remove(MUSIC_FETCH_KEY);
+        writeHint(meta.getPersistentDataContainer(), null);
         meta.setLore(null);
 
         item.setItemMeta(meta);

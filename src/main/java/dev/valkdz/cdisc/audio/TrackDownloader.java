@@ -141,7 +141,8 @@ public final class TrackDownloader {
     }
 
     public void pick(CommandSender sender, AudioTrack track, String address, String desiredName) {
-        String name = desiredName != null ? desiredName : nameOf(track.getInfo());
+        String name = desiredName != null ? desiredName
+                : track == null ? null : nameOf(track.getInfo());
         fetch(sender, address, address, name);
     }
 

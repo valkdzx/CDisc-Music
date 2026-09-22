@@ -35,7 +35,19 @@ public final class SearchResults {
         }
     }
 
-    public record Entry(AudioTrack track, String title, String address) {
+    public record Entry(AudioTrack track, String title, String address, String author,
+                        long lengthMs, boolean live) {
+
+        public Entry(AudioTrack track, String title, String address) {
+            this(track, title, address, track.getInfo().author,
+                    track.getInfo().length, track.getInfo().isStream);
+        }
+
+        // Carries no track: the backend knows this video but this address cannot read
+        // it, so it is resolved only once somebody picks it.
+        public static Entry remote(String title, String address, String author, long lengthMs) {
+            return new Entry(null, title, address, author, lengthMs, false);
+        }
     }
 
     public SearchResults(Main plugin) {
@@ -86,12 +98,11 @@ public final class SearchResults {
     }
 
     private String entry(CommandSender sender, Entry entry, int number) {
-        AudioTrack track = entry.track();
         String title = entry.title() != null ? entry.title() : "No name";
-        String author = track.getInfo().author != null ? track.getInfo().author : "Unknown";
-        String length = track.getInfo().isStream
+        String author = entry.author() != null ? entry.author() : "Unknown";
+        String length = entry.live()
                 ? message(sender, "command.player.info_live")
-                : TimeUtils.format(track.getInfo().length);
+                : TimeUtils.format(entry.lengthMs());
 
         return message(sender, "search.entry",
                 String.valueOf(number),

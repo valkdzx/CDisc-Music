@@ -1,6 +1,7 @@
 package dev.valkdz.cdisc.youtube;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.net.URI;
 import java.net.URLDecoder;
 import java.net.http.HttpClient;
@@ -9,6 +10,7 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Base64;
+import java.util.concurrent.CompletableFuture;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -16,6 +18,10 @@ public final class VisitorRenewal {
 
     private static final Pattern VISITOR_DATA =
             Pattern.compile("\"visitorData\":\"([^\"]+)\"");
+
+    // The country YouTube assigns to this server's address; geo blocks follow it, not gl.
+    private static final Pattern GEOLOCATION =
+            Pattern.compile("\"(?:GL|gl)\"\\s*:\\s*\"([A-Z]{2})\"");
 
     private static final String USER_AGENT =
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -30,10 +36,12 @@ public final class VisitorRenewal {
                 .build();
     }
 
+    public record Page(String visitorData, String region) {}
+
     public String renew(String visitorId, int timeoutSeconds)
             throws IOException, InterruptedException {
 
-        String visitorData = fetch(visitorId, timeoutSeconds);
+        String visitorData = fetch(visitorId, timeoutSeconds).visitorData();
         String renewed = identityOf(visitorData);
 
         if (!visitorId.equals(renewed)) {
@@ -45,12 +53,19 @@ public final class VisitorRenewal {
     }
 
     public String mint(int timeoutSeconds) throws IOException, InterruptedException {
+        return fetch(null, timeoutSeconds).visitorData();
+    }
+
+    public Page mintPage(int timeoutSeconds) throws IOException, InterruptedException {
         return fetch(null, timeoutSeconds);
     }
 
-    private String fetch(String visitorId, int timeoutSeconds)
-            throws IOException, InterruptedException {
+    public CompletableFuture<Page> mintPageAsync(int timeoutSeconds) {
+        return http.sendAsync(request(null, timeoutSeconds), HttpResponse.BodyHandlers.ofString())
+                .thenApply(VisitorRenewal::read);
+    }
 
+    private HttpRequest request(String visitorId, int timeoutSeconds) {
         HttpRequest.Builder request =
                 HttpRequest.newBuilder(URI.create("https://www.youtube.com/"))
                         .header("User-Agent", USER_AGENT)
@@ -61,20 +76,34 @@ public final class VisitorRenewal {
         if (visitorId != null) {
             request.header("Cookie", "VISITOR_INFO1_LIVE=" + visitorId);
         }
+        return request.build();
+    }
 
-        HttpResponse<String> response =
-                http.send(request.build(), HttpResponse.BodyHandlers.ofString());
+    private Page fetch(String visitorId, int timeoutSeconds)
+            throws IOException, InterruptedException {
 
+        try {
+            return read(http.send(request(visitorId, timeoutSeconds),
+                    HttpResponse.BodyHandlers.ofString()));
+        } catch (UncheckedIOException e) {
+            throw e.getCause();
+        }
+    }
+
+    private static Page read(HttpResponse<String> response) {
         if (response.statusCode() != 200) {
-            throw new IOException("youtube.com answered " + response.statusCode());
+            throw new UncheckedIOException(
+                    new IOException("youtube.com answered " + response.statusCode()));
         }
 
         Matcher found = VISITOR_DATA.matcher(response.body());
         if (!found.find()) {
-            throw new IOException("the page carried no visitor data");
+            throw new UncheckedIOException(
+                    new IOException("the page carried no visitor data"));
         }
 
-        return found.group(1);
+        Matcher region = GEOLOCATION.matcher(response.body());
+        return new Page(found.group(1), region.find() ? region.group(1) : null);
     }
 
     public static String identityOf(String visitorData) {

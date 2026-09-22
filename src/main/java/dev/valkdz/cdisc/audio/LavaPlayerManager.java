@@ -548,6 +548,9 @@ public class LavaPlayerManager {
     }
 
     private void search(Player player, ItemStack item, String query, String resolved, int limit) {
+        CompletableFuture<List<CustomYoutubeApiResolver.Hit>> alsoAsked =
+                trackLoader.searchBackend(TrackLoader.searchTextOf(resolved), limit);
+
         trackLoader.loadItem(resolved, new AudioLoadResultHandler() {
             @Override public void trackLoaded(AudioTrack track) {
 
@@ -555,37 +558,11 @@ public class LavaPlayerManager {
             }
 
             @Override public void playlistLoaded(AudioPlaylist playlist) {
-                List<AudioTrack> results = playlist.getTracks();
-                if (results.isEmpty()) {
-                    noMatches();
-                    return;
-                }
-                if (results.size() == 1) {
-                    trackLoaded(results.get(0));
-                    return;
-                }
-
-                Offer offer = offerable(player, results, limit);
-                if (offer.tracks().isEmpty()) {
-                    refuse(player, offer.refusal());
-                    return;
-                }
-
-                List<SearchResults.Entry> shown = offer.tracks().stream()
-                        .map(found -> new SearchResults.Entry(
-                                found, found.getInfo().title, addressOf(found, query)))
-                        .toList();
-                Tasks.entity(plugin, player, () ->
-                        plugin.getSearchResults().show(player, query, shown));
+                offerBoth(player, item, query, limit, playlist.getTracks(), alsoAsked, this);
             }
 
             @Override public void noMatches() {
-
-                String hint = LoadDiagnosis.explain(plugin, player, query);
-                Tasks.entity(plugin, player, () -> {
-                    player.sendMessage("§c" + plugin.getMessageManager().get(player, "lavaplayer.track.notfound"));
-                    if (hint != null) player.sendMessage("§7" + hint);
-                });
+                offerBoth(player, item, query, limit, List.of(), alsoAsked, this);
             }
 
             @Override public void loadFailed(FriendlyException e) {
@@ -594,6 +571,55 @@ public class LavaPlayerManager {
                                 .get(player, "lavaplayer.track.error", String.valueOf(e.getMessage()))));
             }
         });
+    }
+
+    private void offerBoth(Player player, ItemStack item, String query, int limit,
+                           List<AudioTrack> local,
+                           CompletableFuture<List<CustomYoutubeApiResolver.Hit>> alsoAsked,
+                           AudioLoadResultHandler handler) {
+
+        Offer offer = offerable(player, local, limit);
+
+        List<SearchResults.Entry> shown = new ArrayList<>(offer.tracks().stream()
+                .map(found -> new SearchResults.Entry(
+                        found, found.getInfo().title, addressOf(found, query)))
+                .toList());
+
+        Set<String> already = new java.util.HashSet<>();
+        for (AudioTrack found : local) already.add(found.getInfo().identifier);
+
+        for (CustomYoutubeApiResolver.Hit hit : alsoAsked.join()) {
+            if (shown.size() >= limit) break;
+            if (!already.add(hit.videoId())) continue;
+            if (plugin.getPermissions().trackRejection(player, false, hit.lengthMs()) != null) continue;
+
+            // Not readable from this address, so picking it must not retry the direct path.
+            trackLoader.routeThroughBackend(hit.videoId());
+            shown.add(SearchResults.Entry.remote(hit.title(),
+                    "https://www.youtube.com/watch?v=" + hit.videoId(),
+                    hit.author(), hit.lengthMs()));
+        }
+
+        if (shown.isEmpty()) {
+            if (offer.refusal() != null) {
+                refuse(player, offer.refusal());
+                return;
+            }
+            String hint = LoadDiagnosis.explain(plugin, player, query);
+            Tasks.entity(plugin, player, () -> {
+                player.sendMessage("§c" + plugin.getMessageManager().get(player, "lavaplayer.track.notfound"));
+                if (hint != null) player.sendMessage("§7" + hint);
+            });
+            return;
+        }
+
+        if (shown.size() == 1 && shown.get(0).track() != null) {
+            handler.trackLoaded(shown.get(0).track());
+            return;
+        }
+
+        Tasks.entity(plugin, player, () ->
+                plugin.getSearchResults().show(player, query, shown));
     }
 
     private record Offer(List<AudioTrack> tracks, String refusal) {
@@ -626,6 +652,10 @@ public class LavaPlayerManager {
     }
 
     public void writePickedTrack(Player player, ItemStack item, AudioTrack track, String address) {
+        if (track == null) {
+            loadForDisc(player, item, address, address);
+            return;
+        }
         writeToDisc(player, item, track, address, address);
     }
 
@@ -698,25 +728,19 @@ public class LavaPlayerManager {
         boolean isYoutube = trackLoader.isYoutubeIdentifier(resolved);
 
         if (!isYoutube || !trackLoader.hasCustomApi() || plugin.cdiscConfig().isYoutubeFastCreate()) {
-            Tasks.entity(plugin, player, () ->
-                    stored(player, item, track, query, null, titleN, authorN, null));
+            storeLater(player, item, track, query, null, titleN, authorN, null, resolved);
             return;
         }
 
-        CompletableFuture<AudioTrack> backendAhead = CompletableFuture.supplyAsync(
-                () -> trackLoader.resolveViaBackend(resolved))
-                .exceptionally(ignored -> null);
-
         trackLoader.probePlayability(track).whenComplete((playable, ex) -> {
             if (playable) {
-                Tasks.entity(plugin, player, () ->
-                        stored(player, item, track, query, null, titleN, authorN, "lavaplayer"));
+                storeLater(player, item, track, query, null, titleN, authorN, "lavaplayer", resolved);
                 return;
             }
 
             Bukkit.getLogger().warning("[CDisc] youtube-source couldn't decode '" + videoId + "'");
 
-            AudioTrack backendTrack = backendAhead.join();
+            AudioTrack backendTrack = trackLoader.resolveViaBackend(resolved);
             if (backendTrack == null) {
                 Tasks.entity(plugin, player, () ->
                         player.sendMessage("§c" + plugin.getMessageManager()
@@ -724,14 +748,33 @@ public class LavaPlayerManager {
                 return;
             }
             String backendUrl = trackLoader.backendStreamUrlFor(videoId);
-            Tasks.entity(plugin, player, () ->
-                    stored(player, item, track, backendUrl, query, titleN, authorN, "backend"));
+            storeLater(player, item, track, backendUrl, query, titleN, authorN, "backend", resolved);
         });
     }
 
+    private void storeLater(Player player, ItemStack item, AudioTrack track, String query,
+                            String fallback, String title, String author, String fetch,
+                            String resolved) {
+        String videoId = dev.valkdz.cdisc.audio.sabr.SabrResolver.videoIdOf(resolved);
+        if (videoId == null) {
+            videoId = dev.valkdz.cdisc.audio.sabr.SabrResolver.videoIdOf(track.getInfo().identifier);
+        }
+
+        boolean substituted = trackLoader.wasSubstituted(resolved, track);
+
+        trackLoader.hintLater(videoId, track).whenComplete((hint, ex) ->
+                Tasks.entity(plugin, player, () -> {
+                    if (substituted) {
+                        player.sendMessage("§e" + plugin.getMessageManager()
+                                .get(player, "lavaplayer.track.region_substituted"));
+                    }
+                    stored(player, item, track, query, fallback, title, author, fetch, hint);
+                }));
+    }
+
     private void stored(Player player, ItemStack item, AudioTrack track, String query, String fallback,
-                        String title, String author, String fetch) {
-        ItemUtils.saveTrackToDisc(item, query, fallback, title, author, fetch);
+                        String title, String author, String fetch, ItemUtils.Hint hint) {
+        ItemUtils.saveTrackToDisc(item, query, fallback, title, author, fetch, hint);
         long length = track.getInfo().length;
         if (!GoatHorns.isHorn(item)) {
             player.sendMessage("§a" + plugin.getMessageManager()
@@ -1176,6 +1219,7 @@ public class LavaPlayerManager {
         queue.setCurrentIndex(index);
         ItemStack disc = queue.getSlot(index);
         ItemUtils.DiscData data = ItemUtils.readDiscData(disc);
+        trackLoader.remember(data);
         if (data == null) {
 
             queue.setSlot(index, null);
@@ -1249,6 +1293,7 @@ public class LavaPlayerManager {
 
         ItemStack record = jukebox.getRecord();
         ItemUtils.DiscData data = ItemUtils.readDiscData(record);
+        trackLoader.remember(data);
         if (data == null || data.query() == null) return false;
 
         seedQueue(block, record.clone());
@@ -1270,6 +1315,7 @@ public class LavaPlayerManager {
     private void startQueueEntry(Block block, DiscQueue queue, int index) {
         ItemStack disc = queue.getSlot(index);
         ItemUtils.DiscData data = ItemUtils.readDiscData(disc);
+        trackLoader.remember(data);
         if (data == null) return;
 
         queue.setCurrentIndex(index);

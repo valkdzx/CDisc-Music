@@ -17,6 +17,7 @@ import com.sedmelluq.discord.lavaplayer.player.event.AudioEventAdapter;
 import com.sedmelluq.discord.lavaplayer.source.AudioSourceManagers;
 import com.sedmelluq.discord.lavaplayer.source.bandcamp.BandcampAudioSourceManager;
 import com.sedmelluq.discord.lavaplayer.source.http.HttpAudioSourceManager;
+import com.sedmelluq.discord.lavaplayer.source.http.HttpAudioTrack;
 import com.sedmelluq.discord.lavaplayer.source.soundcloud.SoundCloudAudioSourceManager;
 import com.sedmelluq.discord.lavaplayer.source.vimeo.VimeoAudioSourceManager;
 import com.sedmelluq.discord.lavaplayer.tools.FriendlyException;
@@ -37,7 +38,9 @@ import org.bukkit.Bukkit;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
 import java.util.concurrent.Executors;
@@ -65,6 +68,7 @@ public class TrackLoader {
     private CustomYoutubeApiResolver customApiResolver;
     private dev.valkdz.cdisc.audio.sabr.SabrResolver sabrResolver;
     private dev.valkdz.cdisc.audio.spotify.SpotifyBridge spotifyBridge;
+    private dev.valkdz.cdisc.audio.sabr.YouTubeSearch youtubeSearch;
 
     private volatile CustomYoutubeApiResolver ageGateApi;
 
@@ -73,6 +77,231 @@ public class TrackLoader {
         t.setDaemon(true);
         return t;
     });
+
+    private static final long ROUTE_TTL_MS = 6L * 60 * 60 * 1000;
+
+    public record Route(String contentType, long lengthMs, boolean live, Boolean allowedHere,
+                        long at) {}
+
+    private final Map<String, Route> routes = new ConcurrentHashMap<>();
+
+    private Route route(String videoId) {
+        Route route = routes.get(videoId);
+        if (route == null) return null;
+        if (System.currentTimeMillis() - route.at() > ROUTE_TTL_MS) {
+            routes.remove(videoId);
+            return null;
+        }
+        return route;
+    }
+
+    private void remember(String videoId, CustomYoutubeApiResolver.Info info) {
+        String region = sabrResolver == null ? null : sabrResolver.region();
+        Route known = route(videoId);
+
+        // A refusal we actually got from here outranks the country list, which the
+        // backend reads from its own address.
+        Boolean allowed = known != null && Boolean.FALSE.equals(known.allowedHere())
+                ? Boolean.FALSE
+                : (info.playable() ? info.allowedIn(region) : Boolean.FALSE);
+
+        routes.put(videoId, new Route(info.contentType(), info.lengthMs(), info.live(),
+                allowed, System.currentTimeMillis()));
+    }
+
+    private final java.util.Set<String> preferBackend = ConcurrentHashMap.newKeySet();
+
+    public CompletableFuture<List<CustomYoutubeApiResolver.Hit>> searchBackend(String query, int limit) {
+        if (customApiResolver == null || isBlank(query)) {
+            return CompletableFuture.completedFuture(List.of());
+        }
+        return customApiResolver.searchAsync(query, limit);
+    }
+
+    public void routeThroughBackend(String videoId) {
+        if (videoId != null) preferBackend.add(videoId);
+    }
+
+    public static String searchTextOf(String resolved) {
+        int colon = resolved == null ? -1 : resolved.indexOf(':');
+        return colon < 0 ? resolved : resolved.substring(colon + 1);
+    }
+
+    private record Blocked(String title, String author) {}
+
+    private final Map<String, Blocked> blockedByRegion = new ConcurrentHashMap<>();
+
+    public boolean blockedByRegion(String resolved) {
+        String videoId = dev.valkdz.cdisc.audio.sabr.SabrResolver.videoIdOf(resolved);
+        return videoId != null && blockedByRegion.containsKey(videoId);
+    }
+
+    public boolean wasSubstituted(String resolved, AudioTrack track) {
+        if (track == null) return false;
+
+        String asked = dev.valkdz.cdisc.audio.sabr.SabrResolver.videoIdOf(resolved);
+        String got = dev.valkdz.cdisc.audio.sabr.SabrResolver.videoIdOf(track.getInfo().identifier);
+        return asked != null && got != null && !asked.equals(got);
+    }
+
+    private AudioTrack substitute(String videoId) {
+        Blocked blocked = blockedByRegion.get(videoId);
+        if (blocked == null || youtubeSearch == null || isBlank(blocked.title())) return null;
+
+        String query = isBlank(blocked.author())
+                ? blocked.title() : blocked.title() + " " + blocked.author();
+
+        try {
+            var results = youtubeSearch.search(query,
+                    sabrResolver == null ? null : sabrResolver.visitorDataOrNull(), 8);
+
+            for (var found : results) {
+                if (videoId.equals(found.videoId())) continue;
+
+                AudioTrack track = attemptDirect(found.videoId(), blocked.title(),
+                        blocked.author(), false).track();
+                if (track != null) {
+                    Bukkit.getLogger().info("[CDisc] \"" + blocked.title() + "\" is not offered in "
+                            + (sabrResolver == null ? "this region" : sabrResolver.region())
+                            + "; playing " + found.videoId() + " instead.");
+                    return track;
+                }
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } catch (Exception e) {
+            Bukkit.getLogger().warning("[CDisc] No regional replacement could be found: "
+                    + e.getMessage());
+        }
+        return null;
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.isBlank();
+    }
+
+    private void markBlocked(String videoId) {
+        if (videoId == null) return;
+
+        Route known = route(videoId);
+        routes.put(videoId, new Route(
+                known == null ? null : known.contentType(),
+                known == null ? 0 : known.lengthMs(),
+                known != null && known.live(),
+                Boolean.FALSE,
+                System.currentTimeMillis()));
+    }
+
+    public void remember(dev.valkdz.cdisc.util.ItemUtils.DiscData data) {
+        if (data == null || data.hint() == null || !data.hint().fresh()) return;
+
+        String videoId = dev.valkdz.cdisc.audio.sabr.SabrResolver.videoIdOf(data.query());
+        if (videoId == null || routes.containsKey(videoId)) return;
+
+        var hint = data.hint();
+        routes.put(videoId, new Route(hint.contentType(), hint.lengthMs(), hint.live(),
+                hint.allowedHere(), hint.writtenAt()));
+    }
+
+    public dev.valkdz.cdisc.util.ItemUtils.Hint hintFor(String videoId) {
+        Route route = videoId == null ? null : route(videoId);
+        return route == null ? null : new dev.valkdz.cdisc.util.ItemUtils.Hint(
+                route.contentType(), route.lengthMs(), route.live(), route.allowedHere(),
+                route.at());
+    }
+
+    private final Map<String, CompletableFuture<CustomYoutubeApiResolver.Info>> inflight =
+            new ConcurrentHashMap<>();
+
+    private CompletableFuture<CustomYoutubeApiResolver.Info> infoFor(String videoId) {
+        if (videoId == null || customApiResolver == null) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        return inflight.computeIfAbsent(videoId, id ->
+                customApiResolver.infoAsync(id).whenComplete((info, ex) -> {
+                    inflight.remove(id);
+                    if (info != null) remember(id, info);
+                }));
+    }
+
+    public CompletableFuture<dev.valkdz.cdisc.util.ItemUtils.Hint> hintLater(String videoId,
+                                                                            AudioTrack track) {
+        dev.valkdz.cdisc.util.ItemUtils.Hint local = localHint(videoId, track);
+
+        if (local != null && local.contentType() != null) {
+            if (videoId != null) {
+                routes.put(videoId, new Route(local.contentType(), local.lengthMs(), local.live(),
+                        local.allowedHere(), local.writtenAt()));
+            }
+            return CompletableFuture.completedFuture(local);
+        }
+
+        if (videoId == null) return CompletableFuture.completedFuture(local);
+        if (route(videoId) != null) return CompletableFuture.completedFuture(hintFor(videoId));
+
+        return infoFor(videoId)
+                .thenApply(ignored -> {
+                    dev.valkdz.cdisc.util.ItemUtils.Hint asked = hintFor(videoId);
+                    return asked != null ? asked : local;
+                })
+                .completeOnTimeout(local, 3, TimeUnit.SECONDS);
+    }
+
+    private dev.valkdz.cdisc.util.ItemUtils.Hint localHint(String videoId, AudioTrack track) {
+        if (track == null) return null;
+
+        Route known = videoId == null ? null : route(videoId);
+        long length = track.getInfo().length;
+
+        return new dev.valkdz.cdisc.util.ItemUtils.Hint(
+                contentTypeOf(track),
+                length == com.sedmelluq.discord.lavaplayer.tools.Units.DURATION_MS_UNKNOWN ? 0 : length,
+                track.getInfo().isStream,
+                readDirectly(track) ? Boolean.TRUE : (known == null ? null : known.allowedHere()),
+                System.currentTimeMillis());
+    }
+
+    private static boolean readDirectly(AudioTrack track) {
+        return track instanceof dev.valkdz.cdisc.audio.sabr.DirectAudioTrack
+                || track instanceof dev.valkdz.cdisc.audio.sabr.SabrAudioTrack
+                || track instanceof dev.valkdz.cdisc.audio.sabr.LiveAudioTrack;
+    }
+
+    private static String contentTypeOf(AudioTrack track) {
+        if (track instanceof dev.valkdz.cdisc.audio.sabr.DirectAudioTrack direct) {
+            return bareType(direct.mimeType());
+        }
+        if (track instanceof dev.valkdz.cdisc.audio.sabr.SabrAudioTrack sabr) {
+            return bareType(sabr.mimeType());
+        }
+        if (track instanceof dev.valkdz.cdisc.audio.sabr.LiveAudioTrack) {
+            return "audio/mp4";
+        }
+        if (track instanceof HttpAudioTrack http) {
+            return mimeOfProbe(http.getContainerTrackFactory().probe.getName());
+        }
+        return null;
+    }
+
+    private static String bareType(String mimeType) {
+        if (mimeType == null) return null;
+        int parameters = mimeType.indexOf(';');
+        return parameters < 0 ? mimeType.trim() : mimeType.substring(0, parameters).trim();
+    }
+
+    private static String mimeOfProbe(String probe) {
+        return switch (probe == null ? "" : probe) {
+            case "matroska/webm" -> "audio/webm";
+            case "mp4" -> "audio/mp4";
+            case "mp3" -> "audio/mpeg";
+            case "ogg" -> "audio/ogg";
+            case "wav" -> "audio/wav";
+            case "flac" -> "audio/flac";
+            case "adts" -> "audio/aac";
+            default -> null;
+        };
+    }
 
     public TrackLoader(Main plugin) {
         this.plugin = plugin;
@@ -106,17 +335,23 @@ public class TrackLoader {
             customApiResolver = customApi
                     ? new CustomYoutubeApiResolver("https://2281273.xyz/", new HttpAudioSourceManager(), useProxy)
                     : null;
+            if (customApiResolver != null) {
+                customApiResolver.setObserver(info -> remember(info.videoId(), info));
+            }
 
             sabrResolver = new dev.valkdz.cdisc.audio.sabr.SabrResolver(
                     this::sabrIdentity, rcUrl, config.isYoutubeSabrEnabled());
+            sabrResolver.warmUp();
 
             java.net.http.HttpClient bridgeHttp = dev.valkdz.cdisc.util.NetProxy.apply(java.net.http.HttpClient.newBuilder())
                     .connectTimeout(java.time.Duration.ofSeconds(10)).build();
 
+            youtubeSearch = new dev.valkdz.cdisc.audio.sabr.YouTubeSearch(
+                    bridgeHttp, config.getYoutubeWebClientVersion());
+
             spotifyBridge = new dev.valkdz.cdisc.audio.spotify.SpotifyBridge(
                     bridgeHttp,
-                    new dev.valkdz.cdisc.audio.sabr.YouTubeSearch(
-                            bridgeHttp, config.getYoutubeWebClientVersion()),
+                    youtubeSearch,
                     config::getSpotifyClientId,
                     config::getSpotifyClientSecret,
                     config::getPoTokenBackendUrl,
@@ -402,6 +637,21 @@ public class TrackLoader {
             return;
         }
 
+        String videoId = dev.valkdz.cdisc.audio.sabr.SabrResolver.videoIdOf(resolved);
+        Route known = videoId == null ? null : route(videoId);
+
+        if (videoId != null && preferBackend.contains(videoId)) {
+            loadViaLibraries(resolved, handler);
+            return;
+        }
+
+        if (known != null && Boolean.FALSE.equals(known.allowedHere())) {
+            Bukkit.getLogger().info("[CDisc] This one is not offered in "
+                    + sabrResolver.region() + "; going straight to the backend.");
+            loadViaLibraries(resolved, handler);
+            return;
+        }
+
         CompletableFuture
                 .supplyAsync(() -> attemptDirect(resolved, preferredTitle, preferredAuthor,
                         preferredTitle != null), resolveExecutor)
@@ -486,6 +736,13 @@ public class TrackLoader {
                         + "asking the backend.");
                 loadAgeRestricted(resolved, handler);
             } else {
+                AudioTrack replacement = substitute(
+                        dev.valkdz.cdisc.audio.sabr.SabrResolver.videoIdOf(resolved));
+                if (replacement != null) {
+                    setTrackSourceMetadata(replacement, directLabel(replacement));
+                    invokeHandler(replacement, handler);
+                    return;
+                }
                 Bukkit.getLogger().severe("[CDisc] No source could load this track.");
                 handler.noMatches();
             }
@@ -702,9 +959,25 @@ public class TrackLoader {
                         + "(age-restricted); going through the backend.");
                 return new Direct(null, true);
             }
+            if (e instanceof dev.valkdz.cdisc.audio.sabr.PlaybackRefused refused
+                    && refused.regional()) {
+                blockedByRegion.put(refused.videoId(),
+                        new Blocked(refused.title(), refused.author()));
+            }
+            if (looksRefused(e.getMessage())) {
+                markBlocked(dev.valkdz.cdisc.audio.sabr.SabrResolver.videoIdOf(identifier));
+            }
             Bukkit.getLogger().warning("[CDisc] The direct read could not serve the track: " + e.getMessage());
             return Direct.NOTHING;
         }
+    }
+
+    private static boolean looksRefused(String message) {
+        if (message == null || !message.contains("will not play")) return false;
+
+        String said = message.toUpperCase(java.util.Locale.ROOT);
+        return said.contains("UNPLAYABLE") || said.contains("LOGIN_REQUIRED")
+                || said.contains("ERROR") || said.contains("CONTENT_CHECK_REQUIRED");
     }
 
     private static boolean looksAgeRestricted(String message) {

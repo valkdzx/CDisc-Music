@@ -82,6 +82,7 @@ lavaplayer:
     loaded: "הרצועה נטענה: %s - %s [%s]"
     loading: "טוען רצועה..."
     notfound: "הרצועה לא נמצאה!"
+    region_substituted: "הרצועה אינה זמינה באזור של השרת — מנוגן הסרטון הזמין הראשון במקומה."
     error: "שגיאת טעינה: %s"
     invalid_query: "אין שם מה לחפש. נסה local:<קובץ> למוזיקה של השרת, sc:<מילים> ל-SoundCloud, yt:<מילים> ל-YouTube, או הדבק קישור."
 local:

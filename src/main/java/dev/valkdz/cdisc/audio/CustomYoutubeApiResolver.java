@@ -1,15 +1,19 @@
 package dev.valkdz.cdisc.audio;
 
+import com.sedmelluq.discord.lavaplayer.container.MediaContainer;
+import com.sedmelluq.discord.lavaplayer.container.MediaContainerDescriptor;
 import com.sedmelluq.discord.lavaplayer.player.AudioPlayerManager;
 import com.sedmelluq.discord.lavaplayer.source.http.HttpAudioSourceManager;
 import com.sedmelluq.discord.lavaplayer.source.http.HttpAudioTrack;
 import com.sedmelluq.discord.lavaplayer.tools.JsonBrowser;
+import com.sedmelluq.discord.lavaplayer.tools.Units;
 import com.sedmelluq.discord.lavaplayer.track.AudioItem;
 import com.sedmelluq.discord.lavaplayer.track.AudioReference;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrackInfo;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
@@ -17,10 +21,16 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.Consumer;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -37,10 +47,21 @@ public class CustomYoutubeApiResolver {
     private final String baseUrl;
     private final HttpAudioSourceManager httpProbe;
     private final HttpClient http;
+    private final HttpClient noRedirects;
     private final boolean proxy;
 
-    private final ExecutorService ioExecutor = Executors.newCachedThreadPool(r -> {
+    private volatile Consumer<Info> observer;
+
+    private final ExecutorService ioExecutor = Executors.newFixedThreadPool(4, r -> {
         Thread t = new Thread(r, "cdisc-api-resolver-io");
+        t.setDaemon(true);
+        return t;
+    });
+
+    // Separate from ioExecutor: a container probe blocks there, and the client still
+    // needs a thread of its own to hand the response over.
+    private final ExecutorService httpExecutor = Executors.newFixedThreadPool(2, r -> {
+        Thread t = new Thread(r, "cdisc-api-resolver-http");
         t.setDaemon(true);
         return t;
     });
@@ -56,8 +77,24 @@ public class CustomYoutubeApiResolver {
         this.proxy = proxy;
         this.http = dev.valkdz.cdisc.util.NetProxy.apply(HttpClient.newBuilder())
                 .connectTimeout(Duration.ofSeconds(4))
+                .executor(httpExecutor)
                 .followRedirects(HttpClient.Redirect.NORMAL)
                 .build();
+        this.noRedirects = dev.valkdz.cdisc.util.NetProxy.apply(HttpClient.newBuilder())
+                .connectTimeout(Duration.ofSeconds(4))
+                .executor(httpExecutor)
+                .followRedirects(HttpClient.Redirect.NEVER)
+                .build();
+    }
+
+    public record Info(String videoId, String title, String author, String contentType,
+                       long lengthMs, String watchUrl, String artworkUrl, boolean live,
+                       boolean playable, String reason, Set<String> countries) {
+
+        public Boolean allowedIn(String region) {
+            if (region == null || countries == null || countries.isEmpty()) return null;
+            return countries.contains(region.toUpperCase(Locale.ROOT));
+        }
     }
 
     public String getBaseUrl() {
@@ -70,6 +107,7 @@ public class CustomYoutubeApiResolver {
 
     public void shutdown() {
         ioExecutor.shutdownNow();
+        httpExecutor.shutdownNow();
     }
 
     public String streamUrlFor(String videoId) {
@@ -86,41 +124,146 @@ public class CustomYoutubeApiResolver {
         return m.find() ? m.group(1) : null;
     }
 
+    public void setObserver(Consumer<Info> observer) {
+        this.observer = observer;
+    }
+
+    public record Hit(String videoId, String title, String author, long lengthMs) {}
+
+    public CompletableFuture<List<Hit>> searchAsync(String query, int limit) {
+        return getJson("/search?q=" + URLEncoder.encode(query, StandardCharsets.UTF_8)
+                + "&limit=" + limit)
+                .thenApply(json -> {
+                    List<Hit> hits = new ArrayList<>();
+                    if (json == null) return hits;
+
+                    for (JsonBrowser found : json.get("results").values()) {
+                        String videoId = found.get("id").text();
+                        if (videoId == null) continue;
+
+                        hits.add(new Hit(videoId,
+                                found.get("title").text(),
+                                found.get("channel").text(),
+                                found.get("duration").asLong(0) * 1000L));
+                    }
+                    return hits;
+                })
+                .exceptionally(e -> {
+                    LOGGER.log(Level.WARNING, "[CDisc] custom-api search failed for " + query, e);
+                    return List.of();
+                });
+    }
+
+    public CompletableFuture<Info> infoAsync(String videoId) {
+        return getJson("/get-info/" + videoId)
+                .thenApply(json -> {
+                    if (json == null) return null;
+                    Info info = parseInfo(videoId, json);
+                    Consumer<Info> watcher = observer;
+                    if (watcher != null) watcher.accept(info);
+                    return info;
+                })
+                .exceptionally(e -> {
+                    LOGGER.log(Level.WARNING, "[CDisc] custom-api get-info failed for "
+                            + videoId, e);
+                    return null;
+                });
+    }
+
     public AudioTrack resolve(AudioPlayerManager playerManager, String identifier) {
         try {
-            String videoId = extractVideoId(identifier);
-            if (videoId == null) return null;
-
-            String streamUrl = streamUrlFor(videoId);
-
-            CompletableFuture<JsonBrowser> infoFuture = CompletableFuture.supplyAsync(() -> {
-                try {
-                    return getJson("/get-info/" + videoId);
-                } catch (Exception e) {
-                    LOGGER.log(java.util.logging.Level.WARNING,
-                            "[CDisc] custom-api /get-info failed for '" + videoId + "'", e);
-                    return null;
-                }
-            }, ioExecutor);
-
-            CompletableFuture<HttpAudioTrack> streamFuture = CompletableFuture.supplyAsync(
-                    () -> probeHttpTrack(playerManager, streamUrl), ioExecutor);
-
-            HttpAudioTrack httpTrack = streamFuture.join();
-            if (httpTrack == null) return null;
-
-            JsonBrowser info = infoFuture.join();
-            String title = info != null ? info.get("title").text() : null;
-            String author = info != null ? info.get("author").text() : null;
-            long lengthMs = info != null ? info.get("length_seconds").asLong(0) * 1000L : 0;
-            String watchUrl = info != null ? info.get("watch_url").text() : null;
-            String artworkUrl = info != null ? info.get("thumbnail_url").text() : null;
-
-            return buildTrack(httpTrack, videoId, title, author, lengthMs, watchUrl, artworkUrl);
+            return resolveAsync(playerManager, identifier).join();
         } catch (Exception e) {
-            LOGGER.log(java.util.logging.Level.WARNING, "[CDisc] custom-api resolve failed for '" + identifier + "'", e);
+            LOGGER.log(Level.WARNING, "[CDisc] custom-api resolve failed for " + identifier, e);
             return null;
         }
+    }
+
+    public CompletableFuture<AudioTrack> resolveAsync(AudioPlayerManager playerManager,
+                                                      String identifier) {
+        return videoIdAsync(identifier).thenCompose(videoId -> {
+            if (videoId == null) return CompletableFuture.completedFuture(null);
+
+            CompletableFuture<Info> info = infoAsync(videoId);
+            CompletableFuture<String> location = locationAsync(streamUrlFor(videoId));
+
+            return info.thenCombineAsync(location,
+                    (read, target) -> trackFor(playerManager, videoId, read, target), ioExecutor);
+        });
+    }
+
+    public AudioTrack trackFor(AudioPlayerManager playerManager, String videoId, Info info) {
+        return trackFor(playerManager, videoId, info, locationAsync(streamUrlFor(videoId)).join());
+    }
+
+    public AudioTrack trackFor(AudioPlayerManager playerManager, String videoId, Info info,
+                               String location) {
+        String streamUrl = location != null ? location : streamUrlFor(videoId);
+        MediaContainerDescriptor container = containerOf(info == null ? null : info.contentType());
+
+        if (container == null || location == null) {
+            HttpAudioTrack probed = probeHttpTrack(playerManager, streamUrlFor(videoId));
+            if (probed == null) return null;
+            container = probed.getContainerTrackFactory();
+            streamUrl = probed.getInfo().identifier;
+        }
+
+        return new HttpAudioTrack(trackInfo(videoId, streamUrl, info), container, httpProbe);
+    }
+
+    // The stream URL 302s to googlevideo and lavaplayer refuses redirects while playing,
+    // so the target has to be known before the track is built.
+    private CompletableFuture<String> locationAsync(String streamUrl) {
+        if (proxy) return CompletableFuture.completedFuture(streamUrl);
+
+        HttpRequest request = HttpRequest.newBuilder(URI.create(streamUrl))
+                .timeout(Duration.ofSeconds(6))
+                .method("HEAD", HttpRequest.BodyPublishers.noBody())
+                .build();
+
+        return noRedirects.sendAsync(request, HttpResponse.BodyHandlers.discarding())
+                .thenApply(response -> response.statusCode() / 100 == 3
+                        ? response.headers().firstValue("location").orElse(null)
+                        : (response.statusCode() == 200 ? streamUrl : null))
+                .exceptionally(ignored -> null);
+    }
+
+    private AudioTrackInfo trackInfo(String videoId, String streamUrl, Info info) {
+        boolean live = info != null && info.live();
+        long length = info == null || info.lengthMs() <= 0 || live
+                ? Units.DURATION_MS_UNKNOWN : info.lengthMs();
+
+        return new AudioTrackInfo(
+                info != null && info.title() != null ? info.title() : "Unknown",
+                info != null && info.author() != null ? info.author() : "Unknown",
+                length,
+                streamUrl,
+                live,
+                info != null && info.watchUrl() != null
+                        ? info.watchUrl() : "https://www.youtube.com/watch?v=" + videoId,
+                info == null ? null : info.artworkUrl(),
+                null);
+    }
+
+    private static MediaContainerDescriptor containerOf(String contentType) {
+        if (contentType == null || contentType.isBlank()) return null;
+
+        String type = contentType.toLowerCase(Locale.ROOT);
+        int semicolon = type.indexOf(';');
+        if (semicolon > 0) type = type.substring(0, semicolon).trim();
+
+        MediaContainer container = switch (type) {
+            case "audio/webm", "video/webm", "audio/x-matroska", "video/x-matroska" -> MediaContainer.MKV;
+            case "audio/mp4", "video/mp4", "audio/m4a", "audio/x-m4a" -> MediaContainer.MP4;
+            case "audio/mpeg", "audio/mp3" -> MediaContainer.MP3;
+            case "audio/ogg", "application/ogg" -> MediaContainer.OGG;
+            case "audio/wav", "audio/x-wav", "audio/wave" -> MediaContainer.WAV;
+            case "audio/flac", "audio/x-flac" -> MediaContainer.FLAC;
+            case "audio/aac", "audio/aacp" -> MediaContainer.ADTS;
+            default -> null;
+        };
+
+        return container == null ? null : new MediaContainerDescriptor(container.probe, null);
     }
 
     private HttpAudioTrack probeHttpTrack(AudioPlayerManager playerManager, String streamUrl) {
@@ -132,65 +275,82 @@ public class CustomYoutubeApiResolver {
             }
 
             if (!(probed instanceof HttpAudioTrack httpTrack)) {
-                LOGGER.warning("[CDisc] custom-api stream probe for '" + streamUrl
-                        + "' did not resolve to a playable HTTP track (got: "
+                LOGGER.warning("[CDisc] custom-api stream probe for " + streamUrl
+                        + " did not resolve to a playable HTTP track (got: "
                         + (probed == null ? "null" : probed.getClass().getName()) + ")");
                 return null;
             }
 
             return httpTrack;
         } catch (Exception e) {
-            LOGGER.log(java.util.logging.Level.WARNING, "[CDisc] custom-api stream probe failed for '" + streamUrl + "'", e);
+            LOGGER.log(Level.WARNING, "[CDisc] custom-api stream probe failed for " + streamUrl, e);
             return null;
         }
     }
 
-    private AudioTrack buildTrack(HttpAudioTrack httpTrack, String videoId, String title, String author,
-                                  long lengthMs, String watchUrl, String artworkUrl) {
-        AudioTrackInfo trackInfo = new AudioTrackInfo(
-                title != null ? title : "Unknown",
-                author != null ? author : "Unknown",
-                lengthMs > 0 ? lengthMs : Long.MAX_VALUE,
-                httpTrack.getInfo().identifier,
-                false,
-                watchUrl != null ? watchUrl : httpTrack.getInfo().uri,
-                artworkUrl,
-                null
-        );
+    private static Info parseInfo(String videoId, JsonBrowser json) {
+        JsonBrowser audio = json.get("audio");
+        String contentType = audio.get("content_type").text();
+        if (contentType == null) contentType = json.get("content_type").text();
 
-        return new HttpAudioTrack(trackInfo, httpTrack.getContainerTrackFactory(), httpProbe);
-    }
+        JsonBrowser playability = json.get("playability");
+        String status = playability.get("status").text();
 
-    private String extractVideoId(String identifier) throws IOException, InterruptedException {
-        if (identifier.startsWith("ytsearch:")) {
-            String query = identifier.substring("ytsearch:".length());
-            JsonBrowser search = getJson("/search?q="
-                    + URLEncoder.encode(query, StandardCharsets.UTF_8) + "&limit=1");
-            if (search == null) return null;
-
-            List<JsonBrowser> results = search.get("results").values();
-            if (results.isEmpty()) return null;
-
-            return results.get(0).get("id").text();
+        Set<String> countries = new HashSet<>();
+        for (JsonBrowser country : json.get("available_countries").values()) {
+            String code = country.text();
+            if (code != null) countries.add(code.toUpperCase(Locale.ROOT));
         }
 
+        return new Info(
+                videoId,
+                json.get("title").text(),
+                json.get("author").text(),
+                contentType,
+                json.get("length_seconds").asLong(0) * 1000L,
+                json.get("watch_url").text(),
+                json.get("thumbnail_url").text(),
+                json.get("is_live").asBoolean(false),
+                status == null || "OK".equals(status),
+                playability.get("reason").text(),
+                countries);
+    }
+
+    public String extractVideoId(String identifier) {
         Matcher m = VIDEO_ID_IN_URL.matcher(identifier);
         if (m.find()) return m.group(1);
 
-        if (BARE_VIDEO_ID.matcher(identifier).matches()) return identifier;
-
-        return null;
+        return BARE_VIDEO_ID.matcher(identifier).matches() ? identifier : null;
     }
 
-    private JsonBrowser getJson(String path) throws IOException, InterruptedException {
+    private CompletableFuture<String> videoIdAsync(String identifier) {
+        if (!identifier.startsWith("ytsearch:")) {
+            return CompletableFuture.completedFuture(extractVideoId(identifier));
+        }
+
+        String query = identifier.substring("ytsearch:".length());
+        return getJson("/search?q=" + URLEncoder.encode(query, StandardCharsets.UTF_8) + "&limit=1")
+                .thenApply(search -> {
+                    if (search == null) return null;
+                    List<JsonBrowser> results = search.get("results").values();
+                    return results.isEmpty() ? null : results.get(0).get("id").text();
+                });
+    }
+
+    private CompletableFuture<JsonBrowser> getJson(String path) {
         HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl + path))
                 .timeout(Duration.ofSeconds(6))
                 .GET()
                 .build();
 
-        HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
-        if (response.statusCode() != 200) return null;
-
-        return JsonBrowser.parse(response.body());
+        return http.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .thenApply(response -> {
+                    if (response.statusCode() != 200) return null;
+                    try {
+                        return JsonBrowser.parse(response.body());
+                    } catch (IOException e) {
+                        throw new UncheckedIOException(e);
+                    }
+                });
     }
 }

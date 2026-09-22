@@ -78,6 +78,7 @@ public final class InnerTubePlayer {
     }
 
     public record PlayerResponse(String playabilityStatus, String playabilityReason,
+                                 String playabilitySubreason,
                                  String title, String author, long durationMs, boolean live,
                                  String serverAbrStreamingUrl, byte[] ustreamerConfig,
                                  List<AudioFormat> audioFormats, List<AudioFormat> videoFormats) {
@@ -221,6 +222,8 @@ public final class InnerTubePlayer {
         return new PlayerResponse(
                 playability.path("status").asText(null),
                 playability.path("reason").asText(null),
+                textOf(playability.path("errorScreen")
+                        .path("playerErrorMessageRenderer").path("subreason")),
                 details.path("title").asText(null),
                 details.path("author").asText(null),
                 durationMs,
@@ -228,6 +231,19 @@ public final class InnerTubePlayer {
                 streaming.path("serverAbrStreamingUrl").asText(null),
                 ustreamerConfig,
                 audio, video);
+    }
+
+    private static String textOf(JsonNode node) {
+        if (node.isMissingNode()) return null;
+
+        String simple = node.path("simpleText").asText(null);
+        if (notBlank(simple)) return simple;
+
+        StringBuilder joined = new StringBuilder();
+        for (JsonNode run : node.path("runs")) {
+            joined.append(run.path("text").asText(""));
+        }
+        return joined.length() == 0 ? null : joined.toString();
     }
 
     private static String pad(String value) {

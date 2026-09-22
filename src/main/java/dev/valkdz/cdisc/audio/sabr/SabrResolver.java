@@ -17,6 +17,7 @@ import java.io.UncheckedIOException;
 import java.net.http.HttpClient;
 import java.time.Duration;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
@@ -40,6 +41,7 @@ public final class SabrResolver {
 
     private String mintedVisitorData;
     private long mintedVisitorDataUntil;
+    private volatile String region;
     private final HttpInterfaceManager cipherInterfaces = HttpClientTools.createDefaultThreadLocalManager();
 
     public SabrResolver(Supplier<InnerTubePlayer.ClientIdentity> identity, String remoteCipherUrl,
@@ -75,15 +77,28 @@ public final class SabrResolver {
         String videoId = videoIdOf(identifier);
         if (videoId == null) return null;
 
-        AudioTrack direct = resolveDirect(videoId, discTitle, discAuthor, namesWin);
-        if (direct != null || !sabr) return direct;
+        PlaybackRefused refused = null;
+        AudioTrack direct;
+        try {
+            direct = resolveDirect(videoId, discTitle, discAuthor, namesWin);
+        } catch (PlaybackRefused e) {
+            refused = e;
+            direct = null;
+        }
+
+        if (direct != null) return direct;
+        if (!sabr) {
+            if (refused != null) throw refused;
+            return null;
+        }
 
         InnerTubePlayer.PlayerResponse response = new InnerTubePlayer(http, identity.get()).fetch(videoId);
 
         if (!response.isPlayable()) {
-            throw new IOException("YouTube will not play " + videoId + ": "
-                    + response.playabilityStatus()
-                    + (response.playabilityReason() == null ? "" : " — " + response.playabilityReason()));
+            // The WEB client can be refused where VISIONOS was not, so the earlier
+            // verdict is the one worth reporting when it carried a reason.
+            throw refused != null && refused.regional()
+                    ? refused : new PlaybackRefused(videoId, response);
         }
 
         if (response.live()) {
@@ -108,12 +123,18 @@ public final class SabrResolver {
     }
 
     private AudioTrack resolveDirect(String videoId, String discTitle, String discAuthor,
-                                     boolean namesWin) {
+                                     boolean namesWin) throws PlaybackRefused {
+        InnerTubePlayer.PlayerResponse response;
         try {
-            InnerTubePlayer.PlayerResponse response = new InnerTubePlayer(
+            response = new InnerTubePlayer(
                     http, InnerTubePlayer.ClientIdentity.visionOs(visitorData())).fetch(videoId);
+        } catch (Exception e) {
+            return null;
+        }
 
-            if (!response.isPlayable()) return null;
+        if (!response.isPlayable()) throw new PlaybackRefused(videoId, response);
+
+        try {
 
             if (response.live()) {
                 return liveTrack(videoId, response, this::visionIdentity,
@@ -172,10 +193,32 @@ public final class SabrResolver {
     private synchronized String visitorData() throws IOException, InterruptedException {
         long now = System.currentTimeMillis();
         if (mintedVisitorData == null || now > mintedVisitorDataUntil) {
-            mintedVisitorData = new dev.valkdz.cdisc.youtube.VisitorRenewal().mint(15);
-            mintedVisitorDataUntil = now + VISITOR_DATA_TTL_MS;
+            accept(new dev.valkdz.cdisc.youtube.VisitorRenewal().mintPage(15), now);
         }
         return mintedVisitorData;
+    }
+
+    private synchronized void accept(dev.valkdz.cdisc.youtube.VisitorRenewal.Page page, long now) {
+        mintedVisitorData = page.visitorData();
+        mintedVisitorDataUntil = now + VISITOR_DATA_TTL_MS;
+        if (page.region() != null) region = page.region();
+    }
+
+    public String region() {
+        return region;
+    }
+
+    public void warmUp() {
+        new dev.valkdz.cdisc.youtube.VisitorRenewal().mintPageAsync(15)
+                .thenAccept(page -> accept(page, System.currentTimeMillis()))
+                .exceptionally(ignored -> null);
+
+        CompletableFuture.runAsync(() -> {
+            try (HttpInterface iface = cipherInterfaces.getInterface()) {
+                cipher.getPlayerScript(iface);
+            } catch (Exception ignored) {
+            }
+        });
     }
 
     public String visitorDataOrNull() {
