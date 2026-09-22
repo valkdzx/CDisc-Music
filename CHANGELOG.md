@@ -9,6 +9,7 @@
 - 📉 The backend is asked for less. The start of a track is no longer downloaded twice to work out its format, and the track details and stream address are now fetched at the same time rather than one after the other.
 - 🎤 Each player picks what floats over jukeboxes for themselves, with `/cdisc lyrics` or the paper in the player screen: the words, the words with the track and time under them, the words with the time, the track and time, the time alone, or nothing. The track line has its own colour, orange by default, in `/cdisc preset`. The on/off switch earlier versions kept on each jukebox is not carried over; `lyrics.default-on` decides for players who have not chosen.
 - 👥 A jukebox someone else has open no longer turns you away: you get a smaller screen with only what is yours — what you see over jukeboxes, your hologram look, track messages, and your own volume when you carry it.
+- 🛑 Resetting your hologram look in `/cdisc preset` asks first. Green wool keeps it as it is; red wool resets it to the defaults, and says it cannot be undone.
 
 ## 2.0.2
 
