@@ -120,7 +120,7 @@ Three ways, worst to best:
 
 ## Configuration
 
-Three files, and the split is deliberate — two are safe to share, one is not.
+Four files, and the split is deliberate — three are safe to share, one is not.
 
 | File | Holds |
 | --- | --- |
