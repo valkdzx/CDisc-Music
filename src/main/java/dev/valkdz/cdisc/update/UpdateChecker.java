@@ -30,6 +30,8 @@ public class UpdateChecker implements Listener {
             "https://api.modrinth.com/v2/project/" + PROJECT_ID + "/version";
     private static final String VERSION_PAGE =
             "https://modrinth.com/plugin/cdisc-music/version/";
+    private static final String GITHUB_LATEST =
+            "https://api.github.com/repos/valkdzx/CDisc-Music/releases/latest";
 
     private static final Set<String> BUKKIT_LOADERS =
             Set.of("bukkit", "spigot", "paper", "purpur", "folia");
@@ -42,11 +44,13 @@ public class UpdateChecker implements Listener {
 
     private volatile String latestVersion;
 
+    private volatile String latestPage;
+
     private volatile String announcedVersion;
 
     private volatile String stagedVersion;
 
-    private volatile boolean projectMissing;
+    private volatile boolean modrinthMissing;
 
     private Tasks.Handle task;
 
@@ -68,14 +72,14 @@ public class UpdateChecker implements Listener {
     }
 
     public String getDownloadUrl() {
-        return latestVersion == null ? null : VERSION_PAGE + latestVersion;
+        return latestVersion == null ? null : latestPage;
     }
 
     public void check() {
         stop();
         if (!plugin.cdiscConfig().isUpdateCheckerEnabled()) return;
 
-        projectMissing = false;
+        modrinthMissing = false;
         long periodTicks = plugin.cdiscConfig().getUpdateIntervalHours() * 72_000L;
 
         if (periodTicks <= 0) {
@@ -99,22 +103,11 @@ public class UpdateChecker implements Listener {
     }
 
     private void runCheck() {
-        if (projectMissing) {
-            stop();
-            return;
-        }
-
         String current = plugin.getDescription().getVersion();
         String serverVersion = serverMinecraftVersion();
         stagedVersion = updater.stagedVersion();
 
-        Release newest;
-        try {
-            newest = fetchNewestRelease();
-        } catch (Exception e) {
-            plugin.getLogger().warning("Update check failed: " + e);
-            return;
-        }
+        Release newest = newer(fromModrinth(), fromGitHub());
         if (newest == null) return;
 
         if (compareVersions(newest.version(), current) <= 0) {
@@ -123,7 +116,7 @@ public class UpdateChecker implements Listener {
             if (announcedVersion == null) {
                 announcedVersion = current;
                 plugin.getLogger().info("Up to date (running " + current
-                        + ", newest on Modrinth " + newest.version() + ").");
+                        + ", newest on " + newest.where() + " " + newest.version() + ").");
             }
             return;
         }
@@ -141,6 +134,7 @@ public class UpdateChecker implements Listener {
             }
         }
 
+        latestPage = newest.page();
         latestVersion = newest.version();
         boolean staged = newest.version().equals(stagedVersion);
         String announcement = newest.version() + (staged ? "+staged" : "");
@@ -151,10 +145,9 @@ public class UpdateChecker implements Listener {
                 + " (running " + current + ", server " + serverVersion + ")");
         if (staged) {
             plugin.getLogger().warning("Downloaded " + newest.download().fileName()
-                    + ", it replaces this version when the server stops. Changes: "
-                    + VERSION_PAGE + newest.version());
+                    + ", it replaces this version when the server stops. Changes: " + newest.page());
         } else {
-            plugin.getLogger().warning("Download: " + VERSION_PAGE + newest.version());
+            plugin.getLogger().warning("Download: " + newest.page());
         }
         if (!compatible) {
             plugin.getLogger().warning("Note: " + newest.version()
@@ -188,7 +181,7 @@ public class UpdateChecker implements Listener {
         String version = latestVersion;
         if (version == null) return;
 
-        String url = VERSION_PAGE + version;
+        String url = latestPage;
         boolean staged = version.equals(stagedVersion);
         String line = plugin.getMessageManager().get(player,
                 staged ? "update.downloaded" : "update.available",
@@ -199,8 +192,10 @@ public class UpdateChecker implements Listener {
         Chat.send(player, Chat.link(line, url, hover));
     }
 
-    private record Release(String version, List<String> gameVersions, PluginUpdater.Download download) {
+    record Release(String version, String where, String page,
+                           List<String> gameVersions, PluginUpdater.Download download) {
         boolean supports(String serverVersion) {
+            if (gameVersions.isEmpty()) return true;
             for (String listed : gameVersions) {
                 if (sameFamily(listed, serverVersion)) return true;
             }
@@ -217,7 +212,23 @@ public class UpdateChecker implements Listener {
         return left[0] == right[0] && left[1] == right[1];
     }
 
-    private Release fetchNewestRelease() throws Exception {
+    private static Release newer(Release a, Release b) {
+        if (a == null) return b;
+        if (b == null) return a;
+        return compareVersions(b.version(), a.version()) > 0 ? b : a;
+    }
+
+    private Release fromModrinth() {
+        if (modrinthMissing) return null;
+        try {
+            return fetchModrinth();
+        } catch (Exception e) {
+            plugin.getLogger().warning("Update check on Modrinth failed: " + e);
+            return null;
+        }
+    }
+
+    private Release fetchModrinth() throws Exception {
         HttpRequest request = HttpRequest.newBuilder(URI.create(VERSIONS_API))
                 .timeout(Duration.ofSeconds(10))
 
@@ -231,10 +242,9 @@ public class UpdateChecker implements Listener {
         int status = response.statusCode();
 
         if (status == 404) {
-
-            projectMissing = true;
+            modrinthMissing = true;
             plugin.getLogger().warning("Update check: Modrinth has no project "
-                    + PROJECT_ID + " (HTTP 404). Update checks are off until restart.");
+                    + PROJECT_ID + " (HTTP 404). Only GitHub is asked until restart.");
             return null;
         }
         if (status == 429) {
@@ -265,7 +275,8 @@ public class UpdateChecker implements Listener {
             if (number == null || number.isBlank()) continue;
 
             if (best == null || compareVersions(number, best.version()) > 0) {
-                best = new Release(number, textList(entry.get("game_versions")), primaryJar(entry));
+                best = new Release(number, "Modrinth", VERSION_PAGE + number,
+                        textList(entry.get("game_versions")), primaryJar(entry));
             }
         }
 
@@ -274,6 +285,66 @@ public class UpdateChecker implements Listener {
                     + " Bukkit-family server (" + read + " versions read).");
         }
         return best;
+    }
+
+    private Release fromGitHub() {
+        try {
+            return fetchGitHub();
+        } catch (Exception e) {
+            plugin.getLogger().warning("Update check on GitHub failed: " + e);
+            return null;
+        }
+    }
+
+    private Release fetchGitHub() throws Exception {
+        HttpRequest request = HttpRequest.newBuilder(URI.create(GITHUB_LATEST))
+                .timeout(Duration.ofSeconds(10))
+                .header("User-Agent", "valkdz/CDisc/" + plugin.getDescription().getVersion()
+                        + " (update check)")
+                .header("Accept", "application/vnd.github+json")
+                .GET()
+                .build();
+
+        HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
+        int status = response.statusCode();
+        if (status == 404) return null;
+        if (status == 403 || status == 429) {
+            plugin.getLogger().warning("Update check: rate limited by GitHub (HTTP " + status
+                    + "), will try again on the next check.");
+            return null;
+        }
+        if (status != 200) {
+            plugin.getLogger().warning("Update check: GitHub returned HTTP " + status);
+            return null;
+        }
+        return githubRelease(JsonBrowser.parse(response.body()));
+    }
+
+    static Release githubRelease(JsonBrowser root) {
+        if (root == null || root.isNull() || root.get("draft").asBoolean(false)
+                || root.get("prerelease").asBoolean(false)) {
+            return null;
+        }
+        String tag = root.get("tag_name").text();
+        if (tag == null || tag.isBlank()) return null;
+        String number = tag.startsWith("v") || tag.startsWith("V") ? tag.substring(1) : tag;
+
+        return new Release(number, "GitHub", root.get("html_url").text(), List.of(), releaseJar(root));
+    }
+
+    private static PluginUpdater.Download releaseJar(JsonBrowser release) {
+        JsonBrowser chosen = null;
+        for (JsonBrowser asset : release.get("assets").values()) {
+            String name = asset.get("name").text();
+            if (name == null || !name.toLowerCase(Locale.ROOT).endsWith(".jar")) continue;
+            if (chosen == null || name.toLowerCase(Locale.ROOT).startsWith("cdisc")) chosen = asset;
+        }
+        if (chosen == null) return null;
+
+        String digest = chosen.get("digest").text();
+        if (digest == null || !digest.toLowerCase(Locale.ROOT).startsWith("sha256:")) return null;
+        return new PluginUpdater.Download(chosen.get("browser_download_url").text(),
+                chosen.get("name").text(), "SHA-256", digest.substring("sha256:".length()));
     }
 
     private static boolean runsOnBukkit(JsonBrowser entry) {
@@ -295,7 +366,7 @@ public class UpdateChecker implements Listener {
         }
         if (chosen == null) return null;
         return new PluginUpdater.Download(chosen.get("url").text(),
-                chosen.get("filename").text(), chosen.get("hashes").get("sha512").text());
+                chosen.get("filename").text(), "SHA-512", chosen.get("hashes").get("sha512").text());
     }
 
     private static List<String> textList(JsonBrowser array) {

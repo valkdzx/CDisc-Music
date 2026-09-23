@@ -26,7 +26,7 @@ public final class PluginUpdater {
     private static final String HOOK_PROPERTY = "cdisc.updater.exit-hook";
     private static final String DISABLED_PROPERTY = "cdisc.updater.disabled";
 
-    record Download(String url, String fileName, String sha512) {}
+    record Download(String url, String fileName, String hashAlgorithm, String hash) {}
 
     private final Main plugin;
     private final HttpClient http;
@@ -64,7 +64,7 @@ public final class PluginUpdater {
         if (download.url() == null || !download.url().startsWith("https://")) {
             throw new IOException("unexpected download URL " + download.url());
         }
-        if (download.sha512() == null) throw new IOException("Modrinth gave no SHA-512 for " + name);
+        if (download.hash() == null) throw new IOException("no " + download.hashAlgorithm() + " given for " + name);
 
         Files.createDirectories(stagingDir);
         clearStaging();
@@ -73,7 +73,7 @@ public final class PluginUpdater {
         HttpRequest request = HttpRequest.newBuilder(URI.create(download.url()))
                 .timeout(Duration.ofMinutes(5))
                 .header("User-Agent", "valkdz/CDisc/" + plugin.getDescription().getVersion()
-                        + " (modrinth auto-update)")
+                        + " (auto-update)")
                 .GET()
                 .build();
         try {
@@ -81,9 +81,9 @@ public final class PluginUpdater {
             if (response.statusCode() != 200) {
                 throw new IOException("download returned HTTP " + response.statusCode());
             }
-            String hash = sha512(part);
-            if (!hash.equalsIgnoreCase(download.sha512())) {
-                throw new IOException("SHA-512 mismatch for " + name);
+            String hash = digest(part, download.hashAlgorithm());
+            if (!hash.equalsIgnoreCase(download.hash())) {
+                throw new IOException(download.hashAlgorithm() + " mismatch for " + name);
             }
             String foundName = field(part, "name");
             String foundVersion = field(part, "version");
@@ -206,8 +206,8 @@ public final class PluginUpdater {
         }
     }
 
-    private static String sha512(Path file) throws Exception {
-        MessageDigest digest = MessageDigest.getInstance("SHA-512");
+    private static String digest(Path file, String algorithm) throws Exception {
+        MessageDigest digest = MessageDigest.getInstance(algorithm);
         try (InputStream in = Files.newInputStream(file)) {
             byte[] buffer = new byte[64 * 1024];
             for (int read; (read = in.read(buffer)) > 0; ) digest.update(buffer, 0, read);

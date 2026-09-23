@@ -551,9 +551,9 @@ horn:
   cleared: "Horn cleared!"
 update:
   available: "&e[CDisc] A new version &a&l%s &eis available! &7(you have %s)"
-  hover: "&fClick to open the download page on Modrinth"
+  hover: "&fClick to open the download page"
   downloaded: "&e[CDisc] Version &a&l%s &ehas been downloaded and installs on the next restart. &7(you have %s)"
-  downloaded_hover: "&fClick to see what changed on Modrinth"
+  downloaded_hover: "&fClick to see what changed"
 config_dialog:
   title: "&6CDisc settings &7— &f%s"
   hint: "&7Edits are kept while you switch tabs and pages, and written only by Save, which also reloads the plugin. Closing the window throws them away."

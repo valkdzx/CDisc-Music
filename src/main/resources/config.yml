@@ -181,13 +181,15 @@ player-dialog-refresh-ticks: 10
 config-dialog: true
 
 ### Update checker
-# Asks Modrinth for the newest release and reports it in the console and to operators.
+# Asks Modrinth and GitHub Releases for the newest release and reports it in the console
+# and to operators.
 update-checker:
   enabled: true
   notify-ops: true
   # 0 checks once at startup only, which misses a release published while running.
   interval-hours: 6
-  # Downloads a newer release that lists this server's Minecraft version into plugins/CDisc/update.
+  # Downloads a newer release into plugins/CDisc/update, unless its Modrinth page leaves out
+  # this server's Minecraft version. GitHub releases list none and are always taken.
   # When the server stops, the old CDisc jar is deleted and the new one takes its place.
   auto-update: true
 

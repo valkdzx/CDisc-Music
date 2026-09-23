@@ -551,9 +551,9 @@ horn:
   cleared: "Horn geleert!"
 update:
   available: "&e[CDisc] Version &a&l%s &eist da! &7(du hast %s)"
-  hover: "&fKlick, um die Downloadseite auf Modrinth zu öffnen"
+  hover: "&fKlick, um die Downloadseite zu öffnen"
   downloaded: "&e[CDisc] Version &a&l%s &eist heruntergeladen und wird beim nächsten Neustart installiert. &7(du hast %s)"
-  downloaded_hover: "&fKlick, um die Änderungen auf Modrinth zu sehen"
+  downloaded_hover: "&fKlick, um die Änderungen zu sehen"
 config_dialog:
   title: "&6CDisc-Einstellungen &7— &f%s"
   hint: "&7Änderungen bleiben beim Wechsel von Tabs und Seiten erhalten und werden erst mit Speichern geschrieben, das auch das Plugin neu lädt. Schließen verwirft sie."

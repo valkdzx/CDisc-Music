@@ -551,9 +551,9 @@ horn:
   cleared: "¡Cuerno borrado!"
 update:
   available: "&e[CDisc] ¡Hay una versión nueva &a&l%s&e! &7(tienes la %s)"
-  hover: "&fHaz clic para abrir la página de descarga en Modrinth"
+  hover: "&fHaz clic para abrir la página de descarga"
   downloaded: "&e[CDisc] La versión &a&l%s &ese ha descargado y se instalará al reiniciar. &7(tienes la %s)"
-  downloaded_hover: "&fHaz clic para ver los cambios en Modrinth"
+  downloaded_hover: "&fHaz clic para ver los cambios"
 config_dialog:
   title: "&6Ajustes de CDisc &7— &f%s"
   hint: "&7Los cambios se conservan al cambiar de pestaña y de página, y solo se escriben con Guardar, que además recarga el plugin. Al cerrar la ventana se pierden."
