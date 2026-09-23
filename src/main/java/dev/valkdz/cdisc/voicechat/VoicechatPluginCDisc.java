@@ -67,7 +67,7 @@ public class VoicechatPluginCDisc implements VoicechatPlugin {
             }
 
         } catch (Exception e) {
-            e.printStackTrace();
+            plugin.getLogger().log(java.util.logging.Level.WARNING, "Couldn't read the voice chat category icon", e);
         }
         return null;
     }

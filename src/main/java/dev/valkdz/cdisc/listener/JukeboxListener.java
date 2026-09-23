@@ -292,7 +292,7 @@ public class JukeboxListener implements Listener {
                 }
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            plugin.getLogger().log(java.util.logging.Level.WARNING, "Handling a jukebox event failed", e);
         }
     }
 

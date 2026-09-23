@@ -918,7 +918,8 @@ public class LavaPlayerManager {
 
                         if (!willRetry) {
                             Throwable cause = e.getCause() != null ? e.getCause() : e;
-                            cause.printStackTrace();
+                            plugin.getLogger().log(java.util.logging.Level.WARNING,
+                                    "Playing \"" + t.getInfo().title + "\" failed", cause);
                             warnOperators(t);
                         }
                     }
@@ -945,7 +946,8 @@ public class LavaPlayerManager {
             }
 
             @Override public void loadFailed(FriendlyException e) {
-                e.printStackTrace();
+                plugin.getLogger().log(java.util.logging.Level.WARNING,
+                        "Loading a disc's track failed, trying its fallback", e);
                 fallBack(ref, gen, fallbackQuery, discTitle, discAuthor);
             }
         };
