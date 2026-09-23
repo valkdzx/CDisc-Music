@@ -19,6 +19,10 @@ public final class SafeUrl {
         PRIVATE_ADDRESS
     }
 
+    private static final byte[] NAT64 = {0, 0x64, (byte) 0xFF, (byte) 0x9B, 0, 0, 0, 0, 0, 0, 0, 0};
+
+    private static final byte[] V4_COMPATIBLE = new byte[12];
+
     private SafeUrl() {
     }
 
@@ -38,7 +42,10 @@ public final class SafeUrl {
         scheme = scheme.toLowerCase(Locale.ROOT);
         if (!scheme.equals("http") && !scheme.equals("https")) return Verdict.BAD_SCHEME;
 
-        String host = uri.getHost();
+        return judgeHost(uri.getHost());
+    }
+
+    public static Verdict judgeHost(String host) {
         if (host == null || host.isEmpty()) return Verdict.MALFORMED;
 
         InetAddress[] addresses;
@@ -59,7 +66,7 @@ public final class SafeUrl {
         return judge(url) == Verdict.OK;
     }
 
-    private static boolean isPublic(InetAddress address) {
+    static boolean isPublic(InetAddress address) {
         if (address.isAnyLocalAddress()
                 || address.isLoopbackAddress()
                 || address.isLinkLocalAddress()
@@ -69,18 +76,33 @@ public final class SafeUrl {
         }
 
         byte[] octets = address.getAddress();
-        if (octets.length == 4) {
-            int first = octets[0] & 0xFF;
-            int second = octets[1] & 0xFF;
+        if (octets.length == 4) return isPublicV4(octets, 0);
 
-            if (first == 100 && second >= 64 && second <= 127) return false;
+        if ((octets[0] & 0xFE) == 0xFC) return false;
+        if ((octets[0] & 0xFF) == 0x20 && (octets[1] & 0xFF) == 0x02) return isPublicV4(octets, 2);
+        if (startsWith(octets, NAT64) || startsWith(octets, V4_COMPATIBLE)) return isPublicV4(octets, 12);
+        return true;
+    }
 
-            if (first == 192 && second == 0 && (octets[2] & 0xFF) == 0) return false;
-        } else if (octets.length == 16) {
-
-            if ((octets[0] & 0xFE) == 0xFC) return false;
+    private static boolean startsWith(byte[] octets, byte[] prefix) {
+        for (int i = 0; i < prefix.length; i++) {
+            if (octets[i] != prefix[i]) return false;
         }
+        return true;
+    }
 
+    private static boolean isPublicV4(byte[] octets, int at) {
+        int first = octets[at] & 0xFF;
+        int second = octets[at + 1] & 0xFF;
+        int third = octets[at + 2] & 0xFF;
+
+        if (first == 0 || first == 10 || first == 127 || first >= 224) return false;
+        if (first == 169 && second == 254) return false;
+        if (first == 172 && second >= 16 && second <= 31) return false;
+        if (first == 192 && second == 168) return false;
+        if (first == 100 && second >= 64 && second <= 127) return false;
+        if (first == 192 && second == 0 && third == 0) return false;
+        if (first == 198 && (second == 18 || second == 19)) return false;
         return true;
     }
 }
