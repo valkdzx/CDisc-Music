@@ -446,17 +446,10 @@ public class TrackLoader {
         }
 
         if (config.isHttpEnabled()) {
-            AudioSourceManagers.registerRemoteSources(lavaPlayer);
-        } else {
-
-            List<String> allowed = new ArrayList<>();
-            if (config.isDiscordEnabled()) {
-                allowed.addAll(List.of(dev.valkdz.cdisc.audio.DiscordSource.URL_PREFIXES));
-            }
-            if (!allowed.isEmpty()) {
-                lavaPlayer.registerSourceManager(
-                        new ScopedHttpAudioSourceManager(allowed.toArray(new String[0])));
-            }
+            lavaPlayer.registerSourceManager(new ScopedHttpAudioSourceManager());
+        } else if (config.isDiscordEnabled()) {
+            lavaPlayer.registerSourceManager(
+                    new ScopedHttpAudioSourceManager(dev.valkdz.cdisc.audio.DiscordSource.URL_PREFIXES));
         }
 
         if (config.isLocalEnabled()) {
