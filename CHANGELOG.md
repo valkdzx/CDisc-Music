@@ -10,6 +10,9 @@
 - 🎤 Each player picks what floats over jukeboxes for themselves, with `/cdisc lyrics` or the paper in the player screen: the words, the words with the track and time under them, the words with the time, the track and time, the time alone, or nothing. The track line has its own colour, orange by default, in `/cdisc preset`. The on/off switch earlier versions kept on each jukebox is not carried over; `lyrics.default-on` decides for players who have not chosen.
 - 👥 A jukebox someone else has open no longer turns you away: you get a smaller screen with only what is yours — what you see over jukeboxes, your hologram look, track messages, and your own volume when you carry it.
 - 🛑 Resetting your hologram look in `/cdisc preset` asks first. Green wool keeps it as it is; red wool resets it to the defaults, and says it cannot be undone.
+- 🔒 With `http: true` in sources.yml, a direct link into the server's own network — localhost, the LAN, a cloud metadata address — is refused when the disc is made and every time it plays, redirects included. Until now only `/cdisc admin download` checked.
+- 🎚️ `http: true` no longer switches back on the sources turned off in sources.yml, nor the old YouTube reader built into lavaplayer.
+- ⬆️ New releases are also looked for on GitHub Releases, and whichever of Modrinth and GitHub has the newer one is used. A GitHub release installs itself on shutdown the same way.
 
 ## 2.0.2
 
