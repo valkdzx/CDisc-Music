@@ -303,8 +303,10 @@ gui:
     status_slow: "&7The lyrics databases are not answering. Nothing will appear until they do."
     status_idle: "&7Nothing is playing yet — the words will appear when a track starts."
     status_live: "&7A live stream has no timed lyrics, so nothing will appear."
+    status_chat: "&aA live stream has no lyrics, so its chat appears over the jukebox instead."
     status_carried: "&7Nothing floats over a jukebox in your hand — the words are on the screen instead."
     live: "&8A live stream has no timed lyrics"
+    chat_waiting: "&8Waiting for the first chat message..."
   lyrics_look:
     preview_1: "and the night was ours to keep"
     preview_2: "every light along the road"

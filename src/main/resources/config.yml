@@ -145,6 +145,14 @@ lyrics:
     lines-before: 2
     lines-after: 4
 
+  # A live Twitch or YouTube stream has no words, so its chat takes their place, one
+  # message a line as "[Name]: text". The text takes the `current` colour; the name keeps
+  # its Twitch chat colour, or takes the `other` colour on YouTube.
+  live-chat:
+    enabled: true
+    # Longer messages are cut short with "…". 0 keeps them whole.
+    max-length: 120
+
   # Seconds to wait on the database for one lookup.
   timeout-seconds: 6
   # Most tracks that show nothing simply aren't in the database, so this is off.

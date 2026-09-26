@@ -66,6 +66,7 @@ public final class Main extends JavaPlugin {
     private dev.valkdz.cdisc.youtube.PoTokenService poTokenService;
     private dev.valkdz.cdisc.lyrics.LyricsService lyricsService;
     private dev.valkdz.cdisc.lyrics.LyricsDisplay lyricsDisplay;
+    private dev.valkdz.cdisc.lyrics.chat.LiveChat liveChat;
     private dev.valkdz.cdisc.lyrics.CarriedLyrics carriedLyrics;
 
     private Object plasmoAddon;
@@ -113,6 +114,7 @@ public final class Main extends JavaPlugin {
         poTokenService.start();
 
         lyricsService = new dev.valkdz.cdisc.lyrics.LyricsService(this);
+        liveChat = new dev.valkdz.cdisc.lyrics.chat.LiveChat(this);
         lyricsDisplay = new dev.valkdz.cdisc.lyrics.LyricsDisplay(this, lyricsService);
         lyricsDisplay.start();
 
@@ -292,6 +294,9 @@ public final class Main extends JavaPlugin {
         if (lyricsService != null) {
             lyricsService.shutdown();
         }
+        if (liveChat != null) {
+            liveChat.shutdown();
+        }
         if (poTokenService != null) {
             poTokenService.stop();
         }
@@ -350,6 +355,7 @@ public final class Main extends JavaPlugin {
     public dev.valkdz.cdisc.youtube.PoTokenService getPoTokenService() { return poTokenService; }
     public dev.valkdz.cdisc.lyrics.LyricsService getLyricsService() { return lyricsService; }
     public dev.valkdz.cdisc.lyrics.LyricsDisplay getLyricsDisplay() { return lyricsDisplay; }
+    public dev.valkdz.cdisc.lyrics.chat.LiveChat getLiveChat() { return liveChat; }
 
     public dev.valkdz.cdisc.lyrics.CarriedLyrics getCarriedLyrics() { return carriedLyrics; }
     public Object getPlasmoAddon() { return plasmoAddon; }

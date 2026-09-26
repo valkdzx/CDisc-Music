@@ -1518,7 +1518,7 @@ public class LavaPlayerManager {
 
     public record PlaybackInfo(String title, String author, long position, long duration,
                                boolean paused, RepeatMode repeatMode, boolean live,
-                               SyncedLyrics ownLyrics) {
+                               SyncedLyrics ownLyrics, String uri) {
     }
 
     public boolean isLive(Block block) {
@@ -1553,7 +1553,8 @@ public class LavaPlayerManager {
                 player.isPaused(),
                 getRepeatMode(block),
                 track.getInfo().isStream,
-                plugin.getLocalMusic().lyricsOf(track)
+                plugin.getLocalMusic().lyricsOf(track),
+                track.getInfo().uri
         );
     }
 

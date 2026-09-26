@@ -2,6 +2,7 @@ package dev.valkdz.cdisc.lyrics;
 
 import dev.valkdz.cdisc.Main;
 import dev.valkdz.cdisc.audio.LavaPlayerManager;
+import dev.valkdz.cdisc.lyrics.chat.ChatFeed;
 import dev.valkdz.cdisc.util.Config;
 import dev.valkdz.cdisc.util.DisplayCompat;
 import dev.valkdz.cdisc.util.Tasks;
@@ -29,6 +30,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 
 public final class LyricsDisplay {
 
@@ -197,7 +199,8 @@ public final class LyricsDisplay {
             return;
         }
         if (info.live()) {
-            say(player, "§7", "gui.lyrics.status_live");
+            boolean chat = plugin.getLiveChat() != null && plugin.getLiveChat().supports(info.uri());
+            say(player, chat ? "§a" : "§7", chat ? "gui.lyrics.status_chat" : "gui.lyrics.status_live");
             return;
         }
         if (plugin.getPortableJukeboxManager() != null
@@ -438,10 +441,19 @@ public final class LyricsDisplay {
 
         LavaPlayerManager.PlaybackInfo info = apm.getPlaybackInfo(block);
 
-        if (info == null || info.live() || (plugin.getPortableJukeboxManager() != null
+        if (info == null || (plugin.getPortableJukeboxManager() != null
                 && plugin.getPortableJukeboxManager().isCarried(block))) {
             clearVariants(state);
             return;
+        }
+
+        ChatFeed.Snapshot chat = null;
+        if (info.live()) {
+            chat = plugin.getLiveChat() == null ? null : plugin.getLiveChat().read(info.uri());
+            if (chat == null) {
+                clearVariants(state);
+                return;
+            }
         }
 
         if (info.duration() != state.trackDuration || !info.title().equals(state.trackTitle)) {
@@ -458,7 +470,7 @@ public final class LyricsDisplay {
 
         boolean wantsLyrics = false;
         for (Variant variant : state.variants.values()) {
-            wantsLyrics |= variant.mode.showsLyrics();
+            wantsLyrics |= variant.mode.showsLyrics() && chat == null;
         }
         if (wantsLyrics && !state.wantedLyrics) state.recheckIn = 0;
         state.wantedLyrics = wantsLyrics;
@@ -468,7 +480,8 @@ public final class LyricsDisplay {
             state.lyrics = wantsLyrics ? lookup(info) : null;
         }
 
-        render(block, state, info, config);
+        if (chat != null) renderChat(block, state, info, chat, config);
+        else render(block, state, info, config);
     }
 
     private SyncedLyrics lookup(LavaPlayerManager.PlaybackInfo info) {
@@ -496,15 +509,48 @@ public final class LyricsDisplay {
 
             int index = lyrics == null ? -1 : foundIndex;
             int countdownStep = lyrics == null ? 0 : foundCountdown;
-            step(variant, index);
+            step(variant, index, index < 0 ? 0 : Math.max(0, index - variant.style.linesBefore()));
 
             long frame = ((long) index << 32) | ((long) (countdownStep & 0xFFFF) << 16)
                     | (variant.fadeLeft & 0xFFFF);
             boolean sameFrame = frame == variant.lastFrame
                     && Objects.equals(header, variant.lastHeader);
 
-            if (draw(block, variant, lyrics, header, position, fullCountdownMs,
-                    sameFrame, config)) {
+            if (draw(block, variant, lyrics == null ? null
+                            : options -> LyricsRenderer.window(lyrics, position, options),
+                    header, fullCountdownMs, sameFrame, config)) {
+
+                variant.lastFrame = frame;
+                variant.lastHeader = header;
+                advanceSlide(variant);
+            }
+
+            if (variant.fadeLeft > 0) variant.fadeLeft--;
+        }
+    }
+
+    private void renderChat(Block block, Hologram state, LavaPlayerManager.PlaybackInfo info,
+                            ChatFeed.Snapshot chat, Config config) {
+        int index = chat.index();
+
+        for (Variant variant : state.variants.values()) {
+            String header = variant.mode.liveHeader(info.title(), info.author(), info.position());
+            if (!variant.mode.showsLyrics() || (index < 0 && header == null)) {
+                dropEntity(variant);
+                continue;
+            }
+
+            // Every new message scrolls, even while the window is still filling up.
+            step(variant, index, index);
+
+            long frame = ((long) index << 32) | (variant.fadeLeft & 0xFFFF);
+            boolean sameFrame = frame == variant.lastFrame
+                    && Objects.equals(header, variant.lastHeader);
+
+            if (draw(block, variant, index < 0 ? null
+                            : options -> LyricsRenderer.chat(chat.messages(), options,
+                                    variant.style.textOpacity()),
+                    header, 0L, sameFrame, config)) {
 
                 variant.lastFrame = frame;
                 variant.lastHeader = header;
@@ -593,11 +639,10 @@ public final class LyricsDisplay {
         }
     }
 
-    private static void step(Variant variant, int index) {
+    private static void step(Variant variant, int index, int first) {
         if (index == variant.lastIndex) return;
 
         HologramStyle style = variant.style;
-        int first = index < 0 ? 0 : Math.max(0, index - style.linesBefore());
 
         boolean stepped = variant.lastIndex != Integer.MIN_VALUE && index == variant.lastIndex + 1;
         boolean scrolled = stepped && variant.lastFirst != Integer.MIN_VALUE
@@ -612,9 +657,9 @@ public final class LyricsDisplay {
         }
     }
 
-    private boolean draw(Block block, Variant variant, SyncedLyrics lyrics, String header,
-                         long position, long fullCountdownMs, boolean sameFrame,
-                         Config config) {
+    private boolean draw(Block block, Variant variant,
+                         Function<LyricsRenderer.Options, List<String>> body, String header,
+                         long fullCountdownMs, boolean sameFrame, Config config) {
         HologramStyle style = variant.style;
 
         Location base = hologramLocation(block, style.height());
@@ -625,7 +670,7 @@ public final class LyricsDisplay {
         }
 
         // Under the words the track line is its own entity, so sliding the words leaves it still.
-        String footer = lyrics != null ? header : null;
+        String footer = body != null ? header : null;
         float line = LINE_HEIGHT * scaleFor(style.size());
         Location footerAt = base.clone().subtract(0, FOOTER_SINK_LINES * line, 0);
         Location location = footer == null ? base
@@ -673,8 +718,8 @@ public final class LyricsDisplay {
                 fadeProgress(variant));
 
         List<String> lines = new ArrayList<>();
-        if (lyrics != null) lines.addAll(LyricsRenderer.window(lyrics, position, options));
-        if (lyrics == null && header != null) lines.add(style.trackColor() + header);
+        if (body != null) lines.addAll(body.apply(options));
+        if (body == null && header != null) lines.add(style.trackColor() + header);
         if (lines.isEmpty()) {
             dropEntity(variant);
             return false;

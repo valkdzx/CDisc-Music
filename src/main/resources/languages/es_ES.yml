@@ -303,8 +303,10 @@ gui:
     status_slow: "&7Las bases de datos de letras no responden. No aparecerá nada hasta que lo hagan."
     status_idle: "&7Todavía no suena nada — la letra aparecerá cuando empiece una pista."
     status_live: "&7Una emisión en directo no tiene letra sincronizada, así que no aparecerá nada."
+    status_chat: "&aUna emisión en directo no tiene letra, así que su chat aparecerá sobre el tocadiscos."
     status_carried: "&7Nada flota sobre una gramola que llevas en la mano — la letra sale en la pantalla."
     live: "&8Una emisión en directo no tiene letra sincronizada"
+    chat_waiting: "&8Esperando el primer mensaje del chat..."
   lyrics_look:
     preview_1: "y la noche era nuestra"
     preview_2: "cada luz a lo largo del camino"

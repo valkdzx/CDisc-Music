@@ -507,6 +507,14 @@ public final class Config {
         return cfg().getBoolean("lyrics.debug", false);
     }
 
+    public boolean isLiveChatEnabled() {
+        return cfg().getBoolean("lyrics.live-chat.enabled", true);
+    }
+
+    public int getLiveChatMaxLength() {
+        return Math.max(0, cfg().getInt("lyrics.live-chat.max-length", 120));
+    }
+
     private static String colors(String raw) {
         return raw == null ? "" : raw.replace('&', '§');
     }

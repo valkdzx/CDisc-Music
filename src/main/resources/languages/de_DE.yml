@@ -303,8 +303,10 @@ gui:
     status_slow: "&7Die Songtext-Datenbanken antworten nicht. Bis dahin erscheint nichts."
     status_idle: "&7Es läuft noch nichts — der Text erscheint, sobald ein Titel startet."
     status_live: "&7Ein Livestream hat keinen zeitsynchronen Text, es erscheint also nichts."
+    status_chat: "&aEin Livestream hat keinen Text, also erscheint stattdessen sein Chat über der Jukebox."
     status_carried: "&7Über einer Jukebox in der Hand schwebt nichts — der Text steht stattdessen auf dem Bildschirm."
     live: "&8Ein Livestream hat keinen zeitsynchronen Text"
+    chat_waiting: "&8Warte auf die erste Chatnachricht..."
   lyrics_look:
     preview_1: "und die Nacht gehörte nur uns"
     preview_2: "jedes Licht am Straßenrand"

@@ -9,6 +9,7 @@ import dev.valkdz.cdisc.lyrics.LyricsPrefs;
 import dev.valkdz.cdisc.lyrics.LyricsRenderer;
 import dev.valkdz.cdisc.lyrics.LyricsService;
 import dev.valkdz.cdisc.lyrics.LyricsStyle;
+import dev.valkdz.cdisc.lyrics.chat.ChatFeed;
 import dev.valkdz.cdisc.permission.Action;
 import dev.valkdz.cdisc.util.BeaconUtils;
 import dev.valkdz.cdisc.util.Config;
@@ -499,22 +500,6 @@ public class PlayerGuiManager {
 
         if (info == null) return List.of();
 
-        if (info.live()) {
-            return List.of("", plugin.getMessageManager().get(player, "gui.lyrics.live"));
-        }
-
-        LyricsService service = plugin.getLyricsService();
-        if (service == null) return List.of();
-
-        LyricsService.Result result = service.lookup(info);
-
-        if (!result.isFound()) {
-            String key = result.state() == LyricsService.State.SEARCHING
-                    ? "gui.lyrics.searching"
-                    : "gui.lyrics.not_found";
-            return List.of("", plugin.getMessageManager().get(player, key));
-        }
-
         Config config = plugin.cdiscConfig();
         LyricsRenderer.Options options = new LyricsRenderer.Options(
                 config.getLyricsGuiLinesBefore(),
@@ -525,7 +510,29 @@ public class PlayerGuiManager {
                 config.getLyricsCountdownEmpty(),
                 1f);
 
-        List<String> window = LyricsRenderer.window(result.lyrics(), info.position(), options);
+        List<String> window;
+        if (info.live()) {
+            ChatFeed.Snapshot chat = plugin.getLiveChat() == null ? null
+                    : plugin.getLiveChat().read(info.uri());
+            if (chat == null || chat.messages().isEmpty()) {
+                String key = chat == null ? "gui.lyrics.live" : "gui.lyrics.chat_waiting";
+                return List.of("", plugin.getMessageManager().get(player, key));
+            }
+            window = LyricsRenderer.chat(chat.messages(), options, 255);
+        } else {
+            LyricsService service = plugin.getLyricsService();
+            if (service == null) return List.of();
+
+            LyricsService.Result result = service.lookup(info);
+
+            if (!result.isFound()) {
+                String key = result.state() == LyricsService.State.SEARCHING
+                        ? "gui.lyrics.searching"
+                        : "gui.lyrics.not_found";
+                return List.of("", plugin.getMessageManager().get(player, key));
+            }
+            window = LyricsRenderer.window(result.lyrics(), info.position(), options);
+        }
         if (window.isEmpty()) return List.of();
 
         List<String> lore = new ArrayList<>(window.size() + 1);

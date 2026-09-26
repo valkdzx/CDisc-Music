@@ -1,5 +1,7 @@
 package dev.valkdz.cdisc.lyrics;
 
+import dev.valkdz.cdisc.lyrics.chat.ChatMessage;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -53,6 +55,22 @@ public final class LyricsRenderer {
             SyncedLyrics.Line line = lyrics.lines().get(i);
             String text = line.isBlank() ? BREAK_MARKER : line.text();
             out.add(colorFor(options, i, current) + text);
+        }
+        return out;
+    }
+
+    public static List<String> chat(List<ChatMessage> messages, Options options, int nameOpacity) {
+        int shown = Math.min(messages.size(), options.before() + options.after() + 1);
+        List<String> out = new ArrayList<>(shown);
+
+        LyricsStyle style = options.style();
+        for (int i = messages.size() - shown; i < messages.size(); i++) {
+            ChatMessage message = messages.get(i);
+            String name = message.color() == null ? style.other()
+                    : LyricsStyle.withOpacity(message.color(), nameOpacity);
+            String text = i == messages.size() - 1 ? style.rising(options.fade()) : style.current();
+
+            out.add(name + "[" + message.author() + "]: " + text + message.text());
         }
         return out;
     }

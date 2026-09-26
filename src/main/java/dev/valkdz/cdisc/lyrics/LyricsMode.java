@@ -54,7 +54,15 @@ public enum LyricsMode {
     public String header(String title, String author, long positionMs, long durationMs) {
         if (!header) return null;
 
-        String time = "[" + TimeUtils.formatProgress(positionMs, durationMs) + "]";
+        return withName(title, author, "[" + TimeUtils.formatProgress(positionMs, durationMs) + "]");
+    }
+
+    public String liveHeader(String title, String author, long positionMs) {
+        if (!header) return null;
+        return withName(title, author, "[" + TimeUtils.formatCompact(positionMs) + "]");
+    }
+
+    private String withName(String title, String author, String time) {
         if (!this.title) return time;
 
         String name = author == null || author.isBlank() ? title : title + " - " + author;
