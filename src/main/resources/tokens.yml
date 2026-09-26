@@ -11,12 +11,15 @@ spotify:
   client-secret: ""
 
 yandex-music:
+  # Optional: the backend in sources.yml plays Yandex Music without it. Filled in, it is
+  # asked when the backend cannot be reached.
   # Authorise at https://oauth.yandex.ru/authorize?response_type=token&client_id=23cabbbdc6cd418abb4b39c32c41195d
   # and copy what follows access_token= in the address you land on — it redirects again quickly.
   access-token: ""
 
 vk-music:
-  # A VK user token with the 'audio' scope.
+  # Optional, like the Yandex one: a VK user token with the 'audio' scope, asked when the
+  # backend in sources.yml cannot be reached.
   user-token: ""
 
 youtube:

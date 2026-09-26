@@ -33,6 +33,7 @@ import dev.lavalink.youtube.clients.skeleton.Client;
 import dev.valkdz.cdisc.Main;
 import dev.valkdz.cdisc.audio.CustomYoutubeApiResolver;
 import dev.valkdz.cdisc.audio.LocalMusicLibrary;
+import dev.valkdz.cdisc.audio.backend.BackendMusicSourceManager;
 import dev.valkdz.cdisc.util.Config;
 import org.bukkit.Bukkit;
 
@@ -385,6 +386,8 @@ public class TrackLoader {
 
         if (config.isYandexMusicEnabled()) {
             String token = config.getYandexMusicAccessToken();
+            registerBackendMusic(BackendMusicSourceManager.Service.YANDEX,
+                    config.getYandexMusicBackendUrl(), !token.isEmpty());
             if (!token.isEmpty()) {
                 YandexMusicSourceManager ym = new YandexMusicSourceManager(token);
                 lavaPlayer.registerSourceManager(ym);
@@ -424,6 +427,8 @@ public class TrackLoader {
 
         if (config.isVkMusicEnabled()) {
             String token = config.getVkMusicUserToken();
+            registerBackendMusic(BackendMusicSourceManager.Service.VK,
+                    config.getVkMusicBackendUrl(), !token.isEmpty());
             if (!token.isEmpty()) {
                 VkMusicSourceManager vk = new VkMusicSourceManager(token);
                 lavaPlayer.registerSourceManager(vk);
@@ -455,6 +460,15 @@ public class TrackLoader {
         if (config.isLocalEnabled()) {
             AudioSourceManagers.registerLocalSource(lavaPlayer);
         }
+    }
+
+    // Must be registered before the lavasrc source of the same service: lavaplayer asks
+    // in order, and lavasrc only sees what this one declines.
+    private void registerBackendMusic(BackendMusicSourceManager.Service service, String url,
+                                      boolean hasToken) {
+        if (url.isEmpty()) return;
+        lavaPlayer.registerSourceManager(
+                new BackendMusicSourceManager(service, url, hasToken, plugin.getLogger()));
     }
 
     private Client[] buildClients(Config config, Web web) {

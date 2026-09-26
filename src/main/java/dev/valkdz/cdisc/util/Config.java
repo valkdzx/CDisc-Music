@@ -160,6 +160,14 @@ public final class Config {
         return tokens.vkUserToken();
     }
 
+    public String getYandexMusicBackendUrl() {
+        return sources.yandexMusicBackendUrl();
+    }
+
+    public String getVkMusicBackendUrl() {
+        return sources.vkMusicBackendUrl();
+    }
+
     public int getSearchDefaultResults() {
         return sources.searchDefaultResults();
     }

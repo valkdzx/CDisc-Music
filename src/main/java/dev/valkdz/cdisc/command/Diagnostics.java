@@ -72,10 +72,10 @@ final class Diagnostics {
                     has(config.getSpotifyClientId()) && has(config.getSpotifyClientSecret()),
                     "spotify", "sp:", "client-id and client-secret in tokens.yml"));
         }
-        out.add(source(config.isYandexMusicEnabled(), has(config.getYandexMusicAccessToken()),
-                "yandex-music", "ym:", "access-token in tokens.yml"));
-        out.add(source(config.isVkMusicEnabled(), has(config.getVkMusicUserToken()),
-                "vk-music", "vk:", "user-token in tokens.yml"));
+        out.add(backendMusic(config.isYandexMusicEnabled(), config.getYandexMusicBackendUrl(),
+                has(config.getYandexMusicAccessToken()), "yandex-music", "ym:", "access-token in tokens.yml"));
+        out.add(backendMusic(config.isVkMusicEnabled(), config.getVkMusicBackendUrl(),
+                has(config.getVkMusicUserToken()), "vk-music", "vk:", "user-token in tokens.yml"));
         out.add(source(config.isMixcloudEnabled(), true, "mixcloud", null, null));
         out.add(source(config.isTiktokEnabled(), true, "tiktok", "tt:", null));
         out.add(source(config.isRedditEnabled(), true, "reddit", null, null));
@@ -202,6 +202,14 @@ final class Diagnostics {
         if (!keyed) return line(State.NEEDS_KEY, label, "needs " + needs);
 
         return line(State.READY, label, needs == null ? "no key needed" : "key in tokens.yml");
+    }
+
+    private static String backendMusic(boolean enabled, String backend, boolean keyed,
+                                       String name, String prefix, String needs) {
+        if (!enabled || !has(backend)) return source(enabled, keyed, name, prefix, needs);
+
+        return line(State.READY, name + " (" + prefix + ")", keyed
+                ? "through the backend, token as fallback" : "through the backend, no key needed");
     }
 
     private static String line(State state, String label, String detail) {

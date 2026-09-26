@@ -2,6 +2,7 @@ package dev.valkdz.cdisc.audio;
 
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
 import dev.valkdz.cdisc.Main;
+import dev.valkdz.cdisc.audio.backend.BackendMusicTrack;
 import dev.valkdz.cdisc.audio.sabr.DirectAudioTrack;
 import dev.valkdz.cdisc.audio.sabr.SabrAudioTrack;
 import dev.valkdz.cdisc.audio.sabr.SabrSeekableInputStream;
@@ -137,6 +138,13 @@ public final class LocalDownloader {
             Result saved = fromSabr(limits, sabr, desiredName, backendUrl == null);
             if (saved != null) return saved;
 
+        } else if (track instanceof BackendMusicTrack music) {
+            BackendMusicTrack.Download source = music.openForDownload();
+            if (source.hls() == null) return fetch(source.url(), desiredName, source.mimeType());
+
+            try (InputStream in = source.hls()) {
+                return save(limits, in, -1L, "audio/mpeg", null, track.getInfo().uri, desiredName);
+            }
         }
 
         if (backendUrl != null) {
@@ -209,7 +217,10 @@ public final class LocalDownloader {
         try (InputStream in = wholeOf(first, limits.timeout())) {
             String contentType = first.response().headers()
                     .firstValue("content-type").orElse("");
-            if (contentType.isBlank() && mimeHint != null) contentType = mimeHint;
+            if (mimeHint != null && (contentType.isBlank()
+                    || contentType.startsWith("application/octet-stream"))) {
+                contentType = mimeHint;
+            }
 
             return save(limits, in, first.total(), contentType,
                     first.response().headers().firstValue("content-disposition").orElse(null),

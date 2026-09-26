@@ -62,11 +62,13 @@ public final class LoadDiagnosis {
         }
         if (lower.startsWith("ym:")) {
             return keyed(plugin, player, config.isYandexMusicEnabled(),
-                    has(config.getYandexMusicAccessToken()), "yandex-music");
+                    has(config.getYandexMusicBackendUrl()) || has(config.getYandexMusicAccessToken()),
+                    "yandex-music");
         }
         if (lower.startsWith("vk:")) {
             return keyed(plugin, player, config.isVkMusicEnabled(),
-                    has(config.getVkMusicUserToken()), "vk-music");
+                    has(config.getVkMusicBackendUrl()) || has(config.getVkMusicUserToken()),
+                    "vk-music");
         }
         if (lower.startsWith("sc:")) {
             return config.isSoundcloudEnabled() ? null : msg(plugin, player, "diagnose.source_off", "soundcloud");

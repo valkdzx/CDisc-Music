@@ -70,8 +70,8 @@ configured, and this is the command that says which.
 | SoundCloud | `sc:` | nothing |
 | Direct links | — | `http: true` in `sources.yml`, or use `/cdisc admin download` |
 | Spotify | `sp:` | client id + secret in `tokens.yml` |
-| Yandex Music | `ym:` | access token |
-| VK Music | `vk:` | user token |
+| Yandex Music | `ym:` | nothing (through the backend; a token is the fallback) |
+| VK Music | `vk:` | nothing (through the backend; a token is the fallback) |
 | YouTube | `yt:` | nothing to start; a po-token in practice |
 | Discord attachments | — | nothing (links expire after about a day) |
 | Twitch, TikTok, Reddit, Mixcloud | — | nothing |

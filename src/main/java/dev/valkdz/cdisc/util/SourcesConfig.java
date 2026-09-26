@@ -119,6 +119,19 @@ public final class SourcesConfig {
         return url == null || url.isBlank() ? "https://2281273.xyz/soundcloud" : url.trim();
     }
 
+    public String yandexMusicBackendUrl() {
+        return blankable("yandex-music.backend-url");
+    }
+
+    public String vkMusicBackendUrl() {
+        return blankable("vk-music.backend-url");
+    }
+
+    private String blankable(String path) {
+        String url = cfg.getString(path);
+        return url == null ? "" : url.trim();
+    }
+
     public List<String> youtubeClients() {
         List<String> configured = cfg.getStringList("youtube.clients");
         List<String> names = new ArrayList<>();

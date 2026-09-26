@@ -118,5 +118,4 @@ Some sources work better (or only) with credentials in `config.yml`:
 
 - **YouTube** — a Remote Cipher Server
 - **Spotify** — client ID + secret
-- **Yandex Music** — access token
-- **VK Music** — user token
+- **Yandex Music**, **VK Music** — nothing: they play through the backend. A token in `tokens.yml` is only a fallback

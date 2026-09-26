@@ -78,6 +78,16 @@ soundcloud:
   proxy: false
   proxy-url: 'https://2281273.xyz/soundcloud'
 
+### Yandex Music and VK Music
+# Links and ym:/vk: searches go to the backend first. It needs no token, and albums and
+# playlists open too. The token in tokens.yml is asked only when the backend cannot be
+# reached. Blank a URL to use the token alone.
+yandex-music:
+  backend-url: 'https://2281273.xyz/yandex'
+
+vk-music:
+  backend-url: 'https://2281273.xyz/vk'
+
 ### YouTube
 youtube:
   # Asked in order; the first to return a stream wins. They do not fail the same way,
