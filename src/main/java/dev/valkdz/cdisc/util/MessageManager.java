@@ -14,6 +14,7 @@ import java.text.Normalizer;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Pattern;
 
 public class MessageManager {
 
@@ -21,6 +22,12 @@ public class MessageManager {
             {"ar_SA", "de_DE", "en_US", "es_ES", "he_IL", "ru_RU", "uk_UA"};
 
     private static final String FALLBACK = "en_US";
+
+    private static final String NO_AUTHOR = "\u0000";
+
+    private static final Pattern AFTER_NO_AUTHOR = Pattern.compile("\u0000\\s*(?:\u00a7.)*\\s*[-\u2013\u2014]\\s*");
+
+    private static final Pattern BEFORE_NO_AUTHOR = Pattern.compile("\\s*(?:\u00a7.)*\\s*[-\u2013\u2014]\\s*(?:\u00a7.)*\u0000");
 
     private static final String AUTO = "auto";
 
@@ -127,6 +134,22 @@ public class MessageManager {
 
     public boolean isForced() {
         return forced != null;
+    }
+
+    public String track(Player player, String path, int authorAt, Object... args) {
+        Object author = args[authorAt];
+        if (author != null && !String.valueOf(author).isBlank()) return get(player, path, args);
+
+        // Every template sets author and title apart with a dash; a one-line track drops the author and its dash.
+        Object[] marked = args.clone();
+        marked[authorAt] = NO_AUTHOR;
+        return dropAuthor(get(player, path, marked));
+    }
+
+    static String dropAuthor(String text) {
+        String cut = AFTER_NO_AUTHOR.matcher(text).replaceFirst("");
+        if (cut.equals(text)) cut = BEFORE_NO_AUTHOR.matcher(text).replaceFirst("");
+        return cut.replace(NO_AUTHOR, "");
     }
 
     public String get(Player player, String path, Object... args) {

@@ -110,6 +110,9 @@ actions:
     # Uploads the server log to mclo.gs for a GitHub issue and replies with a public link;
     # keys are hidden first.
     logs: op
+    # /cdisc admin local-files-config: the name, volume, permission and lyrics of one
+    # file in the music folder, kept beside it as <file>.jsonc
+    local-files: op
 
 ### Limits
 # Applied to everyone without cdisc.admin. /cdisc create makes the SERVER fetch a URL

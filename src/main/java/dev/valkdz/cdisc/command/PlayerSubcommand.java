@@ -150,12 +150,12 @@ public final class PlayerSubcommand {
             return;
         }
 
-        String author = data.author() == null || data.author().isBlank()
+        String author = data.author() == null
                 ? plugin.getMessageManager().get(player, "command.player.up_next_unknown_author")
                 : data.author();
 
         player.sendMessage("§7" + plugin.getMessageManager()
-                .get(player, "command.player.up_next", author, data.title()));
+                .track(player, "command.player.up_next", 0, author, data.title()));
     }
 
     private void seek(Player player, LavaPlayerManager apm, Block block, String[] args) {
@@ -226,7 +226,7 @@ public final class PlayerSubcommand {
                 ? plugin.getMessageManager().get(player, "command.player.info_live")
                 : TimeUtils.formatProgress(info.position(), info.duration());
         player.sendMessage("§a" + plugin.getMessageManager()
-                .get(player, "command.player.info", info.author(), info.title(), progress));
+                .track(player, "command.player.info", 0, info.author(), info.title(), progress));
 
         upNext(player, apm, block);
     }

@@ -206,6 +206,11 @@ public final class LyricsDisplay {
             return;
         }
 
+        if (info.ownLyrics() != null) {
+            say(player, "§a", "gui.lyrics.status_found");
+            return;
+        }
+
         LyricsQuery query = LyricsQuery.of(info.author(), info.title(), info.duration());
         if (!query.isUsable()) {
 
@@ -467,8 +472,7 @@ public final class LyricsDisplay {
     }
 
     private SyncedLyrics lookup(LavaPlayerManager.PlaybackInfo info) {
-        LyricsService.Result result = service.lookup(
-                LyricsQuery.of(info.author(), info.title(), info.duration()));
+        LyricsService.Result result = service.lookup(info);
         return result.isFound() ? result.lyrics() : null;
     }
 

@@ -46,7 +46,8 @@ public enum Action {
 
     ADMIN_RELOAD("admin.reload", "op"),
     ADMIN_DOCTOR("admin.doctor", "op"),
-    ADMIN_LOGS("admin.logs", "op");
+    ADMIN_LOGS("admin.logs", "op"),
+    ADMIN_LOCAL_FILES("admin.local-files", "op");
 
     private final String path;
     private final String fallback;

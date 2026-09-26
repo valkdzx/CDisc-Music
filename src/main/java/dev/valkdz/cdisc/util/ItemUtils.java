@@ -86,8 +86,12 @@ public class ItemUtils {
         }
 
         List<String> lore = new ArrayList<>();
-        lore.add("§7Author: §f" + author);
-        lore.add("§7Track: §f" + title);
+        if (author == null || author.isBlank()) {
+            lore.add("§f" + title);
+        } else {
+            lore.add("§7Author: §f" + author);
+            lore.add("§7Track: §f" + title);
+        }
         meta.setLore(lore);
 
         item.setItemMeta(meta);

@@ -47,7 +47,7 @@ public class NowPlayingBroadcaster {
 
             if (!dev.valkdz.cdisc.util.PlayerPrefs.showsTrackMessages(p)) continue;
 
-            String msg = plugin.getMessageManager().get(p, "actionbar.playing", author, title);
+            String msg = plugin.getMessageManager().track(p, "actionbar.playing", 0, author, title);
             if (msg == null) msg = " ";
 
             if (!p.getWorld().equals(origin.getWorld())) continue;

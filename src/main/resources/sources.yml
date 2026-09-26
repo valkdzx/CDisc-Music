@@ -54,6 +54,8 @@ local:
   folder: 'local'
 
   # Anything else in the folder is ignored, cover art and playlists included.
+  # A file can carry its own settings beside it: rain.mp3.jsonc holds the name shown in
+  # local:, the volume, who may use it, and lyrics. /cdisc admin local-files-config edits it.
   extensions: [mp3, ogg, flac, wav, m4a, aac, opus, webm]
 
   # /cdisc admin download <search or link> [name] keeps a copy on disk, so it stops

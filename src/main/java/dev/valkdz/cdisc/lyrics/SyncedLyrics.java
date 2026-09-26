@@ -52,6 +52,14 @@ public final class SyncedLyrics {
         return found;
     }
 
+    public static SyncedLyrics of(List<Line> lines) {
+        if (lines == null || lines.isEmpty()) return null;
+
+        List<Line> sorted = new ArrayList<>(lines);
+        sorted.sort((a, b) -> Long.compare(a.timeMs(), b.timeMs()));
+        return new SyncedLyrics(Collections.unmodifiableList(sorted));
+    }
+
     public static SyncedLyrics parse(String lrc) {
         if (lrc == null || lrc.isBlank()) return null;
 

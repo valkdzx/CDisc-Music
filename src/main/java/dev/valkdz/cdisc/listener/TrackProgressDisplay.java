@@ -199,11 +199,11 @@ public class TrackProgressDisplay implements Listener {
 
         String title;
         if (info.live()) {
-            title = plugin.getMessageManager().get(player, "bossbar.title_live",
+            title = plugin.getMessageManager().track(player, "bossbar.title_live", 0,
                     info.author(), info.title());
         } else {
             String progress = TimeUtils.formatProgress(info.position(), info.duration());
-            title = plugin.getMessageManager().get(player, "bossbar.title",
+            title = plugin.getMessageManager().track(player, "bossbar.title", 0,
                     info.author(), info.title(), progress);
         }
 

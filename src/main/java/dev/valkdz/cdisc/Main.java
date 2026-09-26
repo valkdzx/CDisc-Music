@@ -56,6 +56,7 @@ public final class Main extends JavaPlugin {
     private dev.valkdz.cdisc.gui.PairGuiManager pairGuiManager;
     private dev.valkdz.cdisc.speaker.SpeakerParticles speakerParticles;
     private dev.valkdz.cdisc.gui.PlaylistGuiManager playlistGuiManager;
+    private dev.valkdz.cdisc.gui.LocalConfigGuiManager localConfigGuiManager;
     private dev.valkdz.cdisc.audio.SearchResults searchResults;
     private dev.valkdz.cdisc.audio.LocalMusicLibrary localMusic;
     private dev.valkdz.cdisc.audio.LocalDownloader localDownloader;
@@ -166,6 +167,9 @@ public final class Main extends JavaPlugin {
 
         playlistGuiManager = new dev.valkdz.cdisc.gui.PlaylistGuiManager(this);
         getServer().getPluginManager().registerEvents(new dev.valkdz.cdisc.gui.PlaylistGuiListener(this), this);
+
+        localConfigGuiManager = new dev.valkdz.cdisc.gui.LocalConfigGuiManager(this);
+        getServer().getPluginManager().registerEvents(new dev.valkdz.cdisc.gui.LocalConfigGuiListener(this), this);
 
         searchResults = new dev.valkdz.cdisc.audio.SearchResults(this);
 
@@ -338,6 +342,7 @@ public final class Main extends JavaPlugin {
     public dev.valkdz.cdisc.speaker.SpeakerGroupManager getSpeakerGroupManager() { return speakerGroupManager; }
     public dev.valkdz.cdisc.gui.PairGuiManager getPairGuiManager() { return pairGuiManager; }
     public dev.valkdz.cdisc.gui.PlaylistGuiManager getPlaylistGuiManager() { return playlistGuiManager; }
+    public dev.valkdz.cdisc.gui.LocalConfigGuiManager getLocalConfigGuiManager() { return localConfigGuiManager; }
     public dev.valkdz.cdisc.audio.SearchResults getSearchResults() { return searchResults; }
     public dev.valkdz.cdisc.audio.LocalMusicLibrary getLocalMusic() { return localMusic; }
     public dev.valkdz.cdisc.audio.LocalDownloader getLocalDownloader() { return localDownloader; }

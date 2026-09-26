@@ -235,8 +235,7 @@ public final class CarriedLyrics {
             return;
         }
 
-        LyricsService.Result result = service.lookup(
-                LyricsQuery.of(info.author(), info.title(), info.duration()));
+        LyricsService.Result result = service.lookup(info);
         if (!result.isFound()) {
             hide(player);
             return;

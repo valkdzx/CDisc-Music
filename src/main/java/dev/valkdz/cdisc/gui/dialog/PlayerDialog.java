@@ -119,6 +119,7 @@ final class PlayerDialog {
     private static Component title(Main plugin, Player player,
                                    LavaPlayerManager.PlaybackInfo info) {
         if (info == null) return text(plugin, player, "gui.title");
+        if (info.author() == null || info.author().isBlank()) return legacy("§f§l" + info.title());
         return legacy("§f§l" + info.title() + " §r§7— " + info.author());
     }
 

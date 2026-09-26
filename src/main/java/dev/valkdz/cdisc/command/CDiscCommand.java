@@ -233,6 +233,9 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
             case "logs" -> {
                 if (allowed(sender, Action.ADMIN_LOGS)) logs(sender);
             }
+            case "local-files-config" -> {
+                if (allowed(sender, Action.ADMIN_LOCAL_FILES)) localFilesConfig(sender, parts);
+            }
             case "config" -> config(sender);
             default -> {
                 if (Perms.isAdmin(sender)) {
@@ -279,6 +282,31 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
             return;
         }
         Dialogs.openConfig(plugin, p);
+    }
+
+    private void localFilesConfig(CommandSender sender, String[] parts) {
+        if (!(sender instanceof Player p)) {
+            sender.sendMessage("§c" + message(sender, "cdisc.player_only", "/cdisc admin"));
+            return;
+        }
+        LocalMusicLibrary library = plugin.getLocalMusic();
+        if (library == null || !library.isEnabled()) {
+            p.sendMessage("§c" + message(p, "local.disabled"));
+            return;
+        }
+        if (parts.length < 3) {
+            p.sendMessage("§c" + message(p, "local_config.usage"));
+            return;
+        }
+
+        String typed = String.join(" ", Arrays.copyOfRange(parts, 2, parts.length));
+        String name = LocalMusicLibrary.isLocalQuery(typed) ? LocalMusicLibrary.stripPrefix(typed) : typed;
+        String file = library.find(name);
+        if (file == null) {
+            p.sendMessage("§c" + message(p, "local_config.not_found", name));
+            return;
+        }
+        plugin.getLocalConfigGuiManager().open(p, file);
     }
 
     private void reload(CommandSender sender) {
@@ -520,12 +548,20 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
                             entry("doctor", Action.ADMIN_DOCTOR, sender),
                             entry("logs", Action.ADMIN_LOGS, sender),
                             entry("download", Action.DISC_DOWNLOAD, sender),
+                            sender instanceof Player
+                                    ? entry("local-files-config", Action.ADMIN_LOCAL_FILES, sender) : null,
                             sender instanceof Player && sender.hasPermission(Perms.CONFIG)
                                     && plugin.cdiscConfig().isConfigDialogEnabled() ? "config" : null)
                     .filter(java.util.Objects::nonNull)
                     .filter(s -> s.startsWith(args[1].toLowerCase(Locale.ROOT)))
                     .sorted()
                     .toList();
+        }
+        if (args[0].equalsIgnoreCase("admin") && args.length >= 3
+                && args[1].equalsIgnoreCase("local-files-config")
+                && sender instanceof Player
+                && plugin.getPermissions().allows(sender, Action.ADMIN_LOCAL_FILES)) {
+            return completeConfigurableFile(args);
         }
         if (args[0].equalsIgnoreCase("preset") && sender instanceof Player player
                 && plugin.getPermissions().allows(sender, Action.LYRICS_PRESET)) {
@@ -555,12 +591,23 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
         }
         if (args[0].equalsIgnoreCase("create") && sender instanceof Player
                 && plugin.getPermissions().allows(sender, Action.DISC_CREATE)) {
-            return completeLocalFile(args);
+            return completeLocalFile(args, sender);
         }
         return Collections.emptyList();
     }
 
-    private List<String> completeLocalFile(String[] args) {
+    private List<String> completeConfigurableFile(String[] args) {
+        LocalMusicLibrary library = plugin.getLocalMusic();
+        if (library == null || !library.isEnabled()) return Collections.emptyList();
+
+        String typed = String.join(" ", Arrays.copyOfRange(args, 2, args.length));
+        int lastWord = typed.lastIndexOf(' ') + 1;
+        return library.completeFiles(typed, COMPLETION_LIMIT).stream()
+                .map(suggestion -> suggestion.substring(lastWord))
+                .toList();
+    }
+
+    private List<String> completeLocalFile(String[] args, CommandSender sender) {
         LocalMusicLibrary library = plugin.getLocalMusic();
         if (library == null || !library.isEnabled()) return Collections.emptyList();
 
@@ -573,7 +620,7 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
         }
 
         int lastWord = typed.lastIndexOf(' ') + 1;
-        return library.complete(typed, COMPLETION_LIMIT).stream()
+        return library.complete(typed, COMPLETION_LIMIT, sender).stream()
                 .map(suggestion -> suggestion.substring(lastWord))
                 .toList();
     }

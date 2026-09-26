@@ -23,6 +23,9 @@ then use the folder it made for you:
 Press Tab after `local:` and the server lists what's actually in the folder.
 Put the disc in a jukebox and it plays.
 
+A file can carry its own name, volume, permission and lyrics in a `.jsonc` beside it
+(`yourfile.mp3.jsonc`); `/cdisc admin local-files-config yourfile.mp3` edits them in game.
+
 That path touches no external service, so nothing about it can be rate limited,
 signed out, or refused. If you only ever use the music folder, you are done —
 the rest of this file is about reaching things that aren't on your disk.

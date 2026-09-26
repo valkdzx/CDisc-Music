@@ -42,6 +42,15 @@ public final class Chat {
         return component;
     }
 
+    public static TextComponent suggest(String legacy, String text, String hover) {
+        TextComponent component = block(legacy);
+        component.setClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, text));
+        if (hover != null) {
+            component.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new Text(of(hover))));
+        }
+        return component;
+    }
+
     public static TextComponent copyable(String legacy, String value, String hover) {
         TextComponent component = block(legacy);
         component.setClickEvent(new ClickEvent(ClickEvent.Action.COPY_TO_CLIPBOARD, value));

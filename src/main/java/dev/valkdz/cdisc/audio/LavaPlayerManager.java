@@ -16,6 +16,7 @@ import dev.valkdz.cdisc.audio.queue.DiscQueue;
 import dev.valkdz.cdisc.audio.queue.QueueStore;
 import dev.valkdz.cdisc.audio.queue.RepeatMode;
 import dev.valkdz.cdisc.horn.GoatHorns;
+import dev.valkdz.cdisc.lyrics.SyncedLyrics;
 import dev.valkdz.cdisc.metrics.CDiscMetrics;
 import dev.valkdz.cdisc.speaker.SpeakerGroup;
 import dev.valkdz.cdisc.speaker.SpeakerSettings;
@@ -381,6 +382,10 @@ public class LavaPlayerManager {
         String name = LocalMusicLibrary.stripPrefix(parsed.text());
         String exact = library.find(name);
         if (exact != null) {
+            if (!library.mayUse(player, exact)) {
+                player.sendMessage("§c" + plugin.getMessageManager().get(player, "local.no_permission"));
+                return;
+            }
             writeLocalDisc(player, item, exact);
             return;
         }
@@ -390,7 +395,8 @@ public class LavaPlayerManager {
                 ? plugin.cdiscConfig().getSearchDefaultResults()
                 : parsed.requestedResults();
 
-        List<String> hits = library.search(name, Math.min(wanted, ceiling));
+        List<String> hits = library.search(name, Math.min(wanted, ceiling),
+                entry -> library.mayUse(player, entry));
         if (hits.isEmpty()) {
             String key = library.index().isEmpty() ? "local.empty" : "local.not_found";
             player.sendMessage("§c" + plugin.getMessageManager().get(player, key));
@@ -722,6 +728,11 @@ public class LavaPlayerManager {
         } else {
             title = track.getInfo().title != null ? track.getInfo().title : "No name";
         }
+        if (localFile != null) {
+            LocalTrackSettings.Shown shown = plugin.getLocalMusic().shown(query, title, author);
+            title = shown.title();
+            author = shown.author();
+        }
         String authorN = Normalizer.normalize(author, Normalizer.Form.NFC);
         String titleN = Normalizer.normalize(title, Normalizer.Form.NFC);
         String videoId = track.getInfo().identifier;
@@ -778,14 +789,14 @@ public class LavaPlayerManager {
         long length = track.getInfo().length;
         if (!GoatHorns.isHorn(item)) {
             player.sendMessage("§a" + plugin.getMessageManager()
-                    .get(player, "lavaplayer.track.loaded", title, author, TimeUtils.format(length)));
+                    .track(player, "lavaplayer.track.loaded", 1, title, author, TimeUtils.format(length)));
             return;
         }
 
         long clip = GoatHorns.record(plugin, item, length);
         if (plugin.getHornPlayer() != null) plugin.getHornPlayer().prefetch(item);
         player.sendMessage("§a" + plugin.getMessageManager()
-                .get(player, "horn.recorded", title, author, TimeUtils.format(clip)));
+                .track(player, "horn.recorded", 1, title, author, TimeUtils.format(clip)));
         if (GoatHorns.trimmed(length, clip)) {
             player.sendMessage("§e" + plugin.getMessageManager()
                     .get(player, "horn.trimmed", TimeUtils.format(length), TimeUtils.format(clip)));
@@ -805,8 +816,11 @@ public class LavaPlayerManager {
         startPlaying(block, query, fallbackQuery, discTitle, discAuthor, musicFetch, 0L);
     }
 
-    public void startPlaying(Block block, String query, String fallbackQuery, String discTitle, String discAuthor,
+    public void startPlaying(Block block, String query, String fallbackQuery, String storedTitle, String storedAuthor,
                              String musicFetch, long startAtMs) {
+        LocalTrackSettings.Shown shown = plugin.getLocalMusic().shown(query, storedTitle, storedAuthor);
+        String discTitle = shown.title();
+        String discAuthor = shown.author();
         // The anchor entity is spawned below, so a call arriving from a loader thread has
         // to be handed to whichever thread owns this jukebox first.
         if (!Tasks.owns(block.getLocation())) {
@@ -856,7 +870,7 @@ public class LavaPlayerManager {
                     track.setPosition(startAtMs);
                 }
                 player.playTrack(track);
-                player.setVolume(plugin.cdiscConfig().getVolume());
+                player.setVolume(volumeFor(track));
                 CDiscMetrics.recordTrackPlayed(track.getSourceManager() != null
                         ? track.getSourceManager().getSourceName() : null);
                 player.addListener(new AudioEventAdapter() {
@@ -1238,8 +1252,9 @@ public class LavaPlayerManager {
         }
         AudioSession session = list.get(0);
 
-        String title = data.title() != null ? Normalizer.normalize(data.title(), Normalizer.Form.NFC) : null;
-        String author = data.author() != null ? Normalizer.normalize(data.author(), Normalizer.Form.NFC) : null;
+        LocalTrackSettings.Shown shown = plugin.getLocalMusic().shown(data.query(), data.title(), data.author());
+        String title = shown.title() != null ? Normalizer.normalize(shown.title(), Normalizer.Form.NFC) : null;
+        String author = shown.author() != null ? Normalizer.normalize(shown.author(), Normalizer.Form.NFC) : null;
         session.setDiscMeta(title, author);
 
         plugin.getJukeboxListener().swapDiscVisual(block, disc);
@@ -1261,7 +1276,7 @@ public class LavaPlayerManager {
             @Override public void trackLoaded(AudioTrack track) {
                 if (generation.getOrDefault(here(ref, block), 0) != gen) return;
                 player.playTrack(track);
-                player.setVolume(plugin.cdiscConfig().getVolume());
+                player.setVolume(volumeFor(track));
                 broadcaster.broadcast(here(ref, block), audibleOrigin(here(ref, block)), track, title, author,
                         (int) effectiveDistance(here(ref, block)), LavaPlayerManager.this::hasActiveSession);
                 Tasks.region(plugin, here(ref, block), () -> refreshQueueGuis(here(ref, block)));
@@ -1502,12 +1517,18 @@ public class LavaPlayerManager {
     }
 
     public record PlaybackInfo(String title, String author, long position, long duration,
-                               boolean paused, RepeatMode repeatMode, boolean live) {
+                               boolean paused, RepeatMode repeatMode, boolean live,
+                               SyncedLyrics ownLyrics) {
     }
 
     public boolean isLive(Block block) {
         AudioTrack track = getPlayingTrack(block);
         return track != null && track.getInfo().isStream;
+    }
+
+    private int volumeFor(AudioTrack track) {
+        LocalTrackSettings own = plugin.getLocalMusic().settingsOf(track);
+        return own != null && own.volume() != null ? own.volume() : plugin.cdiscConfig().getVolume();
     }
 
     public PlaybackInfo getPlaybackInfo(Block block) {
@@ -1531,7 +1552,8 @@ public class LavaPlayerManager {
                 track.getDuration(),
                 player.isPaused(),
                 getRepeatMode(block),
-                track.getInfo().isStream
+                track.getInfo().isStream,
+                plugin.getLocalMusic().lyricsOf(track)
         );
     }
 

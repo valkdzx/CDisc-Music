@@ -1,6 +1,7 @@
 package dev.valkdz.cdisc.lyrics;
 
 import dev.valkdz.cdisc.Main;
+import dev.valkdz.cdisc.audio.LavaPlayerManager;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -93,6 +94,11 @@ public final class LyricsService {
             thread.setDaemon(true);
             return thread;
         };
+    }
+
+    public Result lookup(LavaPlayerManager.PlaybackInfo info) {
+        if (info.ownLyrics() != null) return new Result(State.FOUND, info.ownLyrics());
+        return lookup(LyricsQuery.of(info.author(), info.title(), info.duration()));
     }
 
     public Result lookup(LyricsQuery query) {

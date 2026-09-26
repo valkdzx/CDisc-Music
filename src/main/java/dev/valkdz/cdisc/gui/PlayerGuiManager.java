@@ -6,7 +6,6 @@ import dev.valkdz.cdisc.audio.queue.DiscQueue;
 import dev.valkdz.cdisc.audio.queue.RepeatMode;
 import dev.valkdz.cdisc.lyrics.LyricsMode;
 import dev.valkdz.cdisc.lyrics.LyricsPrefs;
-import dev.valkdz.cdisc.lyrics.LyricsQuery;
 import dev.valkdz.cdisc.lyrics.LyricsRenderer;
 import dev.valkdz.cdisc.lyrics.LyricsService;
 import dev.valkdz.cdisc.lyrics.LyricsStyle;
@@ -507,8 +506,7 @@ public class PlayerGuiManager {
         LyricsService service = plugin.getLyricsService();
         if (service == null) return List.of();
 
-        LyricsService.Result result = service.lookup(
-                LyricsQuery.of(info.author(), info.title(), info.duration()));
+        LyricsService.Result result = service.lookup(info);
 
         if (!result.isFound()) {
             String key = result.state() == LyricsService.State.SEARCHING
@@ -728,7 +726,7 @@ public class PlayerGuiManager {
         meta.setDisplayName(plugin.getMessageManager().get(player, "gui.info.name"));
 
         List<String> lore = new ArrayList<>();
-        lore.add(plugin.getMessageManager().get(player, "gui.info.lore_track", info.author(), info.title()));
+        lore.add(plugin.getMessageManager().track(player, "gui.info.lore_track", 0, info.author(), info.title()));
         lore.add(plugin.getMessageManager().get(player, info.paused() ? "gui.info.lore_paused" : "gui.info.lore_playing"));
 
         lore.add(plugin.getMessageManager().get(player,
