@@ -5,7 +5,6 @@ import com.dunctebot.sourcemanagers.ocremix.OCRemixAudioSourceManager;
 import com.dunctebot.sourcemanagers.pornhub.PornHubAudioSourceManager;
 import com.dunctebot.sourcemanagers.reddit.RedditAudioSourceManager;
 import com.dunctebot.sourcemanagers.soundgasm.SoundGasmAudioSourceManager;
-import com.dunctebot.sourcemanagers.tiktok.TikTokAudioSourceManager;
 import com.github.topi314.lavasearch.SearchManager;
 import com.github.topi314.lavasrc.mirror.DefaultMirroringAudioTrackResolver;
 import com.github.topi314.lavasrc.spotify.SpotifySourceManager;
@@ -360,6 +359,10 @@ public class TrackLoader {
                     () -> sabrResolver == null ? null : sabrResolver.visitorDataOrNull());
         }
 
+        if (config.isTiktokEnabled()) {
+            lavaPlayer.registerSourceManager(new dev.valkdz.cdisc.audio.tiktok.TikTokSourceManager());
+        }
+
         if (config.isSoundcloudEnabled()) {
             if (config.isSoundcloudProxyEnabled()) {
                 lavaPlayer.registerSourceManager(new dev.valkdz.cdisc.audio.soundcloud.SoundCloudProxySourceManager(
@@ -393,11 +396,6 @@ public class TrackLoader {
                 lavaPlayer.registerSourceManager(ym);
                 searchManager.registerSearchManager(ym);
             }
-        }
-
-        if (config.isTiktokEnabled()) {
-            TikTokAudioSourceManager tt = new TikTokAudioSourceManager();
-            lavaPlayer.registerSourceManager(tt);
         }
 
         if (config.isPornhubEnabled()) {
@@ -1053,7 +1051,10 @@ public class TrackLoader {
         }
         if (q.startsWith("ym:")) return "ymsearch:" + q.substring(3);
         if (q.startsWith("vk:")) return "vksearch:" + q.substring(3);
-        if (q.startsWith("tt:")) return "ttsearch:" + q.substring(3);
+        if (q.startsWith("tt:")) {
+            String rest = q.substring(3).trim();
+            return rest.matches("\\d{15,21}") || rest.startsWith("http") ? rest : "ttsearch:" + rest;
+        }
 
         if (q.startsWith("http")) {
             String twitch = twitchChannelUrl(q);
