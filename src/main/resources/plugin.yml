@@ -1,5 +1,5 @@
 name: CDisc
-version: 2.1
+version: 2.1.1
 main: dev.valkdz.cdisc.Main
 api-version: 1.20
 folia-supported: true

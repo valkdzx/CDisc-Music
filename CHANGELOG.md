@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.1.1
+
+- 🛑 Resetting your hologram look in `/cdisc preset` asks first. Green wool keeps it as it is; red wool resets it to the defaults, and says it cannot be undone.
+- 🔒 With `http: true` in sources.yml, a direct link into the server's own network — localhost, the LAN, a cloud metadata address — is refused when the disc is made and every time it plays, redirects included. Until now only `/cdisc admin download` checked.
+- 🎚️ `http: true` no longer switches back on the sources turned off in sources.yml, nor the old YouTube reader built into lavaplayer.
+- 🎵 Yandex Music and VK Music need no token. Their links, `ym:` and `vk:` searches, albums and playlists go to the backend first; a token in tokens.yml is asked only when the backend cannot be reached (`yandex-music` and `vk-music` in sources.yml). VK tracks play as ordinary tracks with a length and seeking, not as a live stream, and `/cdisc admin download` saves them as mp3.
+- 🎬 TikTok links play again: video links, short `vm.tiktok.com` and `vt.tiktok.com` links, and `tt:` followed by a video number. The reader built into the old library had stopped finding anything on TikTok's pages; CDisc now reads TikTok itself, needs no key, and seeking works.
+- ⬆️ New releases are also looked for on GitHub Releases, and whichever of Modrinth and GitHub has the newer one is used. A GitHub release installs itself on shutdown the same way.
+- 🗂️ A file in the music folder can carry its own settings in a `.jsonc` beside it (`rain.mp3.jsonc`): the name `/cdisc create local:` shows for it, its volume, the permission needed to use it (`some.group`, or `!some.group` for everyone else), and its own lyrics, timed with `[01:23]` or spread evenly over the track. `/cdisc admin local-files-config <file>` edits all of it in a window, lyrics line by line; it needs `cdisc.admin.local-files`.
+
 ## 2.1
 
 - ⚡ YouTube discs start faster. A disc now remembers what the plugin already learned about its track — the audio format, the length, whether it is live — so creating it and playing it no longer ask the backend for what is already known. A disc read directly from YouTube costs the backend nothing at all.
@@ -9,10 +19,6 @@
 - 📉 The backend is asked for less. The start of a track is no longer downloaded twice to work out its format, and the track details and stream address are now fetched at the same time rather than one after the other.
 - 🎤 Each player picks what floats over jukeboxes for themselves, with `/cdisc lyrics` or the paper in the player screen: the words, the words with the track and time under them, the words with the time, the track and time, the time alone, or nothing. The track line has its own colour, orange by default, in `/cdisc preset`. The on/off switch earlier versions kept on each jukebox is not carried over; `lyrics.default-on` decides for players who have not chosen.
 - 👥 A jukebox someone else has open no longer turns you away: you get a smaller screen with only what is yours — what you see over jukeboxes, your hologram look, track messages, and your own volume when you carry it.
-- 🛑 Resetting your hologram look in `/cdisc preset` asks first. Green wool keeps it as it is; red wool resets it to the defaults, and says it cannot be undone.
-- 🔒 With `http: true` in sources.yml, a direct link into the server's own network — localhost, the LAN, a cloud metadata address — is refused when the disc is made and every time it plays, redirects included. Until now only `/cdisc admin download` checked.
-- 🎚️ `http: true` no longer switches back on the sources turned off in sources.yml, nor the old YouTube reader built into lavaplayer.
-- ⬆️ New releases are also looked for on GitHub Releases, and whichever of Modrinth and GitHub has the newer one is used. A GitHub release installs itself on shutdown the same way.
 
 ## 2.0.2
 
