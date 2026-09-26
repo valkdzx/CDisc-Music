@@ -15,7 +15,9 @@ import java.time.Duration;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -227,38 +229,72 @@ public final class SpotifyBridge {
         Match cached = matches.get(trackId);
         if (cached != null) return cached;
 
-        Match found = hasCredentials() ? viaSpotifyApi(trackId) : viaBackend(trackId);
+        JsonNode track = hasCredentials() ? spotifyTrack(trackId) : backendTrack(trackId);
+        Match found = matchOnYouTube(trackId, track);
         matches.put(trackId, found);
         return found;
     }
 
-    private Match viaSpotifyApi(String trackId) throws IOException, InterruptedException {
-        JsonNode track = spotifyTrack(trackId);
+    record Wanted(String isrc, String title, String artist, long durationMs) {
+    }
 
-        String isrc = track.path("external_ids").path("isrc").asText(null);
-        String title = track.path("name").asText("");
-        String artist = track.path("artists").isArray() && !track.path("artists").isEmpty()
-                ? track.path("artists").get(0).path("name").asText("") : "";
-        long durationMs = track.path("duration_ms").asLong(0);
+    static Wanted wantedOf(JsonNode track) {
+        JsonNode artists = track.path("artists");
+        String isrc = track.path("external_ids").path("isrc").asText("");
 
+        return new Wanted(isrc.isBlank() ? null : isrc,
+                track.path("name").asText(""),
+                artists.isArray() && !artists.isEmpty() ? artists.get(0).path("name").asText("") : "",
+                track.path("duration_ms").asLong(0));
+    }
+
+    private Match matchOnYouTube(String trackId, JsonNode track)
+            throws IOException, InterruptedException {
+
+        Wanted wanted = wantedOf(track);
+        String byName = wanted.artist().isBlank()
+                ? wanted.title() : wanted.artist() + " - " + wanted.title();
+
+        CompletableFuture<String> isrcSearch = wanted.isrc() == null
+                ? CompletableFuture.completedFuture(null) : bestVideo(wanted.isrc(), wanted);
+        CompletableFuture<String> nameSearch = bestVideo(byName, wanted);
+
+        IOException failure = null;
         String videoId = null;
-        String matchedBy = null;
+        String matchedBy = "isrc";
 
-        if (isrc != null && !isrc.isBlank()) {
-            videoId = bestVideo(isrc, durationMs, title, artist);
-            if (videoId != null) matchedBy = "isrc";
+        try {
+            try {
+                videoId = isrcSearch.get();
+            } catch (ExecutionException e) {
+                failure = causeOf(e);
+            }
+
+            if (videoId == null) {
+                matchedBy = "title";
+                try {
+                    videoId = nameSearch.get();
+                } catch (ExecutionException e) {
+                    failure = causeOf(e);
+                }
+            }
+        } finally {
+            isrcSearch.cancel(true);
+            nameSearch.cancel(true);
         }
 
-        if (videoId == null) {
-            videoId = bestVideo(artist + " - " + title, durationMs, title, artist);
-            if (videoId != null) matchedBy = "title";
+        if (videoId != null) {
+            return new Match(trackId, wanted.isrc(), wanted.title(), wanted.artist(),
+                    wanted.durationMs(), videoId, matchedBy);
         }
+        if (failure != null) throw failure;
+        throw new IOException("no YouTube match for " + byName);
+    }
 
-        if (videoId == null) {
-            throw new IOException("no YouTube match for " + artist + " - " + title);
-        }
-
-        return new Match(trackId, isrc, title, artist, durationMs, videoId, matchedBy);
+    private static IOException causeOf(ExecutionException e) {
+        Throwable cause = e.getCause();
+        return cause instanceof IOException io ? io
+                : new IOException("YouTube search failed: " + cause, cause);
     }
 
     private JsonNode spotifyTrack(String trackId) throws IOException, InterruptedException {
@@ -307,10 +343,10 @@ public final class SpotifyBridge {
         return appToken;
     }
 
-    private Match viaBackend(String trackId) throws IOException, InterruptedException {
+    private JsonNode backendTrack(String trackId) throws IOException, InterruptedException {
         HttpRequest.Builder request = HttpRequest.newBuilder(
-                        URI.create(origin(backendUrl.get()) + "/spotify/"
-                                + URLEncoder.encode(trackId, StandardCharsets.UTF_8)))
+                        URI.create(origin(backendUrl.get()) + "/spotify?beta=true&url="
+                                + URLEncoder.encode(OPEN_URL + "track/" + trackId, StandardCharsets.UTF_8)))
                 .header("Accept", "application/json")
                 .timeout(Duration.ofSeconds(30))
                 .GET();
@@ -323,25 +359,9 @@ public final class SpotifyBridge {
 
         if (response.statusCode() != 200) {
             throw new IOException("the backend answered " + response.statusCode()
-                    + " for Spotify track " + trackId);
+                    + " for Spotify track " + trackId + explain(response.body()));
         }
-
-        JsonNode body = MAPPER.readTree(response.body());
-        JsonNode spotify = body.path("spotify");
-        String videoId = body.path("youtube").path("id").asText(null);
-
-        if (videoId == null || videoId.isBlank()) {
-            throw new IOException("the backend matched no video for " + trackId);
-        }
-
-        return new Match(trackId,
-                spotify.path("isrc").asText(null),
-                spotify.path("title").asText(""),
-                spotify.path("artists").isArray() && !spotify.path("artists").isEmpty()
-                        ? spotify.path("artists").get(0).asText("") : "",
-                spotify.path("duration_ms").asLong(0),
-                videoId,
-                body.path("matched_by").asText("backend"));
+        return MAPPER.readTree(response.body());
     }
 
     private static String origin(String url) {
@@ -355,23 +375,23 @@ public final class SpotifyBridge {
         return out.toString();
     }
 
-    private String bestVideo(String query, long durationMs, String title, String artist)
-            throws IOException, InterruptedException {
+    private CompletableFuture<String> bestVideo(String query, Wanted wanted) {
+        return search.searchAsync(query, visitorData.get(), 6)
+                .thenApply(results -> pick(results, wanted));
+    }
 
-        List<YouTubeSearch.Result> results = search.search(query, visitorData.get(), 6);
-        if (results.isEmpty()) return null;
-
-        long wanted = durationMs / 1000;
+    static String pick(List<YouTubeSearch.Result> results, Wanted wanted) {
+        long seconds = wanted.durationMs() / 1000;
         YouTubeSearch.Result best = null;
         long bestDrift = Long.MAX_VALUE;
 
         for (YouTubeSearch.Result result : results) {
             if (result.durationSeconds() <= 0) continue;
 
-            if (!plausible(result, title, artist)) continue;
+            if (!plausible(result, wanted.title(), wanted.artist())) continue;
 
-            long drift = Math.abs(result.durationSeconds() - wanted);
-            if (wanted > 0 && drift > DURATION_SLACK_SECONDS) continue;
+            long drift = Math.abs(result.durationSeconds() - seconds);
+            if (seconds > 0 && drift > DURATION_SLACK_SECONDS) continue;
 
             boolean better = best == null
                     || (result.isArtTrack() && !best.isArtTrack())

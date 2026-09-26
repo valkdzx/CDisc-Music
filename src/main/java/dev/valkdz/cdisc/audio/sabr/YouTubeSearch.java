@@ -12,6 +12,8 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
 public final class YouTubeSearch {
 
@@ -37,6 +39,21 @@ public final class YouTubeSearch {
     public List<Result> search(String query, String visitorData, int limit)
             throws IOException, InterruptedException {
 
+        return parse(http.send(request(query, visitorData), HttpResponse.BodyHandlers.ofString()), limit);
+    }
+
+    public CompletableFuture<List<Result>> searchAsync(String query, String visitorData, int limit) {
+        return http.sendAsync(request(query, visitorData), HttpResponse.BodyHandlers.ofString())
+                .thenApply(response -> {
+                    try {
+                        return parse(response, limit);
+                    } catch (IOException e) {
+                        throw new CompletionException(e);
+                    }
+                });
+    }
+
+    private HttpRequest request(String query, String visitorData) {
         ObjectNode client = MAPPER.createObjectNode()
                 .put("clientName", "WEB")
                 .put("clientVersion", clientVersion)
@@ -61,10 +78,10 @@ public final class YouTubeSearch {
         if (visitorData != null && !visitorData.isBlank()) {
             request.header("X-Goog-Visitor-Id", visitorData);
         }
+        return request.build();
+    }
 
-        HttpResponse<String> response =
-                http.send(request.build(), HttpResponse.BodyHandlers.ofString());
-
+    private static List<Result> parse(HttpResponse<String> response, int limit) throws IOException {
         if (response.statusCode() != 200) {
             throw new IOException("YouTube search answered " + response.statusCode());
         }
