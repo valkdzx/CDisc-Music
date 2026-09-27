@@ -219,6 +219,7 @@ speaker:
   speaker_broken: "Lautsprecher aus '%s' entfernt."
 perms:
   denied: "Dafür fehlt dir die Berechtigung. (%s)"
+  region_denied: "Diese Jukebox liegt in einer fremden Region."
   cooldown: "Warte noch %s Sekunde(n), bevor du die nächste Platte machst."
   host_blocked: "Aus %s lassen sich auf diesem Server keine Platten machen."
   track_too_long: "Dieser Titel ist zu lang — die Grenze liegt bei %s."

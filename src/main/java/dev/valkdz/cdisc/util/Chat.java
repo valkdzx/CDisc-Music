@@ -8,10 +8,15 @@ import net.md_5.bungee.api.chat.HoverEvent;
 import net.md_5.bungee.api.chat.TextComponent;
 import net.md_5.bungee.api.chat.hover.content.Text;
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.Plugin;
 
 import java.awt.Color;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public final class Chat {
+
+    private static final Pattern ACTION_BAR_PREFIX = Pattern.compile("(?s)actionbar(?::(\\d{1,3}))?!(.*)");
 
     private Chat() {
     }
@@ -70,6 +75,22 @@ public final class Chat {
 
     public static void actionBar(Player player, String legacy) {
         actionBar(player, of(legacy));
+    }
+
+    public static void deliver(Plugin plugin, Player player, String colour, String message) {
+        Matcher routed = ACTION_BAR_PREFIX.matcher(message);
+        if (!routed.matches()) {
+            player.sendMessage(colour + message);
+            return;
+        }
+
+        String text = colour + routed.group(2);
+        int seconds = routed.group(1) == null ? 3 : Math.min(60, Integer.parseInt(routed.group(1)));
+        actionBar(player, text);
+        // The client keeps an action bar line about 3 s, so a longer one is resent before it fades.
+        for (int at = 2; at + 1 < seconds; at += 2) {
+            Tasks.entityLater(plugin, player, () -> actionBar(player, text), at * 20L);
+        }
     }
 
     public static void actionBar(Player player, String message, int red, int green, int blue) {

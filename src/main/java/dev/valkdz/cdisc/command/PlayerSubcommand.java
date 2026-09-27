@@ -34,6 +34,7 @@ public final class PlayerSubcommand {
             msg(player, "§c", "command.player.no_jukebox");
             return;
         }
+        if (!plugin.getRegionGuard().require(player, block)) return;
 
         LavaPlayerManager apm = plugin.getAudioPlayerManager();
         String sub = args.length < 2 ? "info" : args[1].toLowerCase(Locale.ROOT);

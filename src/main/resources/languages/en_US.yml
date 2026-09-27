@@ -219,6 +219,7 @@ speaker:
   speaker_broken: "Speaker removed from '%s'."
 perms:
   denied: "You don't have permission for that. (%s)"
+  region_denied: "This jukebox is in someone else's region."
   cooldown: "Wait %s more second(s) before making another disc."
   host_blocked: "Discs can't be made from %s on this server."
   track_too_long: "That track is too long — the limit is %s."

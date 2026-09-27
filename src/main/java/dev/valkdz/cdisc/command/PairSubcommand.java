@@ -97,6 +97,7 @@ public final class PairSubcommand {
             msg(player, "§c", "command.pair.no_jukebox");
             return;
         }
+        if (!plugin.getRegionGuard().require(player, block)) return;
 
         SpeakerGroupManager groups = plugin.getSpeakerGroupManager();
         if (!plugin.cdiscConfig().isSpeakerGroupEnabled()) {
@@ -132,6 +133,7 @@ public final class PairSubcommand {
             msg(player, "§c", "command.pair.no_jukebox");
             return;
         }
+        if (!plugin.getRegionGuard().require(player, block)) return;
 
         SpeakerGroupManager groups = plugin.getSpeakerGroupManager();
         String name = String.join(" ", java.util.Arrays.copyOfRange(args, 2, args.length)).trim();
@@ -185,6 +187,7 @@ public final class PairSubcommand {
             msg(player, "§c", "command.pair.no_jukebox");
             return;
         }
+        if (!plugin.getRegionGuard().require(player, block)) return;
 
         SpeakerGroupManager groups = plugin.getSpeakerGroupManager();
         SpeakerGroup group = groups.groupAt(block);
@@ -212,6 +215,7 @@ public final class PairSubcommand {
             msg(player, "§c", "command.pair.no_jukebox");
             return;
         }
+        if (!plugin.getRegionGuard().require(player, block)) return;
 
         SpeakerGroupManager groups = plugin.getSpeakerGroupManager();
         SpeakerGroup group = groups.groupAt(block);
@@ -244,6 +248,7 @@ public final class PairSubcommand {
             msg(player, "§c", "command.pair.no_jukebox");
             return;
         }
+        if (!plugin.getRegionGuard().require(player, block)) return;
 
         SpeakerGroupManager groups = plugin.getSpeakerGroupManager();
         SpeakerGroup group = groups.groupAt(block);
@@ -274,6 +279,7 @@ public final class PairSubcommand {
             msg(player, "§c", "command.pair.no_jukebox");
             return;
         }
+        if (!plugin.getRegionGuard().require(player, block)) return;
 
         SpeakerGroup group = plugin.getSpeakerGroupManager().groupAt(block);
         if (group != null && !plugin.getSpeakerGroupManager().canManage(player, group)) {
@@ -358,6 +364,7 @@ public final class PairSubcommand {
             msg(player, "§c", "command.pair.no_jukebox");
             return null;
         }
+        if (!plugin.getRegionGuard().require(player, block)) return null;
         SpeakerGroup group = plugin.getSpeakerGroupManager().groupAt(block);
         if (group != null && !plugin.getSpeakerGroupManager().canManage(player, group)) {
             msg(player, "§c", "speaker.protected", group.name());
@@ -395,6 +402,7 @@ public final class PairSubcommand {
             msg(player, "§c", "command.pair.no_jukebox");
             return;
         }
+        if (!plugin.getRegionGuard().require(player, block)) return;
 
         SpeakerGroup group = plugin.getSpeakerGroupManager().groupAt(block);
         if (group == null) {

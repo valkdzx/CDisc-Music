@@ -141,6 +141,7 @@ public class PlayerGuiManager {
     public void open(Player player, Block block) {
 
         if (!plugin.getPermissions().allows(player, Action.PLAYER_GUI)) return;
+        if (!plugin.getRegionGuard().require(player, block)) return;
 
         LavaPlayerManager apm = plugin.getAudioPlayerManager();
         if (!canOpen(apm, block)) {

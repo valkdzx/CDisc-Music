@@ -219,6 +219,7 @@ speaker:
   speaker_broken: "Altavoz retirado de '%s'."
 perms:
   denied: "No tienes permiso para eso. (%s)"
+  region_denied: "Este tocadiscos está en la región de otra persona."
   cooldown: "Espera %s segundo(s) más antes de hacer otro disco."
   host_blocked: "En este servidor no se pueden hacer discos desde %s."
   track_too_long: "Esa pista es demasiado larga — el límite es %s."

@@ -163,6 +163,10 @@ public final class PairGuiListener implements Listener {
             plugin.getPairGuiManager().openPicker(player, holder.getAnchor());
             return;
         }
+        if (!plugin.getRegionGuard().require(player, target)) {
+            plugin.getPairGuiManager().openPicker(player, holder.getAnchor());
+            return;
+        }
         SpeakerGroupManager.PairResult check = groups.canAdd(group, target);
         if (check != SpeakerGroupManager.PairResult.OK) {
             reject(player, check, target);

@@ -59,6 +59,7 @@ public final class PairGuiManager {
 
     public void promptForName(Player player, Block block) {
         if (!plugin.getPermissions().allows(player, Action.PAIR_CREATE)) return;
+        if (!plugin.getRegionGuard().require(player, block)) return;
 
         awaitingName.put(player.getUniqueId(), block);
         player.closeInventory();
@@ -86,6 +87,7 @@ public final class PairGuiManager {
 
     public void openManage(Player player, Block block) {
         if (!plugin.getPermissions().allows(player, Action.PAIR_MANAGE)) return;
+        if (!plugin.getRegionGuard().require(player, block)) return;
 
         SpeakerGroup group = plugin.getSpeakerGroupManager().groupAt(block);
         if (group == null) return;
@@ -123,6 +125,7 @@ public final class PairGuiManager {
 
     public void openPicker(Player player, Block main) {
         if (!plugin.getPermissions().allows(player, Action.PAIR_MANAGE)) return;
+        if (!plugin.getRegionGuard().require(player, main)) return;
 
         SpeakerGroup group = plugin.getSpeakerGroupManager().groupAt(main);
         if (group == null) return;
@@ -152,6 +155,7 @@ public final class PairGuiManager {
 
     public void openSettings(Player player, Block main, Block subject) {
         if (!plugin.getPermissions().allows(player, Action.PAIR_SETTINGS)) return;
+        if (!plugin.getRegionGuard().require(player, main)) return;
 
         SpeakerGroup group = plugin.getSpeakerGroupManager().groupAt(main);
         boolean standalone = group == null;

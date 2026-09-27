@@ -63,6 +63,7 @@ public final class Main extends JavaPlugin {
     private dev.valkdz.cdisc.audio.TrackDownloader trackDownloader;
     private dev.valkdz.cdisc.audio.PlaybackResume playbackResume;
     private dev.valkdz.cdisc.permission.PermissionsConfig permissions;
+    private dev.valkdz.cdisc.region.RegionGuard regionGuard;
     private dev.valkdz.cdisc.youtube.PoTokenService poTokenService;
     private dev.valkdz.cdisc.lyrics.LyricsService lyricsService;
     private dev.valkdz.cdisc.lyrics.LyricsDisplay lyricsDisplay;
@@ -78,6 +79,7 @@ public final class Main extends JavaPlugin {
         config = new Config(this);
         dev.valkdz.cdisc.util.NetProxy.prepare();
         applyProxy();
+        dev.valkdz.cdisc.region.RegionGuard.registerFlag(this);
 
         // The config must already be saved: Plasmo Voice initialises registered addons
         // during its own onEnable, and reads ours there.
@@ -90,6 +92,7 @@ public final class Main extends JavaPlugin {
         messageManager = new MessageManager(this);
 
         permissions = new dev.valkdz.cdisc.permission.PermissionsConfig(this);
+        regionGuard = new dev.valkdz.cdisc.region.RegionGuard(this);
 
         suppressNoisyYoutubeLogs();
 
@@ -318,6 +321,7 @@ public final class Main extends JavaPlugin {
     public MessageManager getMessageManager() { return messageManager; }
     public Config cdiscConfig() { return config; }
     public dev.valkdz.cdisc.permission.PermissionsConfig getPermissions() { return permissions; }
+    public dev.valkdz.cdisc.region.RegionGuard getRegionGuard() { return regionGuard; }
     public TrackProgressDisplay getTrackProgressDisplay() { return trackProgressDisplay; }
     public PlayerGuiManager getPlayerGuiManager() { return playerGuiManager; }
 

@@ -63,6 +63,7 @@ public class QueueGuiManager {
 
     public void open(Player player, Block block) {
         if (!plugin.getPermissions().allows(player, Action.QUEUE_OPEN)) return;
+        if (!plugin.getRegionGuard().require(player, block)) return;
 
         LavaPlayerManager apm = plugin.getAudioPlayerManager();
 

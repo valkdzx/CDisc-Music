@@ -48,6 +48,19 @@ portable-jukebox:
   max-per-player: 1
   particle-interval-ticks: 50
 
+### WorldGuard
+# A jukebox inside a region answers only the region's members and owners: discs, the
+# player screen, the queue, speaker pairing and picking it up. Region bypass still applies.
+# The region flag cdisc-jukebox changes that: allow opens the jukeboxes to everyone,
+# deny closes them to members too. Ignored when WorldGuard is not installed.
+worldguard:
+  enabled: true
+  # Who words the refusal: worldguard (the region's deny-message flag, so translators of
+  # WorldGuard messages and their action bar mode apply) | cdisc (perms.region_denied).
+  # perms.region_denied starting with actionbar! or actionbar:5! goes to the action bar,
+  # for 3 or the given number of seconds, instead of chat.
+  deny-message: worldguard
+
 ### Goat horns
 # /cdisc create with a goat horn in hand records a short sound onto it; blowing the horn
 # plays it from the player through voice chat instead of the horn's own call.

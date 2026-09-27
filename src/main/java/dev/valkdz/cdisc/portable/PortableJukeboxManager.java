@@ -135,6 +135,7 @@ public final class PortableJukeboxManager {
         if (carriesOf(player).size() >= plugin.cdiscConfig().getPortableMaxPerPlayer()) return false;
 
         if (plugin.getSpeakerGroupManager().groupAt(block) != null) return false;
+        if (!plugin.getRegionGuard().require(player, block)) return false;
 
         LavaPlayerManager apm = plugin.getAudioPlayerManager();
         SoundAnchor anchor = apm.getAnchor(block);

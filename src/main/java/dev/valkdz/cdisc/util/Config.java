@@ -333,6 +333,14 @@ public final class Config {
         return Math.max(20, cfg().getInt("portable-jukebox.particle-interval-ticks", 50));
     }
 
+    public boolean isWorldGuardEnabled() {
+        return cfg().getBoolean("worldguard.enabled", true);
+    }
+
+    public boolean usesWorldGuardDenyMessage() {
+        return !"cdisc".equalsIgnoreCase(cfg().getString("worldguard.deny-message", "worldguard"));
+    }
+
     public boolean isGoatHornEnabled() {
         return cfg().getBoolean("goat-horn.enabled", true);
     }

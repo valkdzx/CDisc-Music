@@ -6,6 +6,7 @@ import dev.valkdz.cdisc.Main;
 import dev.valkdz.cdisc.audio.AudioSession;
 import dev.valkdz.cdisc.audio.LavaPlayerManager;
 import dev.valkdz.cdisc.net.WorldEventPacketInterceptor;
+import dev.valkdz.cdisc.region.RegionGuard;
 import dev.valkdz.cdisc.util.ItemUtils;
 import dev.valkdz.cdisc.util.SneakMode;
 import dev.valkdz.cdisc.util.Tasks;
@@ -95,6 +96,19 @@ public class JukeboxListener implements Listener {
                 () -> handleWorldEvent(player, event));
 
         return isCustom;
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onForeignRegionInteract(PlayerInteractEvent e) {
+        if (e.getAction() != Action.RIGHT_CLICK_BLOCK) return;
+        Block block = e.getClickedBlock();
+        if (block == null || block.getType() != Material.JUKEBOX) return;
+
+        RegionGuard guard = plugin.getRegionGuard();
+        boolean allowed = e.getHand() == EquipmentSlot.HAND
+                ? guard.require(e.getPlayer(), block)
+                : guard.allows(e.getPlayer(), block);
+        if (!allowed) e.setCancelled(true);
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
