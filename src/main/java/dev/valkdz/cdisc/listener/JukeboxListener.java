@@ -335,10 +335,14 @@ public class JukeboxListener implements Listener {
     }
 
     private boolean packQueueIntoDroppedJukebox(Block block, Player breaker) {
-        List<ItemStack> discs = plugin.getAudioPlayerManager().drainQueue(block);
-        if (discs.isEmpty()) return false;
+        LavaPlayerManager apm = plugin.getAudioPlayerManager();
+        DiscQueue queue = apm.getQueue(block);
+        // Before the drain: its PDC write updates the jukebox, which restarts the vanilla
+        // song of a record still inside, and playback has already stopped muting it.
+        if (queue != null && !queue.isEmpty()) clearPhysicalRecord(block);
 
-        clearPhysicalRecord(block);
+        List<ItemStack> discs = apm.drainQueue(block);
+        if (discs.isEmpty()) return false;
 
         ItemStack jukebox = new ItemStack(Material.JUKEBOX);
         DiscStorage.store(jukebox, discs);
