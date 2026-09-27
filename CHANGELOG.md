@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.1.1-fix1
+
+- 🔇 Breaking a jukebox while it plays no longer starts the vanilla song of the disc inside, which kept playing with its "Now playing" line until `/stopsound`.
+- 🛡️ WorldGuard support: a jukebox inside a region answers only the region's members and owners — putting a disc in or taking it out, the player screen, the queue, speaker pairing and picking it up, from a click or from `/cdisc player` and `/cdisc pair`. Region bypass still applies. The region flag `cdisc-jukebox` opens a region's jukeboxes to everyone (`allow`) or closes them to its members too (`deny`); `worldguard.enabled` in config.yml turns it off.
+- 💬 The refusal is WorldGuard's own deny message, so the region's `deny-message` flag and plugins that translate WorldGuard messages or move them to the action bar apply to it. `worldguard.deny-message: cdisc` uses `perms.region_denied` from the language file instead; starting it with `actionbar!` or `actionbar:5!` shows it in the action bar for 3 or 5 seconds.
+
 ## 2.1.1
 
 - 🎵 Yandex Music and VK Music need no token. Their links, `ym:` and `vk:` searches, albums and playlists go to the backend first; a token in tokens.yml is asked only when the backend cannot be reached (`yandex-music` and `vk-music` in sources.yml). VK tracks play as ordinary tracks with a length and seeking, not as a live stream, and `/cdisc admin download` saves them as mp3.
