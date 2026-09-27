@@ -97,7 +97,7 @@ public final class PermissionsConfig {
     }
 
     public boolean allows(CommandSender sender, Action action) {
-        if (Perms.isAdmin(sender)) return true;
+        if (action.coveredByAdmin() && Perms.isAdmin(sender)) return true;
 
         PermissionRule rule = rules.get(action);
         if (rule == null) return sender.hasPermission(action.node());

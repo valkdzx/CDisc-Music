@@ -236,6 +236,7 @@ cdisc:
   logs_uploaded: "تم رفع السجل: %s — يستطيع أي شخص لديه الرابط قراءته."
   logs_issue: "&7افتح issue على https://github.com/valkdzx/CDisc-Music/issues والصق هذا الرابط مع وصف ما فعلته وما الذي حدث خطأ: يحتوي على السجل وتقرير /cdisc admin doctor، فتظهر المشكلة فورًا."
   logs_failed: "تعذّر رفع السجل: %s"
+  logs_disabled: "رفع السجل معطّل على هذا الخادم (log-upload في config.yml)."
   hold_disc: "أمسك أسطوانة موسيقى بيدك!"
   player_only: "هذا يجب تنفيذه داخل اللعبة. من الطرفية يعمل %s."
   sneak_toggle: "انحنِ عند صندوق الموسيقى لفتحه، وانحنِ مرة أخرى لإغلاقه."

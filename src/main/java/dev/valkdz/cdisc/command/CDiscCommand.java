@@ -231,7 +231,9 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
                 if (allowed(sender, Action.ADMIN_RELOAD)) reload(sender);
             }
             case "logs" -> {
-                if (allowed(sender, Action.ADMIN_LOGS)) logs(sender);
+                if (!allowed(sender, Action.ADMIN_LOGS)) return;
+                if (plugin.cdiscConfig().isLogUploadEnabled()) logs(sender);
+                else sender.sendMessage("§c" + message(sender, "cdisc.logs_disabled"));
             }
             case "local-files-config" -> {
                 if (allowed(sender, Action.ADMIN_LOCAL_FILES)) localFilesConfig(sender, parts);
@@ -546,7 +548,8 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
             return Stream.of(
                             entry("reload", Action.ADMIN_RELOAD, sender),
                             entry("doctor", Action.ADMIN_DOCTOR, sender),
-                            entry("logs", Action.ADMIN_LOGS, sender),
+                            plugin.cdiscConfig().isLogUploadEnabled()
+                                    ? entry("logs", Action.ADMIN_LOGS, sender) : null,
                             entry("download", Action.DISC_DOWNLOAD, sender),
                             sender instanceof Player
                                     ? entry("local-files-config", Action.ADMIN_LOCAL_FILES, sender) : null,

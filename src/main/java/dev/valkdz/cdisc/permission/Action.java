@@ -73,6 +73,10 @@ public enum Action {
         return fallback;
     }
 
+    public boolean coveredByAdmin() {
+        return this != ADMIN_LOGS;
+    }
+
     public static Action byPath(String path) {
         String wanted = path == null ? "" : path.trim().toLowerCase(Locale.ROOT);
         for (Action action : values()) {

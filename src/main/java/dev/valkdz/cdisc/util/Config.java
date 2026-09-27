@@ -487,6 +487,10 @@ public final class Config {
         return cfg().getBoolean("config-dialog", true);
     }
 
+    public boolean isLogUploadEnabled() {
+        return cfg().getBoolean("log-upload", true);
+    }
+
     public boolean isDebug() {
         return cfg().getBoolean("debug", false);
     }

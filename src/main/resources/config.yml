@@ -201,6 +201,11 @@ player-dialog-refresh-ticks: 10
 # Whoever has it also gets everything cdisc.admin gives.
 config-dialog: true
 
+### Log upload
+# /cdisc admin logs: uploads the server log to mclo.gs with a public link, for a GitHub issue.
+# false turns the command off for everyone, operators and the console included.
+log-upload: true
+
 ### Update checker
 # Asks Modrinth and GitHub Releases for the newest release and reports it in the console
 # and to operators.
