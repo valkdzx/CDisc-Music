@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.1.1-fix2
+
+- 🔐 `/cdisc admin logs` has a right of its own: `cdisc.admin` and `cdisc.admin.config` no longer grant it. Whoever should upload logs needs `cdisc.admin.logs` or the `actions.admin.logs` rule in permissions.yml, which still lets operators and the console in by default.
+- 🚫 `log-upload: false` in config.yml turns `/cdisc admin logs` off for everyone, operators and the console included, and takes it out of tab completion.
+
 ## 2.1.1-fix1
 
 - 🔇 Breaking a jukebox while it plays no longer starts the vanilla song of the disc inside, which kept playing with its "Now playing" line until `/stopsound`.
