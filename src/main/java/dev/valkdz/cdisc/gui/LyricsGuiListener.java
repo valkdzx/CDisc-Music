@@ -59,6 +59,14 @@ public class LyricsGuiListener implements Listener {
             return;
         }
 
+        if (slot == LyricsGuiManager.SLOT_RESTORE && gui.coversOwn(holder)) {
+            gui.restoreOwn(player, holder);
+            player.sendMessage("§a" + plugin.getMessageManager()
+                    .get(player, "gui.lyrics_look.restore_own_done"));
+            gui.refresh(player);
+            return;
+        }
+
         if (slot == LyricsGuiManager.SLOT_RESET) {
             if (!gui.isCustomised(holder)) return;
             gui.openResetConfirm(player, holder);

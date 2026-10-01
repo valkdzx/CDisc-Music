@@ -108,13 +108,25 @@ public final class HologramPresets {
     }
 
     public HologramStyle orDefault(UUID player, HologramStyle defaults) {
-        Assignment given = assignmentOf(player);
-        HologramStyle theirs = given == null ? null : server.get(given.preset());
-        if (theirs != null && given.forced()) return theirs;
+        HologramStyle given = styleOf(assigned.get(player));
+        if (given != null) return given;
+
+        Assignment everyone = fallback;
+        HologramStyle common = styleOf(everyone);
+        if (common != null && everyone.forced()) return common;
 
         HologramStyle own = presets.get(player);
         if (own != null) return own;
-        return theirs != null ? theirs : defaults;
+        return common != null ? common : defaults;
+    }
+
+    private HologramStyle styleOf(Assignment assignment) {
+        return assignment == null ? null : server.get(assignment.preset());
+    }
+
+    public boolean coversOwn(UUID player) {
+        Assignment given = assigned.get(player);
+        return given != null && !given.forced() && server.containsKey(given.preset());
     }
 
     public boolean isForced(UUID player) {
@@ -178,7 +190,6 @@ public final class HologramPresets {
 
     public void assign(UUID player, String name, boolean forced) {
         assigned.put(player, new Assignment(name, forced));
-        if (!forced) presets.remove(player);
         saveLater();
     }
 

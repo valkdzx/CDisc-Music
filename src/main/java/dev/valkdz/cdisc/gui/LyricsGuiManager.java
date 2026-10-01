@@ -59,6 +59,7 @@ public class LyricsGuiManager {
     public static final int SLOT_COUNTDOWN = 31;
 
     public static final int SLOT_RESET = 45;
+    public static final int SLOT_RESTORE = 47;
 
     public static final int SLOT_PAGE = 49;
     public static final int SLOT_BACK = 53;
@@ -193,6 +194,8 @@ public class LyricsGuiManager {
 
     public void apply(Player player, LyricsGuiHolder holder, HologramStyle style) {
         if (holder.getServerPreset() == null) {
+            // An edit made over an admin's preset becomes the player's own look.
+            if (coversOwn(holder)) plugin.getHologramPresets().unassign(holder.getOwner());
             plugin.getHologramPresets().set(holder.getOwner(), style);
             plugin.presetChanged(player);
             return;
@@ -207,6 +210,15 @@ public class LyricsGuiManager {
                 dev.valkdz.cdisc.util.Tasks.onEntity(plugin, target, () -> plugin.presetChanged(target));
             }
         }
+    }
+
+    public boolean coversOwn(LyricsGuiHolder holder) {
+        return holder.getServerPreset() == null && plugin.getHologramPresets().coversOwn(holder.getOwner());
+    }
+
+    public void restoreOwn(Player player, LyricsGuiHolder holder) {
+        plugin.getHologramPresets().unassign(holder.getOwner());
+        plugin.presetChanged(player);
     }
 
     public boolean isCustomised(LyricsGuiHolder holder) {
@@ -244,6 +256,11 @@ public class LyricsGuiManager {
         }
 
         inventory.setItem(SLOT_RESET, resetItem(player, holder));
+        if (coversOwn(holder)) {
+            inventory.setItem(SLOT_RESTORE, simple(Material.RECOVERY_COMPASS,
+                    "§a" + plugin.getMessageManager().get(player, "gui.lyrics_look.restore_own"),
+                    List.of("§7" + plugin.getMessageManager().get(player, "gui.lyrics_look.restore_own_lore"))));
+        }
         inventory.setItem(SLOT_PAGE, pageItem(player, holder));
         inventory.setItem(SLOT_BACK, simple(Material.ARROW,
                 plugin.getMessageManager().get(player, "gui.lyrics_look.close"), List.of()));
