@@ -105,6 +105,7 @@ lavaplayer:
     loading: "טוען רצועה..."
     notfound: "הרצועה לא נמצאה!"
     region_substituted: "הרצועה אינה זמינה באזור של השרת — מנוגן הסרטון הזמין הראשון במקומה."
+    age_substituted: "YouTube דורש חשבון לרצועה הזו — במקומה מתנגנת העלאה אחרת באותו אורך."
     error: "שגיאת טעינה: %s"
     invalid_query: "אין שם מה לחפש. נסה local:<קובץ> למוזיקה של השרת, sc:<מילים> ל-SoundCloud, yt:<מילים> ל-YouTube, או הדבק קישור."
 local:

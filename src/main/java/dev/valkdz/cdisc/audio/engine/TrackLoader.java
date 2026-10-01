@@ -130,6 +130,62 @@ public class TrackLoader {
 
     private final Map<String, Blocked> blockedByRegion = new ConcurrentHashMap<>();
 
+    private static final long REUPLOAD_SLACK_SECONDS = 3;
+    private static final String REUPLOAD_PLAN = "reupload";
+
+    private final Map<String, String> reuploads = new ConcurrentHashMap<>();
+
+    public boolean reuploaded(String resolved) {
+        String videoId = dev.valkdz.cdisc.audio.sabr.SabrResolver.videoIdOf(resolved);
+        return videoId != null && reuploads.containsKey(videoId);
+    }
+
+    private AudioTrack reupload(String videoId, String title, String author) {
+        if (videoId == null || youtubeSearch == null || isBlank(title)) return null;
+
+        String artist = author == null ? null : author.replaceFirst("\\s*-\\s*Topic$", "");
+        String known = reuploads.get(videoId);
+        if (known != null) {
+            AudioTrack again = attemptDirect(known, title, artist, true, false).track();
+            if (again != null) return again;
+            reuploads.remove(videoId);
+        }
+
+        try {
+            var results = youtubeSearch.search(isBlank(artist) ? title : title + " " + artist,
+                    sabrResolver.visitorDataOrNull(), 10);
+
+            long length = results.stream()
+                    .filter(found -> videoId.equals(found.videoId()))
+                    .mapToLong(dev.valkdz.cdisc.audio.sabr.YouTubeSearch.Result::durationSeconds)
+                    .findFirst().orElse(0);
+            if (length <= 0) {
+                Route route = route(videoId);
+                length = route == null ? 0 : route.lengthMs() / 1000;
+            }
+            // Without the original's length a speed-up or a one-hour loop would pass as the track.
+            if (length <= 0) return null;
+
+            for (var found : results) {
+                if (videoId.equals(found.videoId())
+                        || Math.abs(found.durationSeconds() - length) > REUPLOAD_SLACK_SECONDS) continue;
+
+                AudioTrack track = attemptDirect(found.videoId(), title, artist, true, false).track();
+                if (track != null) {
+                    reuploads.put(videoId, found.videoId());
+                    Bukkit.getLogger().info("[CDisc] \"" + title + "\" needs a YouTube account; playing "
+                            + found.videoId() + ", another upload of the same length, instead.");
+                    return track;
+                }
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } catch (Exception e) {
+            Bukkit.getLogger().warning("[CDisc] No other upload could be found: " + e.getMessage());
+        }
+        return null;
+    }
+
     public boolean blockedByRegion(String resolved) {
         String videoId = dev.valkdz.cdisc.audio.sabr.SabrResolver.videoIdOf(resolved);
         return videoId != null && blockedByRegion.containsKey(videoId);
@@ -264,6 +320,7 @@ public class TrackLoader {
     }
 
     private String planFor(String videoId, Route known) {
+        if (videoId != null && reuploads.containsKey(videoId)) return REUPLOAD_PLAN;
         String learned = sabrResolver == null ? null : sabrResolver.planOf(videoId);
         return learned != null ? learned : (known == null ? null : known.plan());
     }
@@ -930,15 +987,34 @@ public class TrackLoader {
 
     private Direct attemptDirect(String identifier, String discTitle, String discAuthor,
                                  boolean namesWin) {
+        return attemptDirect(identifier, discTitle, discAuthor, namesWin, true);
+    }
+
+    private Direct attemptDirect(String identifier, String discTitle, String discAuthor,
+                                 boolean namesWin, boolean mayReupload) {
         if (sabrResolver == null) return Direct.NOTHING;
 
+        String videoId = dev.valkdz.cdisc.audio.sabr.SabrResolver.videoIdOf(identifier);
+        Route known = videoId == null ? null : route(videoId);
+
+        if (mayReupload && known != null && REUPLOAD_PLAN.equals(known.plan())) {
+            AudioTrack again = reupload(videoId, discTitle, discAuthor);
+            if (again != null) return new Direct(again, false);
+        }
+
         try {
-            String videoId = dev.valkdz.cdisc.audio.sabr.SabrResolver.videoIdOf(identifier);
-            Route known = videoId == null ? null : route(videoId);
             return new Direct(sabrResolver.resolve(identifier, discTitle, discAuthor, namesWin,
                     known == null ? null : known.plan()), false);
         } catch (Exception e) {
             if (looksAgeRestricted(e.getMessage())) {
+                if (!mayReupload) return new Direct(null, true);
+
+                var refused = e instanceof dev.valkdz.cdisc.audio.sabr.PlaybackRefused r ? r : null;
+                AudioTrack other = reupload(videoId,
+                        isBlank(discTitle) && refused != null ? refused.title() : discTitle,
+                        isBlank(discAuthor) && refused != null ? refused.author() : discAuthor);
+                if (other != null) return new Direct(other, false);
+
                 Bukkit.getLogger().info("[CDisc] YouTube wants an account for this one "
                         + "(age-restricted); going through the backend.");
                 return new Direct(null, true);

@@ -778,12 +778,13 @@ public class LavaPlayerManager {
         }
 
         boolean substituted = trackLoader.wasSubstituted(resolved, track);
+        String notice = trackLoader.reuploaded(resolved) ? "age_substituted" : "region_substituted";
 
         trackLoader.hintLater(videoId, track).whenComplete((hint, ex) ->
                 Tasks.entity(plugin, player, () -> {
                     if (substituted) {
                         player.sendMessage("§e" + plugin.getMessageManager()
-                                .get(player, "lavaplayer.track.region_substituted"));
+                                .get(player, "lavaplayer.track." + notice));
                     }
                     stored(player, item, track, query, fallback, title, author, fetch, hint);
                 }));

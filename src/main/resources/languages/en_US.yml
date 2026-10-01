@@ -105,6 +105,7 @@ lavaplayer:
     loading: "Loading track..."
     notfound: "Track not found!"
     region_substituted: "This track is not available in the server's region — playing the first available video instead."
+    age_substituted: "YouTube wants an account for this track — playing another upload of it, the same length, instead."
     error: "Load error: %s"
     invalid_query: "Nothing to search there. Try local:<file> for the server's own music, sc:<words> for SoundCloud, yt:<words> for YouTube, or paste a link."
 local:
