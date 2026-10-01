@@ -1,20 +1,17 @@
 # Changelog
 
-## Unreleased
-
-- 🦜 Parrots within three blocks of a jukebox dance to CDisc discs as they do to vanilla ones, and stop when playback ends.
-- 🔙 Players given a server hologram preset without force keep their own look: the Return my own look button in `/cdisc preset` brings it back, and editing the preset turns it into their own. `/cdisc admin presets unset` also returns it.
-- 🖱️ The lyrics button in the player screen: left click shows the next view above jukeboxes, right click the previous one, and shift+click opens your own hologram look.
-
 ## 2.1.2
 
-- 🎙️ Broadcasts: `/cdisc create broadcast:Name` makes a disc that plays no music. In a jukebox it goes live, and its host — whoever made the disc — or an operator adds up to six microphones from the Broadcast button. A handheld microphone is heard only from its holder, can be passed on or put back in the jukebox, and returns to the host past `handheld-range`; a block microphone hears a player as far as their voice carries, quieter with distance. Voices reach the jukebox and its paired speakers through Simple Voice Chat and Plasmo Voice. `broadcast.enabled` in config.yml switches it off.
-- 🔀 Crossfade: the next disc in a queue is loaded ten seconds before the end and the last seconds of both are blended. `crossfade` in config.yml sets the length, 0 turns it off, and each jukebox can turn it off from Advanced or the dialog's options.
-- 🎨 Server hologram presets: `/cdisc admin presets add <name>` makes a named look in the `/cdisc preset` window, `set <name> <players> [true|false]` gives it to players or a selector, `unset` takes it back and `remove` deletes it. Given without force it is a starting point players can still change; forced, it is all they see. `default <name|none> [true|false]` gives it to everyone else, players who join later included. Edits reach everyone at once. Needs `cdisc.admin.presets`, operators by default.
-- 🖥️ The player screen is two rows: controls on top, Advanced, the lyrics and exit below. Speakers, volume, beacon range, carrying, track messages, the dialog switch and crossfade moved to Advanced, and each player's last screen is opened again next time.
-- 🧩 PlaceholderAPI placeholders `%cdisc_...%` describe the nearest jukebox a player can hear; other plugins get `TrackStartEvent`, `PlaybackStopEvent`, the cancellable `DiscCreateEvent` and `CDiscApi`.
-- ▶️ `youtube-source` no longer plays tracks: after the direct read only the backend is asked. It still lists searches and playlists.
-- 🧹 The crouch progress bar goes away once the player is out of earshot, and a jukebox that is playing, holds a disc or has a queue can no longer be paired as a speaker.
+- Broadcasts: `/cdisc create broadcast:Name` makes a disc that plays no music. In a jukebox it goes live, and its host — whoever made the disc — or an operator adds up to six microphones from the Broadcast button. A handheld microphone is heard only from its holder, can be passed on or put back in the jukebox, and returns to the host past `handheld-range`; a block microphone hears a player as far as their voice carries, quieter with distance. Voices reach the jukebox and its paired speakers through Simple Voice Chat and Plasmo Voice. `broadcast.enabled` in config.yml switches it off.
+- Crossfade: the next disc in a queue is loaded ten seconds before the end and the last seconds of both are blended. `crossfade` in config.yml sets the length, 0 turns it off, and each jukebox can turn it off from Advanced or the dialog's options.
+- Server hologram presets: `/cdisc admin presets add <name>` makes a named look in the `/cdisc preset` window, `set <name> <players> [true|false]` gives it to players or a selector, `unset` takes it back and `remove` deletes it. Given without force it is a starting point players can still change; forced, it is all they see. `default <name|none> [true|false]` gives it to everyone else, players who join later included. Edits reach everyone at once. Needs `cdisc.admin.presets`, operators by default.
+- The player screen is two rows: controls on top, Advanced, the lyrics and exit below. Speakers, volume, beacon range, carrying, track messages, the dialog switch and crossfade moved to Advanced, and each player's last screen is opened again next time.
+- PlaceholderAPI placeholders `%cdisc_...%` describe the nearest jukebox a player can hear; other plugins get `TrackStartEvent`, `PlaybackStopEvent`, the cancellable `DiscCreateEvent` and `CDiscApi`.
+- `youtube-source` no longer plays tracks: after the direct read only the backend is asked. It still lists searches and playlists.
+- The crouch progress bar goes away once the player is out of earshot, and a jukebox that is playing, holds a disc or has a queue can no longer be paired as a speaker.
+- Parrots within three blocks of a jukebox dance to CDisc discs as they do to vanilla ones, and stop when playback ends.
+- Players given a server hologram preset without force keep their own look: the Return my own look button in `/cdisc preset` brings it back, and editing the preset turns it into their own. `/cdisc admin presets unset` also returns it.
+- The lyrics button in the player screen: left click shows the next view above jukeboxes, right click the previous one, and shift+click opens your own hologram look.
 
 ## 2.1.1-fix2
 
