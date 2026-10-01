@@ -11,6 +11,7 @@ import java.io.InputStream;
 import java.net.URI;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.Callable;
 
 public final class ChunkedHttpStream extends SeekableInputStream {
 
@@ -22,8 +23,12 @@ public final class ChunkedHttpStream extends SeekableInputStream {
 
     private static final int MAX_ATTEMPTS = 3;
 
+    private static final int MAX_REFRESHES = 2;
+
     private final HttpInterface httpInterface;
-    private final URI url;
+    private final Callable<String> refresh;
+    private URI url;
+    private int refreshes;
 
     private CloseableHttpResponse response;
     private InputStream content;
@@ -31,9 +36,15 @@ public final class ChunkedHttpStream extends SeekableInputStream {
     private long chunkEnd;
 
     public ChunkedHttpStream(HttpInterface httpInterface, URI url, long contentLength) {
+        this(httpInterface, url, contentLength, null);
+    }
+
+    public ChunkedHttpStream(HttpInterface httpInterface, URI url, long contentLength,
+                             Callable<String> refresh) {
         super(contentLength, MAX_SKIP_DISTANCE);
         this.httpInterface = httpInterface;
         this.url = url;
+        this.refresh = refresh;
     }
 
     @Override
@@ -95,6 +106,14 @@ public final class ChunkedHttpStream extends SeekableInputStream {
         CloseableHttpResponse opened = httpInterface.execute(request);
         int status = opened.getStatusLine().getStatusCode();
 
+        if (status == 403 && refresh != null && refreshes < MAX_REFRESHES) {
+            opened.close();
+            refreshes++;
+            url = URI.create(fresh());
+            open();
+            return;
+        }
+
         boolean whole = status == 200 && position == 0;
         if (status != 206 && !whole) {
             opened.close();
@@ -105,6 +124,16 @@ public final class ChunkedHttpStream extends SeekableInputStream {
         response = opened;
         content = opened.getEntity().getContent();
         chunkEnd = whole ? contentLength : end;
+    }
+
+    private String fresh() throws IOException {
+        try {
+            return refresh.call();
+        } catch (IOException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new IOException("couldn't get a fresh address for the stream: " + e.getMessage(), e);
+        }
     }
 
     @Override

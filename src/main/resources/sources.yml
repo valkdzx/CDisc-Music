@@ -130,7 +130,8 @@ youtube:
   # there; set it back to false and it stays false.
   proxy: false
 
-  # The direct read (VISIONOS client, no keys) is asked first and has no switch.
+  # The direct read is asked first and has no switch: the VISIONOS client, then the embedded
+  # player for videos made for kids or age-restricted ones that may be embedded. No keys.
   # This adds a second try when it fails: reading SABR streams, which list formats without
   # direct links. Needs po-token and visitor-data in tokens.yml.
   sabr: true
@@ -152,8 +153,8 @@ youtube:
   # fast-create is false.
   probe-timeout-seconds: 4
 
-  # Signature cipher solver. Its password, if it needs one, goes in tokens.yml.
-  # Blank the URL to not use a remote cipher at all.
+  # CDisc solves YouTube signatures itself; this server is asked only when that fails.
+  # Its password, if it needs one, goes in tokens.yml. Blank the URL to never ask it.
   remote-cipher:
     url: 'https://cipher.kikkia.dev/'
 

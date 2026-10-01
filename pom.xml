@@ -169,6 +169,13 @@
             <version>${lavaplayer.version}</version>
         </dependency>
         <dependency>
+            <!-- The Rhino youtube-source ships, declared so YoutubeCipher compiles against it:
+                 a provided rhino-runtime 1.7.13 numbers its tokens differently. -->
+            <groupId>org.mozilla</groupId>
+            <artifactId>rhino</artifactId>
+            <version>1.7.14</version>
+        </dependency>
+        <dependency>
             <groupId>dev.lavalink.youtube</groupId>
             <artifactId>common</artifactId>
             <version>${youtube.source.version}</version>

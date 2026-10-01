@@ -14,9 +14,19 @@ public final class SabrSourceManager implements AudioSourceManager {
 
     public static final String NAME = "youtube-sabr";
 
+    private final String name;
+
+    public SabrSourceManager() {
+        this(NAME);
+    }
+
+    public SabrSourceManager(String name) {
+        this.name = name;
+    }
+
     @Override
     public String getSourceName() {
-        return NAME;
+        return name;
     }
 
     @Override

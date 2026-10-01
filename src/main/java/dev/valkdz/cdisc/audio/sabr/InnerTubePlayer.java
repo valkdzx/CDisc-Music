@@ -62,7 +62,7 @@ public final class InnerTubePlayer {
 
     public record AudioFormat(int itag, long lastModified, String mimeType, String xtags,
                               long contentLength, int bitrate, long durationMs,
-                              String directUrl) {
+                              String directUrl, boolean mainTrack) {
 
         public boolean isOpus() {
             return mimeType != null && mimeType.contains("opus");
@@ -81,7 +81,8 @@ public final class InnerTubePlayer {
                                  String playabilitySubreason,
                                  String title, String author, long durationMs, boolean live,
                                  String serverAbrStreamingUrl, byte[] ustreamerConfig,
-                                 List<AudioFormat> audioFormats, List<AudioFormat> videoFormats) {
+                                 List<AudioFormat> audioFormats, List<AudioFormat> videoFormats,
+                                 boolean playableInEmbed) {
 
         public Optional<AudioFormat> cheapestVideo() {
             return videoFormats.stream().min(Comparator.comparingInt(AudioFormat::bitrate));
@@ -97,7 +98,8 @@ public final class InnerTubePlayer {
 
         public Optional<AudioFormat> bestAudio() {
             return audioFormats.stream().max(
-                    Comparator.comparing(AudioFormat::isOpus)
+                    Comparator.comparing(AudioFormat::mainTrack)
+                            .thenComparing(AudioFormat::isOpus)
                             .thenComparingInt(AudioFormat::bitrate));
         }
 
@@ -107,7 +109,8 @@ public final class InnerTubePlayer {
                     .filter(AudioFormat::hasDirectUrl)
                     .filter(format -> format.mimeType() != null
                             && format.mimeType().startsWith("audio/mp4"))
-                    .max(Comparator.comparingInt(AudioFormat::bitrate));
+                    .max(Comparator.comparing(AudioFormat::mainTrack)
+                            .thenComparingInt(AudioFormat::bitrate));
         }
     }
 
@@ -216,7 +219,8 @@ public final class InnerTubePlayer {
                     format.path("contentLength").asLong(0),
                     format.path("bitrate").asInt(0),
                     format.path("approxDurationMs").asLong(0),
-                    format.path("url").asText(null)));
+                    format.path("url").asText(null),
+                    isMainTrack(format)));
         }
 
         return new PlayerResponse(
@@ -230,7 +234,15 @@ public final class InnerTubePlayer {
                 live,
                 streaming.path("serverAbrStreamingUrl").asText(null),
                 ustreamerConfig,
-                audio, video);
+                audio, video,
+                playability.path("playableInEmbed").asBoolean(true));
+    }
+
+    // A dubbed video lists every language, and a DRC copy of each, beside the original.
+    private static boolean isMainTrack(JsonNode format) {
+        if (format.path("isDrc").asBoolean(false)) return false;
+        JsonNode track = format.path("audioTrack");
+        return track.isMissingNode() || track.path("audioIsDefault").asBoolean(false);
     }
 
     private static String textOf(JsonNode node) {

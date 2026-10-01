@@ -22,6 +22,7 @@ public class ItemUtils {
     public static final NamespacedKey LIVE_KEY = new NamespacedKey(Main.getInstance(), "cdisc_live");
     public static final NamespacedKey GEO_KEY = new NamespacedKey(Main.getInstance(), "cdisc_geo");
     public static final NamespacedKey HINT_AT_KEY = new NamespacedKey(Main.getInstance(), "cdisc_hint_at");
+    public static final NamespacedKey PLAN_KEY = new NamespacedKey(Main.getInstance(), "cdisc_plan");
 
     public static boolean isDisc(ItemStack item) {
         return item != null && item.getType().toString().startsWith("MUSIC_DISC_");
@@ -100,7 +101,7 @@ public class ItemUtils {
     private static final long HINT_TTL_MS = 14L * 24 * 60 * 60 * 1000;
 
     public record Hint(String contentType, long lengthMs, boolean live, Boolean allowedHere,
-                       long writtenAt) {
+                       long writtenAt, String plan) {
 
         public boolean fresh() {
             return writtenAt > 0 && System.currentTimeMillis() - writtenAt < HINT_TTL_MS;
@@ -117,6 +118,7 @@ public class ItemUtils {
             pdc.remove(LIVE_KEY);
             pdc.remove(GEO_KEY);
             pdc.remove(HINT_AT_KEY);
+            pdc.remove(PLAN_KEY);
             return;
         }
 
@@ -129,6 +131,11 @@ public class ItemUtils {
         pdc.set(LIVE_KEY, PersistentDataType.BYTE, (byte) (hint.live() ? 1 : 0));
         if (hint.allowedHere() != null) {
             pdc.set(GEO_KEY, PersistentDataType.BYTE, (byte) (hint.allowedHere() ? 1 : 0));
+        }
+        if (hint.plan() != null) {
+            pdc.set(PLAN_KEY, PersistentDataType.STRING, hint.plan());
+        } else {
+            pdc.remove(PLAN_KEY);
         }
         pdc.set(HINT_AT_KEY, PersistentDataType.LONG, System.currentTimeMillis());
     }
@@ -146,7 +153,8 @@ public class ItemUtils {
                 length == null ? 0 : length,
                 live != null && live != 0,
                 geo == null ? null : geo != 0,
-                writtenAt);
+                writtenAt,
+                pdc.get(PLAN_KEY, PersistentDataType.STRING));
     }
 
     public static DiscData readDiscData(ItemStack item) {

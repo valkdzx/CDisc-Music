@@ -1,5 +1,6 @@
 package dev.valkdz.cdisc.audio.sabr;
 
+import com.sedmelluq.discord.lavaplayer.source.AudioSourceManager;
 import com.sedmelluq.discord.lavaplayer.tools.Units;
 import com.sedmelluq.discord.lavaplayer.tools.io.HttpClientTools;
 import com.sedmelluq.discord.lavaplayer.tools.io.HttpInterface;
@@ -10,13 +11,19 @@ import dev.lavalink.youtube.cipher.CipherManager;
 import dev.lavalink.youtube.cipher.LocalSignatureCipherManager;
 import dev.lavalink.youtube.cipher.RemoteCipherManager;
 import dev.lavalink.youtube.track.format.StreamFormat;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpGet;
 import org.apache.http.entity.ContentType;
+import org.apache.http.util.EntityUtils;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.http.HttpClient;
 import java.time.Duration;
+import java.util.Comparator;
+import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
@@ -32,7 +39,39 @@ public final class SabrResolver {
 
     private final HttpClient http;
     private final boolean sabr;
+    public static final String VISION_SOURCE = "youtube-visionos";
+    public static final String EMBEDDED_SOURCE = "youtube-embedded";
+
+    private static final int SESSION_ATTEMPTS = 3;
+
+    public enum Plan {
+        VISION_THEN_EMBED("visionos"), VISION_ONLY("visionos-only"), EMBED_ONLY("embedded");
+
+        private final String key;
+
+        Plan(String key) {
+            this.key = key;
+        }
+
+        public String key() {
+            return key;
+        }
+
+        public static Plan of(String key) {
+            for (Plan plan : values()) {
+                if (plan.key.equals(key)) return plan;
+            }
+            return null;
+        }
+    }
+
+    private final Map<String, Plan> plans = new ConcurrentHashMap<>();
+
     private final SabrSourceManager sourceManager = new SabrSourceManager();
+    private final SabrSourceManager visionSource = new SabrSourceManager(VISION_SOURCE);
+    private final SabrSourceManager embeddedSource = new SabrSourceManager(EMBEDDED_SOURCE);
+    private final YoutubeCipher ownCipher;
+    private final EmbeddedPlayer embedded;
     private final Supplier<InnerTubePlayer.ClientIdentity> identity;
 
     private final CipherManager cipher;
@@ -57,6 +96,13 @@ public final class SabrResolver {
 
                 .followRedirects(HttpClient.Redirect.NEVER)
                 .build();
+
+        HttpClient pages = dev.valkdz.cdisc.util.NetProxy.apply(HttpClient.newBuilder())
+                .connectTimeout(Duration.ofSeconds(10))
+                .followRedirects(HttpClient.Redirect.NORMAL)
+                .build();
+        this.ownCipher = new YoutubeCipher(pages);
+        this.embedded = new EmbeddedPlayer(pages, ownCipher);
     }
 
     public static String videoIdOf(String identifier) {
@@ -74,8 +120,25 @@ public final class SabrResolver {
 
     public AudioTrack resolve(String identifier, String discTitle, String discAuthor,
                               boolean namesWin) throws IOException {
+        return resolve(identifier, discTitle, discAuthor, namesWin, null);
+    }
+
+    public String planOf(String videoId) {
+        Plan plan = videoId == null ? null : plans.get(videoId);
+        return plan == null ? null : plan.key();
+    }
+
+    public AudioTrack resolve(String identifier, String discTitle, String discAuthor,
+                              boolean namesWin, String planKey) throws IOException {
         String videoId = videoIdOf(identifier);
         if (videoId == null) return null;
+
+        Plan plan = Plan.of(planKey);
+        if (plan == Plan.EMBED_ONLY) {
+            AudioTrack fromEmbed = resolveEmbedded(videoId, discTitle, discAuthor, namesWin);
+            if (fromEmbed != null) plans.put(videoId, Plan.EMBED_ONLY);
+            return fromEmbed;
+        }
 
         PlaybackRefused refused = null;
         AudioTrack direct;
@@ -87,6 +150,20 @@ public final class SabrResolver {
         }
 
         if (direct != null) return direct;
+
+        if (plan != Plan.VISION_ONLY && (refused == null || !refused.regional())) {
+            try {
+                AudioTrack fromEmbed = resolveEmbedded(videoId, discTitle, discAuthor, namesWin);
+                if (fromEmbed != null) {
+                    plans.put(videoId, refused != null ? Plan.EMBED_ONLY : Plan.VISION_THEN_EMBED);
+                    return fromEmbed;
+                }
+            } catch (PlaybackRefused e) {
+                if (refused == null) refused = e;
+            } catch (Exception ignored) {
+            }
+        }
+
         if (!sabr) {
             if (refused != null) throw refused;
             return null;
@@ -102,7 +179,7 @@ public final class SabrResolver {
         }
 
         if (response.live()) {
-            return liveTrack(videoId, response, identity, discTitle, discAuthor, namesWin);
+            return liveTrack(videoId, response, identity, sourceManager, discTitle, discAuthor, namesWin);
         }
 
         if (isBlank(response.serverAbrStreamingUrl()) || response.ustreamerConfig() == null) {
@@ -124,36 +201,119 @@ public final class SabrResolver {
 
     private AudioTrack resolveDirect(String videoId, String discTitle, String discAuthor,
                                      boolean namesWin) throws PlaybackRefused {
-        InnerTubePlayer.PlayerResponse response;
-        try {
-            response = new InnerTubePlayer(
-                    http, InnerTubePlayer.ClientIdentity.visionOs(visitorData())).fetch(videoId);
-        } catch (Exception e) {
-            return null;
-        }
-
-        if (!response.isPlayable()) throw new PlaybackRefused(videoId, response);
-
-        try {
-
-            if (response.live()) {
-                return liveTrack(videoId, response, this::visionIdentity,
-                        discTitle, discAuthor, namesWin);
+        for (int attempt = 0; attempt < SESSION_ATTEMPTS; attempt++) {
+            InnerTubePlayer.PlayerResponse response;
+            try {
+                response = new InnerTubePlayer(
+                        http, InnerTubePlayer.ClientIdentity.visionOs(visitorData())).fetch(videoId);
+            } catch (Exception e) {
+                return null;
             }
 
-            Optional<InnerTubePlayer.AudioFormat> best = response.bestAudio();
-            if (best.isEmpty() || !best.get().hasDirectUrl()) return null;
+            if (!response.isPlayable()) throw new PlaybackRefused(videoId, response);
 
-            InnerTubePlayer.AudioFormat format = best.get();
-            long durationMs = response.durationMs() > 0 ? response.durationMs() : format.durationMs();
+            try {
+                if (response.live()) {
+                    plans.put(videoId, Plan.VISION_ONLY);
+                    return liveTrack(videoId, response, this::visionIdentity, visionSource,
+                            discTitle, discAuthor, namesWin);
+                }
 
-            return new DirectAudioTrack(
-                    trackInfo(videoId, response, discTitle, discAuthor, durationMs, namesWin),
-                    sourceManager, cipherInterfaces, descramble(format.directUrl(), format),
-                    format.mimeType(), format.contentLength());
-        } catch (Exception e) {
-            return null;
+                Optional<InnerTubePlayer.AudioFormat> best = response.bestAudio();
+                if (best.isEmpty() || !best.get().hasDirectUrl()) return null;
+
+                InnerTubePlayer.AudioFormat format = best.get();
+                String url = descramble(format.directUrl(), format);
+
+                // Some visitor sessions get links googlevideo refuses past the first bytes;
+                // a request for the middle catches them before the track starts.
+                if (!servesMiddle(url, format.contentLength())) {
+                    forgetVisitor();
+                    continue;
+                }
+
+                plans.put(videoId, response.playableInEmbed() ? Plan.VISION_THEN_EMBED : Plan.VISION_ONLY);
+                long durationMs = response.durationMs() > 0 ? response.durationMs() : format.durationMs();
+                return new DirectAudioTrack(
+                        trackInfo(videoId, response, discTitle, discAuthor, durationMs, namesWin),
+                        visionSource, cipherInterfaces, url, format.mimeType(), format.contentLength(),
+                        () -> freshVisionUrl(videoId, format.itag()));
+            } catch (Exception e) {
+                return null;
+            }
         }
+        return null;
+    }
+
+    private String freshVisionUrl(String videoId, int itag) throws IOException {
+        forgetVisitor();
+        InnerTubePlayer.PlayerResponse response = new InnerTubePlayer(
+                http, InnerTubePlayer.ClientIdentity.visionOs(visitorDataOrNull())).fetch(videoId);
+
+        for (InnerTubePlayer.AudioFormat format : response.audioFormats()) {
+            if (format.itag() == itag && format.hasDirectUrl()) {
+                return descramble(format.directUrl(), format);
+            }
+        }
+        throw new IOException("YouTube no longer offers format " + itag + " of " + videoId);
+    }
+
+    private AudioTrack resolveEmbedded(String videoId, String discTitle, String discAuthor,
+                                       boolean namesWin) throws IOException {
+        EmbeddedPlayer.Answer answer = embedded.fetch(videoId);
+        InnerTubePlayer.PlayerResponse response = answer.response();
+
+        if (!response.isPlayable()) throw new PlaybackRefused(videoId, response);
+        if (response.live()) return null;
+
+        Optional<InnerTubePlayer.AudioFormat> best = response.audioFormats().stream()
+                .filter(format -> format.hasDirectUrl() || answer.ciphers().containsKey(format.itag()))
+                .max(Comparator.comparing(InnerTubePlayer.AudioFormat::mainTrack)
+                        .thenComparing(InnerTubePlayer.AudioFormat::isOpus)
+                        .thenComparingInt(InnerTubePlayer.AudioFormat::bitrate));
+        if (best.isEmpty()) return null;
+
+        InnerTubePlayer.AudioFormat format = best.get();
+        String url = answer.urlOf(format, ownCipher);
+        if (url == null || !servesMiddle(url, format.contentLength())) return null;
+
+        long durationMs = response.durationMs() > 0 ? response.durationMs() : format.durationMs();
+        return new DirectAudioTrack(
+                trackInfo(videoId, response, discTitle, discAuthor, durationMs, namesWin),
+                embeddedSource, cipherInterfaces, url, format.mimeType(), format.contentLength(),
+                () -> freshEmbeddedUrl(videoId, format.itag()));
+    }
+
+    private String freshEmbeddedUrl(String videoId, int itag) throws IOException {
+        EmbeddedPlayer.Answer answer = embedded.fetch(videoId);
+
+        for (InnerTubePlayer.AudioFormat format : answer.response().audioFormats()) {
+            if (format.itag() != itag) continue;
+            String url = answer.urlOf(format, ownCipher);
+            if (url != null) return url;
+        }
+        throw new IOException("the embedded player no longer offers format " + itag + " of " + videoId);
+    }
+
+    private boolean servesMiddle(String url, long contentLength) {
+        if (contentLength <= 0) return true;
+
+        long from = contentLength / 2;
+        HttpGet request = new HttpGet(url);
+        request.setHeader("Range", "bytes=" + from + "-" + Math.min(contentLength - 1, from + 1023));
+
+        try (HttpInterface iface = cipherInterfaces.getInterface();
+             CloseableHttpResponse response = iface.execute(request)) {
+            EntityUtils.consumeQuietly(response.getEntity());
+            int status = response.getStatusLine().getStatusCode();
+            return status == 206 || status == 200;
+        } catch (IOException e) {
+            return true;
+        }
+    }
+
+    private synchronized void forgetVisitor() {
+        mintedVisitorData = null;
     }
 
     private InnerTubePlayer.ClientIdentity visionIdentity() {
@@ -162,6 +322,7 @@ public final class SabrResolver {
 
     private AudioTrack liveTrack(String videoId, InnerTubePlayer.PlayerResponse response,
                                  Supplier<InnerTubePlayer.ClientIdentity> who,
+                                 AudioSourceManager source,
                                  String discTitle, String discAuthor, boolean namesWin) {
         Optional<InnerTubePlayer.AudioFormat> best = response.bestLiveAudio();
         if (best.isEmpty()) return null;
@@ -171,7 +332,7 @@ public final class SabrResolver {
 
         return new LiveAudioTrack(
                 trackInfo(videoId, response, discTitle, discAuthor, 0, namesWin),
-                sourceManager, cipherInterfaces,
+                source, cipherInterfaces,
                 () -> {
                     String first = known.getAndSet(null);
                     return first != null ? first : freshLiveUrl(videoId, who.get());
@@ -209,6 +370,7 @@ public final class SabrResolver {
     }
 
     public void warmUp() {
+        ownCipher.warmUp();
         new dev.valkdz.cdisc.youtube.VisitorRenewal().mintPageAsync(15)
                 .thenAccept(page -> accept(page, System.currentTimeMillis()))
                 .exceptionally(ignored -> null);
@@ -269,6 +431,11 @@ public final class SabrResolver {
     private String descramble(String url, InnerTubePlayer.AudioFormat format) {
         String n = queryParam(url, "n");
         if (n == null) return url;
+
+        try {
+            return ownCipher.resolve(ownCipher.currentPlayerId(), url, null, null);
+        } catch (Exception ignored) {
+        }
 
         try (HttpInterface iface = cipherInterfaces.getInterface()) {
             StreamFormat streamFormat = new StreamFormat(

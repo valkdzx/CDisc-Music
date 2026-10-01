@@ -19,6 +19,7 @@ import com.sedmelluq.discord.lavaplayer.track.InternalAudioTrack;
 import com.sedmelluq.discord.lavaplayer.track.playback.LocalAudioTrackExecutor;
 
 import java.net.URI;
+import java.util.concurrent.Callable;
 
 public final class DirectAudioTrack extends DelegatedAudioTrack {
 
@@ -27,23 +28,31 @@ public final class DirectAudioTrack extends DelegatedAudioTrack {
     private final String url;
     private final String mimeType;
     private final long contentLength;
+    private final Callable<String> refresh;
 
     public DirectAudioTrack(AudioTrackInfo trackInfo, AudioSourceManager sourceManager,
                             HttpInterfaceManager interfaces, String url,
                             String mimeType, long contentLength) {
+        this(trackInfo, sourceManager, interfaces, url, mimeType, contentLength, null);
+    }
+
+    public DirectAudioTrack(AudioTrackInfo trackInfo, AudioSourceManager sourceManager,
+                            HttpInterfaceManager interfaces, String url,
+                            String mimeType, long contentLength, Callable<String> refresh) {
         super(trackInfo);
         this.sourceManager = sourceManager;
         this.interfaces = interfaces;
         this.url = url;
         this.mimeType = mimeType;
         this.contentLength = contentLength;
+        this.refresh = refresh;
     }
 
     @Override
     public void process(LocalAudioTrackExecutor executor) throws Exception {
         try (HttpInterface httpInterface = interfaces.getInterface();
              SeekableInputStream stream = contentLength > 0
-                     ? new ChunkedHttpStream(httpInterface, URI.create(url), contentLength)
+                     ? new ChunkedHttpStream(httpInterface, URI.create(url), contentLength, refresh)
                      : new PersistentHttpStream(httpInterface, URI.create(url), null)) {
 
             MediaContainerDescriptor container = detect(stream);
@@ -93,6 +102,6 @@ public final class DirectAudioTrack extends DelegatedAudioTrack {
 
     @Override
     protected AudioTrack makeShallowClone() {
-        return new DirectAudioTrack(trackInfo, sourceManager, interfaces, url, mimeType, contentLength);
+        return new DirectAudioTrack(trackInfo, sourceManager, interfaces, url, mimeType, contentLength, refresh);
     }
 }

@@ -109,7 +109,7 @@ final class Diagnostics {
             }
 
             out.add(line(State.READY, "direct",
-                    "always asked first — the VISIONOS client, no keys needed"));
+                    "always asked first — VISIONOS, then the embedded player; no keys needed"));
 
             if (config.getYoutubeCustomApi()) {
                 out.add(line(State.READY, "fallback-api",

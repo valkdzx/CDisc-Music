@@ -80,7 +80,7 @@ public class TrackLoader {
     private static final long ROUTE_TTL_MS = 6L * 60 * 60 * 1000;
 
     public record Route(String contentType, long lengthMs, boolean live, Boolean allowedHere,
-                        long at) {}
+                        long at, String plan) {}
 
     private final Map<String, Route> routes = new ConcurrentHashMap<>();
 
@@ -105,7 +105,7 @@ public class TrackLoader {
                 : (info.playable() ? info.allowedIn(region) : Boolean.FALSE);
 
         routes.put(videoId, new Route(info.contentType(), info.lengthMs(), info.live(),
-                allowed, System.currentTimeMillis()));
+                allowed, System.currentTimeMillis(), known == null ? null : known.plan()));
     }
 
     private final java.util.Set<String> preferBackend = ConcurrentHashMap.newKeySet();
@@ -188,7 +188,8 @@ public class TrackLoader {
                 known == null ? 0 : known.lengthMs(),
                 known != null && known.live(),
                 Boolean.FALSE,
-                System.currentTimeMillis()));
+                System.currentTimeMillis(),
+                known == null ? null : known.plan()));
     }
 
     public void remember(dev.valkdz.cdisc.util.ItemUtils.DiscData data) {
@@ -199,14 +200,14 @@ public class TrackLoader {
 
         var hint = data.hint();
         routes.put(videoId, new Route(hint.contentType(), hint.lengthMs(), hint.live(),
-                hint.allowedHere(), hint.writtenAt()));
+                hint.allowedHere(), hint.writtenAt(), hint.plan()));
     }
 
     public dev.valkdz.cdisc.util.ItemUtils.Hint hintFor(String videoId) {
         Route route = videoId == null ? null : route(videoId);
         return route == null ? null : new dev.valkdz.cdisc.util.ItemUtils.Hint(
                 route.contentType(), route.lengthMs(), route.live(), route.allowedHere(),
-                route.at());
+                route.at(), route.plan());
     }
 
     private final Map<String, CompletableFuture<CustomYoutubeApiResolver.Info>> inflight =
@@ -231,7 +232,7 @@ public class TrackLoader {
         if (local != null && local.contentType() != null) {
             if (videoId != null) {
                 routes.put(videoId, new Route(local.contentType(), local.lengthMs(), local.live(),
-                        local.allowedHere(), local.writtenAt()));
+                        local.allowedHere(), local.writtenAt(), local.plan()));
             }
             return CompletableFuture.completedFuture(local);
         }
@@ -258,7 +259,13 @@ public class TrackLoader {
                 length == com.sedmelluq.discord.lavaplayer.tools.Units.DURATION_MS_UNKNOWN ? 0 : length,
                 track.getInfo().isStream,
                 readDirectly(track) ? Boolean.TRUE : (known == null ? null : known.allowedHere()),
-                System.currentTimeMillis());
+                System.currentTimeMillis(),
+                planFor(videoId, known));
+    }
+
+    private String planFor(String videoId, Route known) {
+        String learned = sabrResolver == null ? null : sabrResolver.planOf(videoId);
+        return learned != null ? learned : (known == null ? null : known.plan());
     }
 
     private static boolean readDirectly(AudioTrack track) {
@@ -745,8 +752,10 @@ public class TrackLoader {
     }
 
     private static String directLabel(AudioTrack track) {
-        return track instanceof dev.valkdz.cdisc.audio.sabr.SabrAudioTrack
-                ? "YouTube SABR" : "YouTube direct (VISIONOS)";
+        if (track instanceof dev.valkdz.cdisc.audio.sabr.SabrAudioTrack) return "YouTube SABR";
+        return dev.valkdz.cdisc.audio.sabr.SabrResolver.EMBEDDED_SOURCE.equals(
+                track.getSourceManager().getSourceName())
+                ? "YouTube direct (embedded player)" : "YouTube direct (VISIONOS)";
     }
 
     private void announce(AudioTrack track) {
@@ -924,8 +933,10 @@ public class TrackLoader {
         if (sabrResolver == null) return Direct.NOTHING;
 
         try {
-            return new Direct(sabrResolver.resolve(identifier, discTitle, discAuthor, namesWin),
-                              false);
+            String videoId = dev.valkdz.cdisc.audio.sabr.SabrResolver.videoIdOf(identifier);
+            Route known = videoId == null ? null : route(videoId);
+            return new Direct(sabrResolver.resolve(identifier, discTitle, discAuthor, namesWin,
+                    known == null ? null : known.plan()), false);
         } catch (Exception e) {
             if (looksAgeRestricted(e.getMessage())) {
                 Bukkit.getLogger().info("[CDisc] YouTube wants an account for this one "
