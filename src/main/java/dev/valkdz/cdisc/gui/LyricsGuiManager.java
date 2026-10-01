@@ -14,6 +14,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
 
 public class LyricsGuiManager {
 
@@ -97,17 +98,31 @@ public class LyricsGuiManager {
 
     public void openPreset(Player player) {
         if (!plugin.getPermissions().allows(player, Action.LYRICS_PRESET)) return;
+        if (plugin.getHologramPresets().isForced(player.getUniqueId())) {
+            player.sendMessage("§c" + plugin.getMessageManager().get(player, "command.server_preset.forced"));
+            return;
+        }
 
         open(player, new LyricsGuiHolder(player.getUniqueId(), 0));
     }
 
+    public void openServerPreset(Player player, String name) {
+        open(player, new LyricsGuiHolder(player.getUniqueId(), 0, 0, name));
+    }
+
     public void openPage(Player player, LyricsGuiHolder from, int page) {
-        open(player, new LyricsGuiHolder(from.getOwner(), page));
+        open(player, new LyricsGuiHolder(from.getOwner(), page, page, from.getServerPreset()));
+    }
+
+    private String title(Player player, LyricsGuiHolder holder) {
+        return holder.getServerPreset() == null
+                ? plugin.getMessageManager().get(player, "gui.lyrics_look.preset_title")
+                : plugin.getMessageManager().get(player, "command.server_preset.title",
+                        holder.getServerPreset());
     }
 
     private void open(Player player, LyricsGuiHolder holder) {
-        Inventory inventory = Bukkit.createInventory(holder, SIZE,
-                plugin.getMessageManager().get(player, "gui.lyrics_look.preset_title"));
+        Inventory inventory = Bukkit.createInventory(holder, SIZE, title(player, holder));
         holder.setInventory(inventory);
 
         fill(player, holder, inventory);
@@ -117,7 +132,8 @@ public class LyricsGuiManager {
     }
 
     public void openResetConfirm(Player player, LyricsGuiHolder from) {
-        LyricsGuiHolder holder = new LyricsGuiHolder(from.getOwner(), CONFIRM_PAGE, from.getPage());
+        LyricsGuiHolder holder = new LyricsGuiHolder(from.getOwner(), CONFIRM_PAGE, from.getPage(),
+                from.getServerPreset());
         Inventory inventory = Bukkit.createInventory(holder, CONFIRM_SIZE,
                 plugin.getMessageManager().get(player, "gui.lyrics_look.confirm_title"));
         holder.setInventory(inventory);
@@ -152,7 +168,7 @@ public class LyricsGuiManager {
     }
 
     private void updatePreview(Player player, LyricsGuiHolder holder) {
-        if (plugin.getLyricsDisplay().showsOwnStyleTo(player)) {
+        if (holder.getServerPreset() == null && plugin.getLyricsDisplay().showsOwnStyleTo(player)) {
             plugin.getHologramPreview().hide(player);
             return;
         }
@@ -160,21 +176,57 @@ public class LyricsGuiManager {
     }
 
     public HologramStyle styleOf(LyricsGuiHolder holder) {
-        return plugin.getHologramPresets().getOrDefault(holder.getOwner());
+        if (holder.getServerPreset() == null) {
+            return plugin.getHologramPresets().getOrDefault(holder.getOwner());
+        }
+        HologramStyle named = plugin.getHologramPresets().server(holder.getServerPreset());
+        return named != null ? named : defaults();
+    }
+
+    public boolean stillEditable(Player player, LyricsGuiHolder holder) {
+        boolean editable = holder.getServerPreset() == null
+                ? !plugin.getHologramPresets().isForced(holder.getOwner())
+                : plugin.getHologramPresets().server(holder.getServerPreset()) != null
+                && plugin.getPermissions().allows(player, Action.ADMIN_PRESETS);
+        if (!editable) player.closeInventory();
+        return editable;
     }
 
     public void apply(Player player, LyricsGuiHolder holder, HologramStyle style) {
-        plugin.getHologramPresets().set(holder.getOwner(), style);
-        plugin.presetChanged(player);
+        if (holder.getServerPreset() == null) {
+            plugin.getHologramPresets().set(holder.getOwner(), style);
+            plugin.presetChanged(player);
+            return;
+        }
+        plugin.getHologramPresets().setServer(holder.getServerPreset(), style);
+        serverPresetChanged(holder.getServerPreset());
+    }
+
+    public void serverPresetChanged(String name) {
+        for (UUID id : plugin.getHologramPresets().holdersOf(name)) {
+            Player target = Bukkit.getPlayer(id);
+            if (target != null) {
+                dev.valkdz.cdisc.util.Tasks.onEntity(plugin, target, () -> plugin.presetChanged(target));
+            }
+        }
     }
 
     public boolean isCustomised(LyricsGuiHolder holder) {
-        return plugin.getHologramPresets().has(holder.getOwner());
+        if (holder.getServerPreset() == null) return plugin.getHologramPresets().has(holder.getOwner());
+        return !styleOf(holder).equals(defaults());
     }
 
     public void reset(Player player, LyricsGuiHolder holder) {
+        if (holder.getServerPreset() != null) {
+            apply(player, holder, defaults());
+            return;
+        }
         plugin.getHologramPresets().clear(holder.getOwner());
         plugin.presetChanged(player);
+    }
+
+    private HologramStyle defaults() {
+        return HologramStyle.fromConfig(plugin.cdiscConfig());
     }
 
     private void fill(Player player, LyricsGuiHolder holder, Inventory inventory) {
@@ -185,7 +237,7 @@ public class LyricsGuiManager {
             inventory.setItem(slot, filler);
         }
 
-        inventory.setItem(SLOT_TITLE, titleItem(player, style));
+        inventory.setItem(SLOT_TITLE, titleItem(player, holder, style));
 
         if (holder.getPage() == 0) {
             fillColors(player, inventory, style);
@@ -270,11 +322,12 @@ public class LyricsGuiManager {
                 style.countdown(), null));
     }
 
-    private ItemStack titleItem(Player player, HologramStyle style) {
+    private ItemStack titleItem(Player player, LyricsGuiHolder holder, HologramStyle style) {
         LyricsStyle colours = style.lyricsStyle();
 
         List<String> lore = new ArrayList<>();
-        lore.add("§7" + plugin.getMessageManager().get(player, "gui.lyrics_look.preset_lore"));
+        lore.add("§7" + plugin.getMessageManager().get(player, holder.getServerPreset() == null
+                ? "gui.lyrics_look.preset_lore" : "command.server_preset.lore"));
         lore.add("");
         lore.add(colours.other() + plugin.getMessageManager().get(player, "gui.lyrics_look.sample_other"));
         lore.add(colours.current() + plugin.getMessageManager().get(player, "gui.lyrics_look.sample_current"));
@@ -282,8 +335,7 @@ public class LyricsGuiManager {
         lore.add("");
         lore.add(style.trackColor() + plugin.getMessageManager().get(player, "gui.lyrics_look.sample_track"));
 
-        return simple(Material.PLAYER_HEAD,
-                plugin.getMessageManager().get(player, "gui.lyrics_look.preset_title"), lore);
+        return simple(Material.PLAYER_HEAD, title(player, holder), lore);
     }
 
     private ItemStack pageItem(Player player, LyricsGuiHolder holder) {

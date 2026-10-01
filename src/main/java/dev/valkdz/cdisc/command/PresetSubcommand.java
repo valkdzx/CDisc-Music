@@ -94,6 +94,11 @@ public final class PresetSubcommand {
     }
 
     private void accept(Player player) {
+        if (plugin.getHologramPresets().isForced(player.getUniqueId())) {
+            player.sendMessage("§c" + message(player, "command.server_preset.forced"));
+            return;
+        }
+
         PresetOffers.Offer offer = plugin.getPresetOffers().claim(player.getUniqueId());
         if (offer == null) {
             player.sendMessage("§c" + message(player, "command.preset.nothing_waiting"));

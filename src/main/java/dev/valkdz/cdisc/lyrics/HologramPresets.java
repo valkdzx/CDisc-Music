@@ -10,7 +10,10 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -22,7 +25,12 @@ public final class HologramPresets {
     private final Main plugin;
     private final File file;
 
+    public record Assignment(String preset, boolean forced) {
+    }
+
     private final Map<UUID, HologramStyle> presets = new ConcurrentHashMap<>();
+    private final Map<String, HologramStyle> server = new ConcurrentHashMap<>();
+    private final Map<UUID, Assignment> assigned = new ConcurrentHashMap<>();
 
     private final Object saveLock = new Object();
 
@@ -34,21 +42,41 @@ public final class HologramPresets {
 
     public void load() {
         presets.clear();
+        server.clear();
+        assigned.clear();
         if (!file.isFile()) return;
 
         try {
             JsonNode root = HologramStyle.mapper().readTree(file);
-            JsonNode all = root.path("presets");
-            if (!all.isObject()) return;
-
             HologramStyle base = HologramStyle.fromConfig(plugin.cdiscConfig());
 
-            Iterator<Map.Entry<String, JsonNode>> fields = all.fields();
+            Iterator<Map.Entry<String, JsonNode>> fields = root.path("presets").fields();
             while (fields.hasNext()) {
                 Map.Entry<String, JsonNode> entry = fields.next();
                 try {
                     presets.put(UUID.fromString(entry.getKey()),
                             HologramStyle.fromJson(entry.getValue(), base));
+                } catch (IllegalArgumentException ignored) {
+
+                }
+            }
+
+            Iterator<Map.Entry<String, JsonNode>> named = root.path("server").fields();
+            while (named.hasNext()) {
+                Map.Entry<String, JsonNode> entry = named.next();
+                if (validName(entry.getKey())) {
+                    server.put(entry.getKey(), HologramStyle.fromJson(entry.getValue(), base));
+                }
+            }
+
+            Iterator<Map.Entry<String, JsonNode>> given = root.path("assigned").fields();
+            while (given.hasNext()) {
+                Map.Entry<String, JsonNode> entry = given.next();
+                String preset = entry.getValue().path("preset").asText("");
+                if (!server.containsKey(preset)) continue;
+                try {
+                    assigned.put(UUID.fromString(entry.getKey()), new Assignment(preset,
+                            entry.getValue().path("forced").asBoolean(false)));
                 } catch (IllegalArgumentException ignored) {
 
                 }
@@ -72,8 +100,68 @@ public final class HologramPresets {
     }
 
     public HologramStyle orDefault(UUID player, HologramStyle defaults) {
+        Assignment given = assigned.get(player);
+        HologramStyle theirs = given == null ? null : server.get(given.preset());
+        if (theirs != null && given.forced()) return theirs;
+
         HologramStyle own = presets.get(player);
-        return own != null ? own : defaults;
+        if (own != null) return own;
+        return theirs != null ? theirs : defaults;
+    }
+
+    public boolean isForced(UUID player) {
+        Assignment given = assigned.get(player);
+        return given != null && given.forced() && server.containsKey(given.preset());
+    }
+
+    public static String normalise(String name) {
+        return name.toLowerCase(Locale.ROOT);
+    }
+
+    public static boolean validName(String name) {
+        return name.matches("[a-z0-9_-]{1,32}");
+    }
+
+    public HologramStyle server(String name) {
+        return server.get(name);
+    }
+
+    public List<String> serverNames() {
+        return server.keySet().stream().sorted().toList();
+    }
+
+    public void setServer(String name, HologramStyle style) {
+        server.put(name, style);
+        saveLater();
+    }
+
+    public List<UUID> removeServer(String name) {
+        if (server.remove(name) == null) return List.of();
+
+        List<UUID> freed = holdersOf(name);
+        freed.forEach(assigned::remove);
+        saveLater();
+        return freed;
+    }
+
+    public List<UUID> holdersOf(String name) {
+        List<UUID> holders = new ArrayList<>();
+        assigned.forEach((id, given) -> {
+            if (given.preset().equals(name)) holders.add(id);
+        });
+        return holders;
+    }
+
+    public void assign(UUID player, String name, boolean forced) {
+        assigned.put(player, new Assignment(name, forced));
+        if (!forced) presets.remove(player);
+        saveLater();
+    }
+
+    public boolean unassign(UUID player) {
+        if (assigned.remove(player) == null) return false;
+        saveLater();
+        return true;
     }
 
     public void set(UUID player, HologramStyle style) {
@@ -87,6 +175,10 @@ public final class HologramPresets {
 
     public int size() {
         return presets.size();
+    }
+
+    public int serverSize() {
+        return server.size();
     }
 
     public boolean copy(UUID from, UUID to) {
@@ -111,6 +203,16 @@ public final class HologramPresets {
             ObjectNode all = root.putObject("presets");
             for (Map.Entry<UUID, HologramStyle> entry : presets.entrySet()) {
                 all.set(entry.getKey().toString(), entry.getValue().toJson());
+            }
+            ObjectNode named = root.putObject("server");
+            for (Map.Entry<String, HologramStyle> entry : server.entrySet()) {
+                named.set(entry.getKey(), entry.getValue().toJson());
+            }
+            ObjectNode given = root.putObject("assigned");
+            for (Map.Entry<UUID, Assignment> entry : assigned.entrySet()) {
+                ObjectNode one = given.putObject(entry.getKey().toString());
+                one.put("preset", entry.getValue().preset());
+                one.put("forced", entry.getValue().forced());
             }
 
             try {

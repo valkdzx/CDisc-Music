@@ -164,7 +164,8 @@ final class Diagnostics {
             out.add(line(State.READY, "holograms",
                     drawn.total() + " floating, read by " + drawn.watching() + " player(s)"));
             out.add(line(State.READY, "presets",
-                    plugin.getHologramPresets().size() + " player(s) with a look of their own"));
+                    plugin.getHologramPresets().size() + " player(s) with a look of their own, "
+                            + plugin.getHologramPresets().serverSize() + " made by the server"));
 
             if (!config.isLyricsDefaultOn()) {
                 out.add("  &7Nothing shows for a player who has not asked — /cdisc lyrics,");

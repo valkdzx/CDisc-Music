@@ -34,12 +34,14 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
     private final PlayerSubcommand playerSub;
     private final PairSubcommand pairSub;
     private final PresetSubcommand presetSub;
+    private final AdminPresetSubcommand adminPresetSub;
 
     public CDiscCommand(Main plugin) {
         this.plugin = plugin;
         this.playerSub = new PlayerSubcommand(plugin);
         this.pairSub = new PairSubcommand(plugin);
         this.presetSub = new PresetSubcommand(plugin);
+        this.adminPresetSub = new AdminPresetSubcommand(plugin);
     }
 
     @Override
@@ -241,6 +243,9 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
             }
             case "local-files-config" -> {
                 if (allowed(sender, Action.ADMIN_LOCAL_FILES)) localFilesConfig(sender, parts);
+            }
+            case "presets" -> {
+                if (allowed(sender, Action.ADMIN_PRESETS)) adminPresetSub.handle(sender, parts);
             }
             case "config" -> config(sender);
             default -> {
@@ -557,6 +562,8 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
                             entry("download", Action.DISC_DOWNLOAD, sender),
                             sender instanceof Player
                                     ? entry("local-files-config", Action.ADMIN_LOCAL_FILES, sender) : null,
+                            plugin.cdiscConfig().isLyricsEnabled()
+                                    ? entry("presets", Action.ADMIN_PRESETS, sender) : null,
                             sender instanceof Player && sender.hasPermission(Perms.CONFIG)
                                     && plugin.cdiscConfig().isConfigDialogEnabled() ? "config" : null)
                     .filter(java.util.Objects::nonNull)
@@ -569,6 +576,11 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
                 && sender instanceof Player
                 && plugin.getPermissions().allows(sender, Action.ADMIN_LOCAL_FILES)) {
             return completeConfigurableFile(args);
+        }
+        if (args[0].equalsIgnoreCase("admin") && args.length >= 3
+                && args[1].equalsIgnoreCase("presets")
+                && plugin.getPermissions().allows(sender, Action.ADMIN_PRESETS)) {
+            return adminPresetSub.complete(args);
         }
         if (args[0].equalsIgnoreCase("preset") && sender instanceof Player player
                 && plugin.getPermissions().allows(sender, Action.LYRICS_PRESET)) {

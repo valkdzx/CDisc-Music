@@ -30,6 +30,7 @@ public class LyricsGuiListener implements Listener {
         if (!(e.getWhoClicked() instanceof Player player)) return;
 
         LyricsGuiManager gui = plugin.getLyricsGuiManager();
+        if (!gui.stillEditable(player, holder)) return;
         int slot = e.getSlot();
         boolean forward = !e.isRightClick();
 
