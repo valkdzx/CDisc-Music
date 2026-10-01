@@ -65,9 +65,12 @@ public class JukeboxListener implements Listener {
     };
 
     private final Main plugin;
+    private final ParrotDance parrotDance;
 
     public JukeboxListener(Main plugin) {
         this.plugin = plugin;
+        this.parrotDance = new ParrotDance(plugin);
+        plugin.getServer().getPluginManager().registerEvents(parrotDance, plugin);
         initPacketListener();
     }
 
@@ -88,6 +91,7 @@ public class JukeboxListener implements Listener {
 
     private boolean onWorldEventDecoded(org.bukkit.entity.Player player, WorldEventPacketInterceptor.WorldEventPacket event) {
         if (event.effectId() != EFFECT_RECORD_START && event.effectId() != EFFECT_RECORD_STOP) return false;
+        if (parrotDance.passes(player, event.effectId(), event.x(), event.y(), event.z(), event.data())) return false;
 
         BlockKey key = new BlockKey(player.getWorld().getUID(), event.x(), event.y(), event.z());
         boolean isCustom = customDiscBlocks.contains(key) || queueControlled.contains(key);

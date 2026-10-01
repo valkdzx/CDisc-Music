@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- 🦜 Parrots within three blocks of a jukebox dance to CDisc discs as they do to vanilla ones, and stop when playback ends.
+
 ## 2.1.2
 
 - 🎙️ Broadcasts: `/cdisc create broadcast:Name` makes a disc that plays no music. In a jukebox it goes live, and its host — whoever made the disc — or an operator adds up to six microphones from the Broadcast button. A handheld microphone is heard only from its holder, can be passed on or put back in the jukebox, and returns to the host past `handheld-range`; a block microphone hears a player as far as their voice carries, quieter with distance. Voices reach the jukebox and its paired speakers through Simple Voice Chat and Plasmo Voice. `broadcast.enabled` in config.yml switches it off.

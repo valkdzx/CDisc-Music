@@ -12,6 +12,7 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
@@ -28,6 +29,8 @@ public final class WorldEventPacketInterceptor {
 
     private static volatile PacketShape shape;
     private static volatile boolean unsupported = false;
+    private static volatile Constructor<?> packetConstructor;
+    private static volatile Constructor<?> posConstructor;
     private static final Set<Class<?>> nonMatchingClasses = java.util.Collections.newSetFromMap(new java.util.concurrent.ConcurrentHashMap<>());
 
     private final JavaPlugin plugin;
@@ -61,6 +64,35 @@ public final class WorldEventPacketInterceptor {
 
     public static boolean isUnsupported() {
         return unsupported;
+    }
+
+    public static boolean send(Player player, int effectId, int x, int y, int z, int data) {
+        PacketShape s = shape;
+        Channel channel = PlayerChannelUtils.getChannel(player);
+        if (s == null || channel == null) return false;
+
+        try {
+            if (packetConstructor == null) {
+                Class<?> posType = s.posField.getType();
+                for (Constructor<?> c : s.packetClass.getDeclaredConstructors()) {
+                    if (Arrays.equals(c.getParameterTypes(),
+                            new Class<?>[]{int.class, posType, int.class, boolean.class})) {
+                        c.setAccessible(true);
+                        Constructor<?> pos = posType.getDeclaredConstructor(int.class, int.class, int.class);
+                        pos.setAccessible(true);
+                        posConstructor = pos;
+                        packetConstructor = c;
+                    }
+                }
+                if (packetConstructor == null) return false;
+            }
+            Object pos = posConstructor.newInstance(x, y, z);
+            channel.writeAndFlush(packetConstructor.newInstance(effectId, pos, data, false));
+            return true;
+        } catch (Exception e) {
+            LOGGER.warning("[CDisc] Could not send a world event packet: " + e);
+            return false;
+        }
     }
 
     private void inject(Player player) {
