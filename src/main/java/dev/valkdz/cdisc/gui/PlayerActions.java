@@ -177,9 +177,10 @@ public final class PlayerActions {
                 on ? "gui.track_messages.enabled" : "gui.track_messages.disabled"));
     }
 
-    public void cycleLyrics(Player player, Block block) {
+    public void cycleLyrics(Player player, Block block, boolean forward) {
         if (!plugin.cdiscConfig().isLyricsEnabled()) return;
-        setLyrics(player, block, LyricsPrefs.mode(player).next());
+        LyricsMode current = LyricsPrefs.mode(player);
+        setLyrics(player, block, forward ? current.next() : current.previous());
     }
 
     public void setLyrics(Player player, Block block, LyricsMode mode) {

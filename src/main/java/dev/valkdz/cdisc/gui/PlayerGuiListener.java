@@ -53,7 +53,7 @@ public class PlayerGuiListener implements Listener {
             return;
         }
 
-        Action needed = actionFor(e.getSlot(), playing, e.isRightClick());
+        Action needed = actionFor(e.getSlot(), playing, e.isShiftClick());
         if (needed != null && !plugin.getPermissions().allows(player, needed)) return;
 
         PlayerActions actions = plugin.getPlayerActions();
@@ -113,12 +113,12 @@ public class PlayerGuiListener implements Listener {
                     break;
                 }
 
-                if (e.isRightClick()) {
+                if (e.isShiftClick()) {
                     stateChanged = false;
                     actions.openMyLyricsLook(player);
                     break;
                 }
-                actions.cycleLyrics(player, block);
+                actions.cycleLyrics(player, block, !e.isRightClick());
             }
             case PlayerGuiManager.SLOT_EXIT -> player.closeInventory();
             default -> stateChanged = false;
@@ -209,7 +209,7 @@ public class PlayerGuiListener implements Listener {
 
         Action needed = switch (slot) {
             case PlayerGuiManager.SLOT_LYRICS ->
-                    e.isRightClick() ? Action.LYRICS_PRESET : Action.LYRICS_TOGGLE;
+                    e.isShiftClick() ? Action.LYRICS_PRESET : Action.LYRICS_TOGGLE;
             case PlayerGuiManager.LOCAL_TRACK_MESSAGES -> Action.PLAYER_MESSAGES;
             case PlayerGuiManager.LOCAL_VOLUME -> Action.PLAYER_LOCAL_VOLUME;
             default -> null;
@@ -219,11 +219,11 @@ public class PlayerGuiListener implements Listener {
         switch (slot) {
             case PlayerGuiManager.SLOT_LYRICS -> {
                 if (!plugin.cdiscConfig().isLyricsEnabled()) return;
-                if (e.isRightClick()) {
+                if (e.isShiftClick()) {
                     actions.openMyLyricsLook(player);
                     return;
                 }
-                actions.cycleLyrics(player, block);
+                actions.cycleLyrics(player, block, !e.isRightClick());
             }
             case PlayerGuiManager.LOCAL_TRACK_MESSAGES -> actions.toggleTrackMessages(player);
             case PlayerGuiManager.LOCAL_VOLUME -> {
@@ -241,7 +241,7 @@ public class PlayerGuiListener implements Listener {
         plugin.getPlayerGuiManager().refresh(player, block);
     }
 
-    private static Action actionFor(int slot, boolean playing, boolean rightClick) {
+    private static Action actionFor(int slot, boolean playing, boolean shiftClick) {
         return switch (slot) {
             case PlayerGuiManager.SLOT_QUEUE -> Action.QUEUE_OPEN;
             case PlayerGuiManager.SLOT_INFO, PlayerGuiManager.SLOT_SEEK_BACK,
@@ -253,7 +253,7 @@ public class PlayerGuiListener implements Listener {
             case PlayerGuiManager.SLOT_REPEAT -> Action.PLAYER_REPEAT;
             case PlayerGuiManager.SLOT_SHUFFLE -> Action.PLAYER_SHUFFLE;
             case PlayerGuiManager.SLOT_LYRICS ->
-                    rightClick ? Action.LYRICS_PRESET : Action.LYRICS_TOGGLE;
+                    shiftClick ? Action.LYRICS_PRESET : Action.LYRICS_TOGGLE;
 
             // Exit closes the screen, and the advanced button is judged by the buttons it holds.
             default -> null;

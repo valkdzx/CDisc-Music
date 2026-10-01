@@ -51,6 +51,11 @@ public enum LyricsMode {
         return all[(ordinal() + 1) % all.length];
     }
 
+    public LyricsMode previous() {
+        LyricsMode[] all = values();
+        return all[(ordinal() + all.length - 1) % all.length];
+    }
+
     public String header(String title, String author, long positionMs, long durationMs) {
         if (!header) return null;
 

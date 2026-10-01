@@ -310,8 +310,8 @@ gui:
   lyrics:
     sidebar_title: "Letra"
     name: "&6Letra"
-    hint: "&7Clic izquierdo para elegir lo que ves encima"
-    hint_settings: "&7Clic derecho para tu propio aspecto"
+    hint: "&7Clic izquierdo: vista siguiente, clic derecho: anterior"
+    hint_settings: "&7Shift+clic para tu propio aspecto"
     mode_title: "&7Lo que ves sobre las gramolas:"
     mode_off: "Apagado"
     mode_lyrics: "Letra"

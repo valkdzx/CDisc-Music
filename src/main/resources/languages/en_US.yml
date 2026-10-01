@@ -310,8 +310,8 @@ gui:
   lyrics:
     sidebar_title: "Lyrics"
     name: "&6Lyrics"
-    hint: "&7Left click to pick what you see above it"
-    hint_settings: "&7Right click for your own look"
+    hint: "&7Left click: next view, right click: previous"
+    hint_settings: "&7Shift+click for your own look"
     mode_title: "&7What you see above jukeboxes:"
     mode_off: "Off"
     mode_lyrics: "Lyrics"

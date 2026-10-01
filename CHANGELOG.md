@@ -4,6 +4,7 @@
 
 - 🦜 Parrots within three blocks of a jukebox dance to CDisc discs as they do to vanilla ones, and stop when playback ends.
 - 🔙 Players given a server hologram preset without force keep their own look: the Return my own look button in `/cdisc preset` brings it back, and editing the preset turns it into their own. `/cdisc admin presets unset` also returns it.
+- 🖱️ The lyrics button in the player screen: left click shows the next view above jukeboxes, right click the previous one, and shift+click opens your own hologram look.
 
 ## 2.1.2
 
