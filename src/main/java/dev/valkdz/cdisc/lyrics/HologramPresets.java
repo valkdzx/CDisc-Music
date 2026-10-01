@@ -31,6 +31,7 @@ public final class HologramPresets {
     private final Map<UUID, HologramStyle> presets = new ConcurrentHashMap<>();
     private final Map<String, HologramStyle> server = new ConcurrentHashMap<>();
     private final Map<UUID, Assignment> assigned = new ConcurrentHashMap<>();
+    private volatile Assignment fallback;
 
     private final Object saveLock = new Object();
 
@@ -44,6 +45,7 @@ public final class HologramPresets {
         presets.clear();
         server.clear();
         assigned.clear();
+        fallback = null;
         if (!file.isFile()) return;
 
         try {
@@ -81,6 +83,12 @@ public final class HologramPresets {
 
                 }
             }
+
+            JsonNode everyone = root.path("default");
+            String preset = everyone.path("preset").asText("");
+            if (server.containsKey(preset)) {
+                fallback = new Assignment(preset, everyone.path("forced").asBoolean(false));
+            }
         } catch (IOException e) {
             plugin.getLogger().warning("Couldn't read " + FILE_NAME + ": " + e.getMessage()
                     + ". Presets are starting empty; the file is left as it is.");
@@ -100,7 +108,7 @@ public final class HologramPresets {
     }
 
     public HologramStyle orDefault(UUID player, HologramStyle defaults) {
-        Assignment given = assigned.get(player);
+        Assignment given = assignmentOf(player);
         HologramStyle theirs = given == null ? null : server.get(given.preset());
         if (theirs != null && given.forced()) return theirs;
 
@@ -110,8 +118,27 @@ public final class HologramPresets {
     }
 
     public boolean isForced(UUID player) {
-        Assignment given = assigned.get(player);
+        Assignment given = assignmentOf(player);
         return given != null && given.forced() && server.containsKey(given.preset());
+    }
+
+    public Assignment assignmentOf(UUID player) {
+        Assignment given = assigned.get(player);
+        return given != null ? given : fallback;
+    }
+
+    public boolean follows(UUID player, String name) {
+        Assignment given = assignmentOf(player);
+        return given != null && given.preset().equals(name);
+    }
+
+    public Assignment fallback() {
+        return fallback;
+    }
+
+    public void setFallback(Assignment everyone) {
+        fallback = everyone;
+        saveLater();
     }
 
     public static String normalise(String name) {
@@ -119,7 +146,7 @@ public final class HologramPresets {
     }
 
     public static boolean validName(String name) {
-        return name.matches("[a-z0-9_-]{1,32}");
+        return name.matches("[a-z0-9_-]{1,32}") && !name.equals("none");
     }
 
     public HologramStyle server(String name) {
@@ -138,18 +165,15 @@ public final class HologramPresets {
     public List<UUID> removeServer(String name) {
         if (server.remove(name) == null) return List.of();
 
-        List<UUID> freed = holdersOf(name);
+        List<UUID> freed = new ArrayList<>();
+        assigned.forEach((id, given) -> {
+            if (given.preset().equals(name)) freed.add(id);
+        });
         freed.forEach(assigned::remove);
+        Assignment everyone = fallback;
+        if (everyone != null && everyone.preset().equals(name)) fallback = null;
         saveLater();
         return freed;
-    }
-
-    public List<UUID> holdersOf(String name) {
-        List<UUID> holders = new ArrayList<>();
-        assigned.forEach((id, given) -> {
-            if (given.preset().equals(name)) holders.add(id);
-        });
-        return holders;
     }
 
     public void assign(UUID player, String name, boolean forced) {
@@ -213,6 +237,12 @@ public final class HologramPresets {
                 ObjectNode one = given.putObject(entry.getKey().toString());
                 one.put("preset", entry.getValue().preset());
                 one.put("forced", entry.getValue().forced());
+            }
+            Assignment everyone = fallback;
+            if (everyone != null) {
+                ObjectNode one = root.putObject("default");
+                one.put("preset", everyone.preset());
+                one.put("forced", everyone.forced());
             }
 
             try {

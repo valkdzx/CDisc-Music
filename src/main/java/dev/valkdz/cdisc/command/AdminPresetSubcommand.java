@@ -11,12 +11,11 @@ import org.bukkit.entity.Player;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.UUID;
 import java.util.stream.Stream;
 
 public final class AdminPresetSubcommand {
 
-    public static final List<String> SUBS = List.of("add", "set", "unset", "remove");
+    public static final List<String> SUBS = List.of("add", "set", "unset", "default", "remove");
 
     private static final List<String> SELECTORS = List.of("@a", "@p", "@r", "@s");
 
@@ -37,6 +36,7 @@ public final class AdminPresetSubcommand {
             case "add" -> add(sender, parts);
             case "set" -> set(sender, parts);
             case "unset" -> unset(sender, parts);
+            case "default" -> fallback(sender, parts);
             case "remove" -> remove(sender, parts);
             default -> usage(sender);
         }
@@ -77,15 +77,8 @@ public final class AdminPresetSubcommand {
         String name = existing(sender, parts[3]);
         if (name == null) return;
 
-        boolean forced = false;
-        if (parts.length > 5) {
-            String raw = parts[5].toLowerCase(Locale.ROOT);
-            if (!raw.equals("true") && !raw.equals("false")) {
-                usage(sender);
-                return;
-            }
-            forced = raw.equals("true");
-        }
+        Boolean forced = forced(sender, parts, 5);
+        if (forced == null) return;
 
         List<Player> targets = select(sender, parts[4]);
         if (targets == null || targets.isEmpty()) return;
@@ -96,6 +89,47 @@ public final class AdminPresetSubcommand {
         }
         sender.sendMessage("§a" + message(sender, forced
                 ? "command.server_preset.set_forced" : "command.server_preset.set", targets.size(), name));
+    }
+
+    private void fallback(CommandSender sender, String[] parts) {
+        HologramPresets presets = plugin.getHologramPresets();
+        if (parts.length < 4) {
+            HologramPresets.Assignment everyone = presets.fallback();
+            if (everyone == null) {
+                sender.sendMessage("§7" + message(sender, "command.server_preset.default_nothing"));
+            } else {
+                sender.sendMessage("§7" + message(sender, everyone.forced()
+                        ? "command.server_preset.default_current_forced"
+                        : "command.server_preset.default_current", everyone.preset()));
+            }
+            return;
+        }
+
+        if (parts[3].equalsIgnoreCase("none")) {
+            presets.setFallback(null);
+            sender.sendMessage("§a" + message(sender, "command.server_preset.default_cleared"));
+            refreshEveryone();
+            return;
+        }
+
+        String name = existing(sender, parts[3]);
+        if (name == null) return;
+        Boolean forced = forced(sender, parts, 4);
+        if (forced == null) return;
+
+        presets.setFallback(new HologramPresets.Assignment(name, forced));
+        sender.sendMessage("§a" + message(sender, forced
+                ? "command.server_preset.default_set_forced" : "command.server_preset.default_set", name));
+        refreshEveryone();
+    }
+
+    private Boolean forced(CommandSender sender, String[] parts, int index) {
+        if (parts.length <= index) return false;
+
+        String raw = parts[index].toLowerCase(Locale.ROOT);
+        if (raw.equals("true") || raw.equals("false")) return raw.equals("true");
+        usage(sender);
+        return null;
     }
 
     private void unset(CommandSender sender, String[] parts) {
@@ -125,12 +159,9 @@ public final class AdminPresetSubcommand {
         String name = existing(sender, parts[3]);
         if (name == null) return;
 
-        List<UUID> freed = plugin.getHologramPresets().removeServer(name);
-        for (UUID id : freed) {
-            Player target = Bukkit.getPlayer(id);
-            if (target != null) changed(target);
-        }
-        sender.sendMessage("§a" + message(sender, "command.server_preset.removed", name, freed.size()));
+        int freed = plugin.getHologramPresets().removeServer(name).size();
+        sender.sendMessage("§a" + message(sender, "command.server_preset.removed", name, freed));
+        refreshEveryone();
     }
 
     private String existing(CommandSender sender, String raw) {
@@ -179,6 +210,10 @@ public final class AdminPresetSubcommand {
         Tasks.onEntity(plugin, target, () -> plugin.presetChanged(target));
     }
 
+    private void refreshEveryone() {
+        plugin.getServer().getOnlinePlayers().forEach(this::changed);
+    }
+
     public List<String> complete(String[] args) {
         String typed = args[args.length - 1].toLowerCase(Locale.ROOT);
         String sub = args.length > 3 ? args[2].toLowerCase(Locale.ROOT) : "";
@@ -187,10 +222,16 @@ public final class AdminPresetSubcommand {
             case 3 -> SUBS.stream();
             case 4 -> switch (sub) {
                 case "set", "remove", "add" -> plugin.getHologramPresets().serverNames().stream();
+                case "default" -> Stream.concat(plugin.getHologramPresets().serverNames().stream(),
+                        Stream.of("none"));
                 case "unset" -> players();
                 default -> Stream.empty();
             };
-            case 5 -> sub.equals("set") ? players() : Stream.empty();
+            case 5 -> switch (sub) {
+                case "set" -> players();
+                case "default" -> args[3].equalsIgnoreCase("none") ? Stream.empty() : Stream.of("true", "false");
+                default -> Stream.empty();
+            };
             case 6 -> sub.equals("set") ? Stream.of("true", "false") : Stream.empty();
             default -> Stream.empty();
         };

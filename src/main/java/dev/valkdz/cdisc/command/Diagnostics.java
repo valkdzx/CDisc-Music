@@ -165,7 +165,8 @@ final class Diagnostics {
                     drawn.total() + " floating, read by " + drawn.watching() + " player(s)"));
             out.add(line(State.READY, "presets",
                     plugin.getHologramPresets().size() + " player(s) with a look of their own, "
-                            + plugin.getHologramPresets().serverSize() + " made by the server"));
+                            + plugin.getHologramPresets().serverSize() + " made by the server"
+                            + defaultPreset(plugin.getHologramPresets().fallback())));
 
             if (!config.isLyricsDefaultOn()) {
                 out.add("  &7Nothing shows for a player who has not asked — /cdisc lyrics,");
@@ -211,6 +212,11 @@ final class Diagnostics {
 
         return line(State.READY, name + " (" + prefix + ")", keyed
                 ? "through the backend, token as fallback" : "through the backend, no key needed");
+    }
+
+    private static String defaultPreset(dev.valkdz.cdisc.lyrics.HologramPresets.Assignment everyone) {
+        if (everyone == null) return "";
+        return ", everyone else gets " + everyone.preset() + (everyone.forced() ? " (forced)" : "");
     }
 
     private static String line(State state, String label, String detail) {

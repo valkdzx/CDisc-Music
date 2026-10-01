@@ -14,7 +14,6 @@ import org.bukkit.inventory.meta.ItemMeta;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.UUID;
 
 public class LyricsGuiManager {
 
@@ -203,9 +202,8 @@ public class LyricsGuiManager {
     }
 
     public void serverPresetChanged(String name) {
-        for (UUID id : plugin.getHologramPresets().holdersOf(name)) {
-            Player target = Bukkit.getPlayer(id);
-            if (target != null) {
+        for (Player target : Bukkit.getOnlinePlayers()) {
+            if (plugin.getHologramPresets().follows(target.getUniqueId(), name)) {
                 dev.valkdz.cdisc.util.Tasks.onEntity(plugin, target, () -> plugin.presetChanged(target));
             }
         }
