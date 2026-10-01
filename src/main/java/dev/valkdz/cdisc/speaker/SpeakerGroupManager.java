@@ -98,12 +98,14 @@ public final class SpeakerGroupManager {
         ALREADY_PAIRED,
         DIFFERENT_WORLD,
         TOO_FAR,
-        GROUP_FULL
+        GROUP_FULL,
+        BUSY
     }
 
     public PairResult canAdd(SpeakerGroup group, Block speaker) {
         if (!plugin.cdiscConfig().isSpeakerGroupEnabled()) return PairResult.DISABLED;
         if (groupAt(speaker) != null) return PairResult.ALREADY_PAIRED;
+        if (busy(speaker)) return PairResult.BUSY;
 
         Location main = group.main();
         if (main.getWorld() == null || !main.getWorld().equals(speaker.getWorld())) {
@@ -119,6 +121,14 @@ public final class SpeakerGroupManager {
             return PairResult.GROUP_FULL;
         }
         return PairResult.OK;
+    }
+
+    private boolean busy(Block speaker) {
+        dev.valkdz.cdisc.audio.LavaPlayerManager audio = plugin.getAudioPlayerManager();
+        if (audio.hasActiveSession(speaker)) return true;
+        dev.valkdz.cdisc.audio.queue.DiscQueue queue = audio.getQueue(speaker);
+        if (queue != null && !queue.isEmpty()) return true;
+        return speaker.getState() instanceof org.bukkit.block.Jukebox jukebox && jukebox.hasRecord();
     }
 
     public boolean addSpeaker(SpeakerGroup group, Block speaker) {

@@ -22,7 +22,6 @@ import com.sedmelluq.discord.lavaplayer.source.vimeo.VimeoAudioSourceManager;
 import com.sedmelluq.discord.lavaplayer.tools.FriendlyException;
 import com.sedmelluq.discord.lavaplayer.track.AudioItem;
 import com.sedmelluq.discord.lavaplayer.track.AudioPlaylist;
-import com.sedmelluq.discord.lavaplayer.track.AudioReference;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
 import dev.lavalink.youtube.YoutubeAudioSourceManager;
 import dev.lavalink.youtube.YoutubeSource;
@@ -562,6 +561,7 @@ public class TrackLoader {
     }
 
     public void loadItem(String resolved, AudioLoadResultHandler handler) {
+        if (loadBroadcast(resolved, null, null, handler)) return;
         if (interceptSpotifyCollection(resolved, handler)) return;
         if (interceptSpotify(resolved, handler)) return;
         if (isYoutubeIdentifier(resolved) && !isSearch(resolved) && !resolved.contains("list=")) {
@@ -615,12 +615,20 @@ public class TrackLoader {
 
     public void load(String resolved, String musicFetch, String discTitle, String discAuthor,
                      AudioLoadResultHandler handler) {
+        if (loadBroadcast(resolved, discTitle, discAuthor, handler)) return;
         String youtube = "backend".equals(musicFetch) ? youtubeUrlOf(resolved) : resolved;
         if (youtube.equals(resolved)) {
             loadSmart(resolved, handler);
         } else {
             loadSmart(youtube, handler, discTitle, discAuthor);
         }
+    }
+
+    private static boolean loadBroadcast(String resolved, String title, String author,
+                                         AudioLoadResultHandler handler) {
+        if (!dev.valkdz.cdisc.broadcast.BroadcastTrack.isAddress(resolved)) return false;
+        handler.trackLoaded(new dev.valkdz.cdisc.broadcast.BroadcastTrack(resolved.trim(), title, author));
+        return true;
     }
 
     private void loadSmart(String resolved, AudioLoadResultHandler handler) {
@@ -638,7 +646,7 @@ public class TrackLoader {
         }
 
         if (sabrResolver == null) {
-            loadViaLibraries(resolved, handler);
+            loadViaBackend(resolved, handler);
             return;
         }
 
@@ -646,14 +654,14 @@ public class TrackLoader {
         Route known = videoId == null ? null : route(videoId);
 
         if (videoId != null && preferBackend.contains(videoId)) {
-            loadViaLibraries(resolved, handler);
+            loadViaBackend(resolved, handler);
             return;
         }
 
         if (known != null && Boolean.FALSE.equals(known.allowedHere())) {
             Bukkit.getLogger().info("[CDisc] This one is not offered in "
                     + sabrResolver.region() + "; going straight to the backend.");
-            loadViaLibraries(resolved, handler);
+            loadViaBackend(resolved, handler);
             return;
         }
 
@@ -677,8 +685,8 @@ public class TrackLoader {
                     }
 
                     Bukkit.getLogger().info("[CDisc] YouTube would not hand this track over "
-                            + "directly; trying the libraries.");
-                    loadViaLibraries(resolved, handler);
+                            + "directly; asking the backend.");
+                    loadViaBackend(resolved, handler);
                 });
     }
 
@@ -702,11 +710,11 @@ public class TrackLoader {
         }
     }
 
-    private void loadViaLibraries(String resolved, AudioLoadResultHandler handler) {
-        loadViaLibraries(resolved, handler, false);
+    private void loadViaBackend(String resolved, AudioLoadResultHandler handler) {
+        loadViaBackend(resolved, handler, false);
     }
 
-    private void loadViaLibraries(String resolved, AudioLoadResultHandler handler,
+    private void loadViaBackend(String resolved, AudioLoadResultHandler handler,
                                   boolean backendAlreadyTried) {
         resolveExecutor.submit(() -> {
             AudioTrack backend = null;
@@ -724,33 +732,15 @@ public class TrackLoader {
                 return;
             }
 
-            String refusal = null;
-            AudioItem ytItem = null;
-            try {
-                ytItem = youtubeManager.loadItem(lavaPlayer, new AudioReference(resolved, null));
-            } catch (Exception e) {
-                refusal = e.getMessage();
+            AudioTrack replacement = substitute(
+                    dev.valkdz.cdisc.audio.sabr.SabrResolver.videoIdOf(resolved));
+            if (replacement != null) {
+                setTrackSourceMetadata(replacement, directLabel(replacement));
+                invokeHandler(replacement, handler);
+                return;
             }
-
-            if (ytItem != null) {
-                setTrackSourceMetadata(ytItem, "youtube-source");
-                if (ytItem instanceof AudioTrack track) announce(track);
-                invokeHandler(ytItem, handler);
-            } else if (!backendAlreadyTried && looksAgeRestricted(refusal)) {
-                Bukkit.getLogger().info("[CDisc] youtube-source was refused on age; "
-                        + "asking the backend.");
-                loadAgeRestricted(resolved, handler);
-            } else {
-                AudioTrack replacement = substitute(
-                        dev.valkdz.cdisc.audio.sabr.SabrResolver.videoIdOf(resolved));
-                if (replacement != null) {
-                    setTrackSourceMetadata(replacement, directLabel(replacement));
-                    invokeHandler(replacement, handler);
-                    return;
-                }
-                Bukkit.getLogger().severe("[CDisc] No source could load this track.");
-                handler.noMatches();
-            }
+            Bukkit.getLogger().severe("[CDisc] No source could load this track.");
+            handler.noMatches();
         });
     }
 
@@ -817,47 +807,25 @@ public class TrackLoader {
     }
 
     public boolean hasNextSource(AudioTrack failed, String resolved) {
-        return !"youtube-source".equals(failed.getUserData())
+        return customApiResolver != null
+                && !"Custom API (Backend)".equals(failed.getUserData())
                 && isYoutubeIdentifier(youtubeUrlOf(resolved));
     }
 
     public void nextSourceAsync(AudioTrack failed, String resolved, Consumer<AudioTrack> callback) {
         String url = youtubeUrlOf(resolved);
-        boolean backendTried = "Custom API (Backend)".equals(failed.getUserData());
 
         resolveExecutor.submit(() -> {
-            if (!backendTried && customApiResolver != null) {
-                AudioTrack track = null;
-                try {
-                    track = customApiResolver.resolve(lavaPlayer, url);
-                } catch (Exception e) {
-                    Bukkit.getLogger().warning("[CDisc] The custom API had no replacement: "
-                            + e.getMessage());
-                }
-                if (track != null) {
-                    Bukkit.getLogger().info("[CDisc] Found a replacement: going through the custom API.");
-                    setTrackSourceMetadata(track, "Custom API (Backend)");
-                    callback.accept(track);
-                    return;
-                }
-            }
-
             AudioTrack track = null;
             try {
-                AudioItem item = youtubeManager == null ? null
-                        : youtubeManager.loadItem(lavaPlayer, new AudioReference(url, null));
-                if (item instanceof AudioTrack found) {
-                    track = found;
-                } else if (item instanceof AudioPlaylist list && !list.getTracks().isEmpty()) {
-                    track = list.getSelectedTrack() != null ? list.getSelectedTrack() : list.getTracks().get(0);
-                }
+                CustomYoutubeApiResolver api = customApiResolver;
+                if (api != null) track = api.resolve(lavaPlayer, url);
             } catch (Exception e) {
-                Bukkit.getLogger().warning("[CDisc] youtube-source had no replacement: "
-                        + e.getMessage());
+                Bukkit.getLogger().warning("[CDisc] The backend had no replacement: " + e.getMessage());
             }
             if (track != null) {
-                Bukkit.getLogger().info("[CDisc] Found a replacement: going through youtube-source.");
-                setTrackSourceMetadata(track, "youtube-source");
+                Bukkit.getLogger().info("[CDisc] Found a replacement: going through the backend.");
+                setTrackSourceMetadata(track, "Custom API (Backend)");
             }
             callback.accept(track);
         });
@@ -1030,14 +998,15 @@ public class TrackLoader {
             }
 
             Bukkit.getLogger().warning("[CDisc] The backend had nothing for this "
-                    + "age-restricted track either; trying the libraries.");
-            loadViaLibraries(resolved, handler, true);
+                    + "age-restricted track either.");
+            loadViaBackend(resolved, handler, true);
         });
     }
 
     public String resolveQuery(String query) {
         if (query == null || query.isBlank()) return null;
         String q = query.trim();
+        if (dev.valkdz.cdisc.broadcast.BroadcastTrack.isAddress(q)) return q;
 
         if (LocalMusicLibrary.isLocalQuery(q)) {
             return plugin.getLocalMusic().resolveToPath(q);

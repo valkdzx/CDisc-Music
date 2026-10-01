@@ -4,7 +4,7 @@ main: dev.valkdz.cdisc.Main
 api-version: 1.20
 folia-supported: true
 author: valkdz
-softdepend: [voicechat, PlasmoVoice, WorldGuard]
+softdepend: [voicechat, PlasmoVoice, WorldGuard, PlaceholderAPI]
 commands:
   cdisc:
     usage: /<command> [create|disc|player|pair|lyrics|preset|messages|sneak|admin] [args]

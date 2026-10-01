@@ -173,6 +173,7 @@ public class MultiVoiceBackend implements VoiceBackend {
         private volatile UUID privateListener;
         private volatile int directVolume = -1;
         private volatile SpeakerSettings settings;
+        private volatile Set<UUID> silenced = Set.of();
 
         private volatile boolean closed;
 
@@ -199,6 +200,7 @@ public class MultiVoiceBackend implements VoiceBackend {
             if (current != null) part.applySpeakerSettings(current);
             if (synced) part.setSynced(true);
             if (directVolume >= 0) part.setDirectVolume(directVolume);
+            if (!silenced.isEmpty()) part.setSilencedListeners(silenced);
 
             // Before the carrier, so a carrier this backend must skip is recognised as one
             // rather than given a direct feed first.
@@ -225,6 +227,18 @@ public class MultiVoiceBackend implements VoiceBackend {
                 part.setExcludedListeners(skip);
             } catch (Exception e) {
                 warn(backend.name() + " refused a listener exclusion: " + e);
+            }
+        }
+
+        @Override
+        public void setSilencedListeners(Set<UUID> silenced) {
+            this.silenced = silenced == null || silenced.isEmpty() ? Set.of() : Set.copyOf(silenced);
+            for (VoiceSession part : parts.values()) {
+                try {
+                    part.setSilencedListeners(this.silenced);
+                } catch (Exception ignored) {
+
+                }
             }
         }
 

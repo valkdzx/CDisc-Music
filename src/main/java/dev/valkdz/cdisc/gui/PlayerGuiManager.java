@@ -43,10 +43,6 @@ public class PlayerGuiManager {
 
     public static final int GUI_SIZE = 18;
 
-    public static final int SLOT_VIEW = 22;
-
-    private static final int GUI_SIZE_WITH_VIEW = 27;
-
     public static final int SLOT_INFO = 0;
     public static final int SLOT_QUEUE = 1;
     public static final int SLOT_SEEK_BACK = 2;
@@ -55,18 +51,25 @@ public class PlayerGuiManager {
     public static final int SLOT_NEXT = 5;
     public static final int SLOT_SEEK_FORWARD = 6;
     public static final int SLOT_REPEAT = 7;
-    public static final int SLOT_EXIT = 8;
-
+    public static final int SLOT_SHUFFLE = 8;
+    public static final int SLOT_ADVANCED = 9;
+    public static final int SLOT_BROADCAST = 10;
     public static final int SLOT_LYRICS = 13;
-    public static final int SLOT_PORTABLE = 11;
-    public static final int SLOT_CHANNELS = 15;
-    public static final int SLOT_PAIR = 9;
-    public static final int SLOT_BEACON = 16;
-    public static final int SLOT_TRACK_MESSAGES = 17;
-    public static final int SLOT_SHUFFLE = 10;
+    public static final int SLOT_EXIT = 17;
 
-    public static final int SLOT_LOCAL_VOLUME = 12;
-    public static final int SLOT_VOLUME = 14;
+    public static final int ADV_PAIR = 0;
+    public static final int ADV_CHANNELS = 1;
+    public static final int ADV_BEACON = 2;
+    public static final int ADV_VOLUME = 3;
+    public static final int ADV_LOCAL_VOLUME = 4;
+    public static final int ADV_CROSSFADE = 5;
+    public static final int ADV_PORTABLE = 6;
+    public static final int ADV_TRACK_MESSAGES = 7;
+    public static final int ADV_VIEW = 8;
+    public static final int ADV_BACK = 9;
+
+    public static final int LOCAL_TRACK_MESSAGES = 11;
+    public static final int LOCAL_VOLUME = 15;
     private static final long SEEK_STEP_MS = 5000L;
     private final Map<Block, Set<Player>> openViewers = new ConcurrentHashMap<>();
     private final Map<UUID, Block> awaitingSeekChat = new ConcurrentHashMap<>();
@@ -107,7 +110,7 @@ public class PlayerGuiManager {
                 Tasks.onEntity(plugin, player, () -> {
                     InventoryView view = player.getOpenInventory();
                     if (!(view.getTopInventory().getHolder() instanceof PlayerGuiHolder holder)
-                            || !holder.getBlock().equals(block)) {
+                            || !holder.getBlock().equals(block) || holder.isAdvanced()) {
                         return;
                     }
 
@@ -157,16 +160,55 @@ public class PlayerGuiManager {
             return;
         }
 
+        if (!local) plugin.getScreenPreferences().setLast(player.getUniqueId(), ScreenPreferences.Screen.PLAYER);
+
         if (!local && dev.valkdz.cdisc.gui.dialog.Dialogs.playerScreenWanted(plugin, player)
                 && dev.valkdz.cdisc.gui.dialog.Dialogs.openPlayer(plugin, player, block)) {
             return;
         }
 
-        int gen = apm.getGeneration(block);
-        PlayerGuiHolder holder = new PlayerGuiHolder(block, gen, local);
+        show(player, block, new PlayerGuiHolder(block, apm.getGeneration(block), local, false));
+    }
 
-        String title = plugin.getMessageManager().get(player, "gui.title");
-        Inventory inventory = Bukkit.createInventory(holder, local ? GUI_SIZE : sizeFor(), title);
+    public void openAdvanced(Player player, Block block) {
+        if (!plugin.getPermissions().allows(player, Action.PLAYER_GUI)) return;
+        if (!plugin.getRegionGuard().require(player, block)) return;
+
+        LavaPlayerManager apm = plugin.getAudioPlayerManager();
+        if (!canOpen(apm, block) || plugin.getJukeboxViewers().heldByOther(block, player)) {
+            open(player, block);
+            return;
+        }
+
+        plugin.getScreenPreferences().setLast(player.getUniqueId(), ScreenPreferences.Screen.ADVANCED);
+        show(player, block, new PlayerGuiHolder(block, apm.getGeneration(block), false, true));
+    }
+
+    public void openRemembered(Player player, Block block) {
+        ScreenPreferences.Screen last = plugin.getScreenPreferences().last(player.getUniqueId());
+        if (last == null) {
+            last = plugin.getAudioPlayerManager().queueSize(block) > 1
+                    ? ScreenPreferences.Screen.QUEUE : ScreenPreferences.Screen.PLAYER;
+        }
+
+        switch (last) {
+            case QUEUE -> {
+                if (may(player, Action.QUEUE_OPEN)) {
+                    plugin.getQueueGuiManager().open(player, block);
+                } else {
+                    open(player, block);
+                }
+            }
+            case ADVANCED -> openAdvanced(player, block);
+            default -> open(player, block);
+        }
+    }
+
+    private void show(Player player, Block block, PlayerGuiHolder holder) {
+        boolean local = holder.isLocal();
+        String title = plugin.getMessageManager().get(player,
+                holder.isAdvanced() ? "gui.advanced.title" : "gui.title");
+        Inventory inventory = Bukkit.createInventory(holder, GUI_SIZE, title);
         holder.setInventory(inventory);
 
         refresh(player, inventory, block);
@@ -241,12 +283,12 @@ public class PlayerGuiManager {
         inventory.setItem(SLOT_LYRICS, lyrics != null ? lyrics : filler);
         rememberLyrics(player, lyrics);
 
-        inventory.setItem(SLOT_TRACK_MESSAGES, may(player, Action.PLAYER_MESSAGES)
+        inventory.setItem(LOCAL_TRACK_MESSAGES, may(player, Action.PLAYER_MESSAGES)
                 ? buildTrackMessagesItem(player) : filler);
 
         ItemStack local = may(player, Action.PLAYER_LOCAL_VOLUME)
                 ? buildLocalVolumeItem(player, block) : null;
-        inventory.setItem(SLOT_LOCAL_VOLUME, local != null ? local : filler);
+        inventory.setItem(LOCAL_VOLUME, local != null ? local : filler);
     }
 
     private ItemStack buildLocalNoticeItem(Player player) {
@@ -271,18 +313,20 @@ public class PlayerGuiManager {
         LavaPlayerManager apm = plugin.getAudioPlayerManager();
         LavaPlayerManager.PlaybackInfo info = apm.getPlaybackInfo(block);
 
-        if (inventory.getHolder() instanceof PlayerGuiHolder holder && holder.isLocal()) {
-            refreshLocal(player, inventory, block, info);
-            return;
+        if (inventory.getHolder() instanceof PlayerGuiHolder holder) {
+            if (holder.isLocal()) {
+                refreshLocal(player, inventory, block, info);
+                return;
+            }
+            if (holder.isAdvanced()) {
+                refreshAdvanced(player, inventory, block);
+                return;
+            }
         }
 
         ItemStack filler = fillerPane();
         for (int slot = 9; slot < inventory.getSize(); slot++) {
             inventory.setItem(slot, filler);
-        }
-
-        if (inventory.getSize() > GUI_SIZE && may(player, Action.PLAYER_SCREEN)) {
-            inventory.setItem(SLOT_VIEW, buildViewItem(player));
         }
 
         boolean playing = info != null;
@@ -306,40 +350,107 @@ public class PlayerGuiManager {
                 ? buildTrackNavItem(player, true) : filler);
         inventory.setItem(SLOT_REPEAT, may(player, Action.PLAYER_REPEAT)
                 ? buildRepeatItem(player, block, info) : filler);
-        inventory.setItem(SLOT_EXIT, buildExitItem(player));
+        inventory.setItem(SLOT_SHUFFLE, may(player, Action.PLAYER_SHUFFLE)
+                ? buildShuffleItem(player, block) : filler);
 
-        ItemStack beacon = may(player, Action.PLAYER_BEACON)
-                ? buildBeaconItem(player, block) : null;
-        inventory.setItem(SLOT_BEACON, beacon != null ? beacon : filler);
-
-        ItemStack portable = may(player, Action.PLAYER_PORTABLE)
-                ? buildPortableItem(player, block) : null;
-        inventory.setItem(SLOT_PORTABLE, portable != null ? portable : filler);
-
-        ItemStack channels = may(player, Action.PLAYER_CHANNELS)
-                ? buildChannelItem(player, block) : null;
-        inventory.setItem(SLOT_CHANNELS, channels != null ? channels : filler);
-
-        ItemStack pair = mayPair(player, block) ? buildPairItem(player, block) : null;
-        inventory.setItem(SLOT_PAIR, pair != null ? pair : filler);
+        inventory.setItem(SLOT_ADVANCED, advancedItems(player, block).isEmpty()
+                ? filler : buildAdvancedItem(player));
+        inventory.setItem(SLOT_BROADCAST, plugin.getBroadcastManager() != null
+                && plugin.getBroadcastManager().canControl(player, block) ? buildBroadcastItem(player) : filler);
 
         ItemStack lyrics = may(player, Action.LYRICS_TOGGLE) || may(player, Action.LYRICS_PRESET)
                 ? buildLyricsItem(player, block, info) : null;
         inventory.setItem(SLOT_LYRICS, lyrics != null ? lyrics : filler);
-
         rememberLyrics(player, lyrics);
 
-        inventory.setItem(SLOT_TRACK_MESSAGES, may(player, Action.PLAYER_MESSAGES)
-                ? buildTrackMessagesItem(player) : filler);
+        inventory.setItem(SLOT_EXIT, buildExitItem(player));
+    }
 
-        inventory.setItem(SLOT_SHUFFLE, may(player, Action.PLAYER_SHUFFLE)
-                ? buildShuffleItem(player, block) : filler);
-        inventory.setItem(SLOT_VOLUME, may(player, Action.PLAYER_VOLUME)
-                ? buildVolumeItem(player, block) : filler);
+    private void refreshAdvanced(Player player, Inventory inventory, Block block) {
+        ItemStack filler = fillerPane();
+        for (int slot = 0; slot < inventory.getSize(); slot++) {
+            inventory.setItem(slot, filler);
+        }
+        advancedItems(player, block).forEach(inventory::setItem);
+        inventory.setItem(ADV_BACK, buildBackItem(player));
+        inventory.setItem(SLOT_EXIT, buildExitItem(player));
+    }
 
-        ItemStack local = may(player, Action.PLAYER_LOCAL_VOLUME)
-                ? buildLocalVolumeItem(player, block) : null;
-        inventory.setItem(SLOT_LOCAL_VOLUME, local != null ? local : filler);
+    private Map<Integer, ItemStack> advancedItems(Player player, Block block) {
+        Map<Integer, ItemStack> items = new java.util.LinkedHashMap<>();
+        if (mayPair(player, block)) put(items, ADV_PAIR, buildPairItem(player, block));
+        if (may(player, Action.PLAYER_CHANNELS)) put(items, ADV_CHANNELS, buildChannelItem(player, block));
+        if (may(player, Action.PLAYER_BEACON)) put(items, ADV_BEACON, buildBeaconItem(player, block));
+        if (may(player, Action.PLAYER_VOLUME)) put(items, ADV_VOLUME, buildVolumeItem(player, block));
+        if (may(player, Action.PLAYER_LOCAL_VOLUME)) {
+            put(items, ADV_LOCAL_VOLUME, buildLocalVolumeItem(player, block));
+        }
+        if (may(player, Action.QUEUE_CROSSFADE)) put(items, ADV_CROSSFADE, buildCrossfadeItem(player, block));
+        if (may(player, Action.PLAYER_PORTABLE)) put(items, ADV_PORTABLE, buildPortableItem(player, block));
+        if (may(player, Action.PLAYER_MESSAGES)) put(items, ADV_TRACK_MESSAGES, buildTrackMessagesItem(player));
+        if (dev.valkdz.cdisc.gui.dialog.Dialogs.switchable(plugin) && may(player, Action.PLAYER_SCREEN)) {
+            put(items, ADV_VIEW, buildViewItem(player));
+        }
+        return items;
+    }
+
+    private static void put(Map<Integer, ItemStack> items, int slot, ItemStack item) {
+        if (item != null) items.put(slot, item);
+    }
+
+    private ItemStack buildAdvancedItem(Player player) {
+        ItemStack item = new ItemStack(Material.COMPARATOR);
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) return item;
+
+        meta.setDisplayName(plugin.getMessageManager().get(player, "gui.advanced.name"));
+        meta.setLore(List.of(plugin.getMessageManager().get(player, "gui.advanced.lore")));
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    private ItemStack buildBroadcastItem(Player player) {
+        ItemStack item = new ItemStack(Material.LIGHTNING_ROD);
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) return item;
+
+        meta.setDisplayName(plugin.getMessageManager().get(player, "broadcast.gui.button"));
+        meta.setLore(List.of(plugin.getMessageManager().get(player, "broadcast.gui.button_lore")));
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    private ItemStack buildBackItem(Player player) {
+        ItemStack item = new ItemStack(Material.ARROW);
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) return item;
+
+        meta.setDisplayName(plugin.getMessageManager().get(player, "gui.advanced.back"));
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    private ItemStack buildCrossfadeItem(Player player, Block block) {
+        int seconds = plugin.getAudioPlayerManager().crossfadeSeconds();
+        DiscQueue queue = plugin.getAudioPlayerManager().getQueue(block);
+        boolean on = seconds > 0 && (queue == null || queue.isCrossfade());
+        ItemStack item = new ItemStack(on ? Material.AMETHYST_SHARD : Material.GRAY_DYE);
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) return item;
+
+        meta.setDisplayName(plugin.getMessageManager().get(player, "gui.crossfade.name"));
+        List<String> lore = new ArrayList<>();
+        if (seconds <= 0) {
+            lore.add(plugin.getMessageManager().get(player, "gui.crossfade.server_off"));
+        } else {
+            lore.add(on
+                    ? plugin.getMessageManager().get(player, "gui.crossfade.enabled", String.valueOf(seconds))
+                    : plugin.getMessageManager().get(player, "gui.crossfade.disabled"));
+            lore.add(plugin.getMessageManager().get(player, "gui.crossfade.hint"));
+        }
+        meta.setLore(lore);
+        item.setItemMeta(meta);
+        return item;
     }
 
     private boolean may(Player player, Action action) {
@@ -623,11 +734,6 @@ public class PlayerGuiManager {
         meta.setLore(List.of(plugin.getMessageManager().get(player, lore)));
         item.setItemMeta(meta);
         return item;
-    }
-
-    private int sizeFor() {
-        return dev.valkdz.cdisc.gui.dialog.Dialogs.switchable(plugin)
-                ? GUI_SIZE_WITH_VIEW : GUI_SIZE;
     }
 
     private ItemStack buildViewItem(Player player) {

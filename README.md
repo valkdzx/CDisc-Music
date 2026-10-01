@@ -121,6 +121,25 @@ Three ways, worst to best:
   your own, or leave the public one that ships there, and CDisc keeps itself
   supplied.
 
+## Placeholders and the API
+
+With [PlaceholderAPI](https://modrinth.com/plugin/placeholderapi) installed, these
+describe the nearest jukebox the player can hear (paired speakers count):
+
+| Placeholder | Gives |
+| --- | --- |
+| `%cdisc_title%`, `%cdisc_author%`, `%cdisc_track%` | the track, `%cdisc_track%` as `author - title` |
+| `%cdisc_position%`, `%cdisc_duration%`, `%cdisc_remaining%` | `mm:ss`; duration and remaining are empty for a live stream |
+| `%cdisc_progress%` | 0–100 |
+| `%cdisc_listening%`, `%cdisc_playing%`, `%cdisc_paused%`, `%cdisc_live%` | PlaceholderAPI's yes / no |
+| `%cdisc_uri%` | the link the track came from |
+| `%cdisc_jukeboxes%` | how many jukeboxes are playing on the server |
+
+Other plugins can listen for `TrackStartEvent` (a disc, the next in the queue, a
+crossfade or a repeat began), `PlaybackStopEvent` (a jukebox fell silent) and the
+cancellable `DiscCreateEvent`, all in `dev.valkdz.cdisc.api.event`, and ask
+`dev.valkdz.cdisc.api.CDiscApi` what a jukebox or a player is hearing.
+
 ## Configuration
 
 Four files, and the split is deliberate — three are safe to share, one is not.

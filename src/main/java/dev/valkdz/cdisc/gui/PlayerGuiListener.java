@@ -48,6 +48,10 @@ public class PlayerGuiListener implements Listener {
             onLocalClick(e, player, block);
             return;
         }
+        if (holder.isAdvanced()) {
+            onAdvancedClick(e, player, block);
+            return;
+        }
 
         Action needed = actionFor(e.getSlot(), playing, e.isRightClick());
         if (needed != null && !plugin.getPermissions().allows(player, needed)) return;
@@ -61,6 +65,7 @@ public class PlayerGuiListener implements Listener {
                 case PlayerGuiManager.SLOT_REPEAT -> actions.cycleRepeat(block);
                 case PlayerGuiManager.SLOT_SHUFFLE -> apm.toggleShuffle(block);
                 case PlayerGuiManager.SLOT_QUEUE -> actions.openQueue(player, block);
+                case PlayerGuiManager.SLOT_ADVANCED -> plugin.getPlayerGuiManager().openAdvanced(player, block);
                 case PlayerGuiManager.SLOT_EXIT -> player.closeInventory();
                 default -> {
                     return;
@@ -68,7 +73,8 @@ public class PlayerGuiListener implements Listener {
             }
 
             if (e.getSlot() != PlayerGuiManager.SLOT_EXIT
-                    && e.getSlot() != PlayerGuiManager.SLOT_QUEUE) {
+                    && e.getSlot() != PlayerGuiManager.SLOT_QUEUE
+                    && e.getSlot() != PlayerGuiManager.SLOT_ADVANCED) {
                 plugin.getPlayerGuiManager().refresh(player, block);
             }
             return;
@@ -88,39 +94,18 @@ public class PlayerGuiListener implements Listener {
             case PlayerGuiManager.SLOT_NEXT -> actions.skipToNext(block);
             case PlayerGuiManager.SLOT_PAUSE -> actions.togglePause(block);
             case PlayerGuiManager.SLOT_REPEAT -> actions.cycleRepeat(block);
-            case PlayerGuiManager.SLOT_VOLUME ->
-                    actions.stepSpeakerVolume(block, !e.isRightClick());
-            case PlayerGuiManager.SLOT_LOCAL_VOLUME -> {
-
-                if (e.isShiftClick()) {
-                    actions.followJukeboxVolume(player, block);
-                } else {
-                    actions.stepLocalVolume(player, block, !e.isRightClick());
-                }
-            }
             case PlayerGuiManager.SLOT_SHUFFLE -> actions.toggleShuffle(player, block);
             case PlayerGuiManager.SLOT_QUEUE -> {
                 stateChanged = false;
                 actions.openQueue(player, block);
             }
-            case PlayerGuiManager.SLOT_BEACON -> {
-                if (e.isLeftClick()) {
-                    actions.cycleBeaconLevel(block);
-                } else {
-                    stateChanged = false;
-                }
-            }
-            case PlayerGuiManager.SLOT_PORTABLE -> {
+            case PlayerGuiManager.SLOT_BROADCAST -> {
                 stateChanged = false;
-                if (actions.pickUp(player, block)) player.closeInventory();
+                plugin.getBroadcastGui().openStation(player, block);
             }
-            case PlayerGuiManager.SLOT_CHANNELS -> {
+            case PlayerGuiManager.SLOT_ADVANCED -> {
                 stateChanged = false;
-                actions.openSpeakerSettings(player, block);
-            }
-            case PlayerGuiManager.SLOT_PAIR -> {
-                stateChanged = false;
-                actions.openPair(player, block);
+                plugin.getPlayerGuiManager().openAdvanced(player, block);
             }
             case PlayerGuiManager.SLOT_LYRICS -> {
                 if (!plugin.cdiscConfig().isLyricsEnabled()) {
@@ -135,20 +120,81 @@ public class PlayerGuiListener implements Listener {
                 }
                 actions.cycleLyrics(player, block);
             }
-            case PlayerGuiManager.SLOT_TRACK_MESSAGES -> actions.toggleTrackMessages(player);
             case PlayerGuiManager.SLOT_EXIT -> player.closeInventory();
-            case PlayerGuiManager.SLOT_VIEW -> {
-                stateChanged = false;
-
-                dev.valkdz.cdisc.gui.dialog.Dialogs.choose(plugin, player, true);
-                player.closeInventory();
-                plugin.getPlayerGuiManager().open(player, block);
-            }
             default -> stateChanged = false;
         }
 
         if (stateChanged && e.getSlot() != PlayerGuiManager.SLOT_EXIT) {
             plugin.getPlayerGuiManager().refresh(player, block);
+        }
+    }
+
+    private void onAdvancedClick(InventoryClickEvent e, Player player, Block block) {
+        PlayerActions actions = plugin.getPlayerActions();
+        int slot = e.getSlot();
+
+        if (slot == PlayerGuiManager.SLOT_EXIT) {
+            player.closeInventory();
+            return;
+        }
+        if (slot == PlayerGuiManager.ADV_BACK) {
+            plugin.getPlayerGuiManager().open(player, block);
+            return;
+        }
+
+        Action needed = switch (slot) {
+            case PlayerGuiManager.ADV_CHANNELS -> Action.PLAYER_CHANNELS;
+            case PlayerGuiManager.ADV_BEACON -> Action.PLAYER_BEACON;
+            case PlayerGuiManager.ADV_VOLUME -> Action.PLAYER_VOLUME;
+            case PlayerGuiManager.ADV_LOCAL_VOLUME -> Action.PLAYER_LOCAL_VOLUME;
+            case PlayerGuiManager.ADV_CROSSFADE -> Action.QUEUE_CROSSFADE;
+            case PlayerGuiManager.ADV_PORTABLE -> Action.PLAYER_PORTABLE;
+            case PlayerGuiManager.ADV_TRACK_MESSAGES -> Action.PLAYER_MESSAGES;
+            case PlayerGuiManager.ADV_VIEW -> Action.PLAYER_SCREEN;
+
+            // The pair button is judged by the screen it opens.
+            default -> null;
+        };
+        if (needed != null && !plugin.getPermissions().allows(player, needed)) return;
+
+        switch (slot) {
+            case PlayerGuiManager.ADV_PAIR -> actions.openPair(player, block);
+            case PlayerGuiManager.ADV_CHANNELS -> actions.openSpeakerSettings(player, block);
+            case PlayerGuiManager.ADV_PORTABLE -> {
+                if (actions.pickUp(player, block)) player.closeInventory();
+            }
+            case PlayerGuiManager.ADV_VIEW -> {
+                dev.valkdz.cdisc.gui.dialog.Dialogs.choose(plugin, player, true);
+                player.closeInventory();
+                plugin.getPlayerGuiManager().open(player, block);
+            }
+            case PlayerGuiManager.ADV_BEACON -> {
+                if (!e.isLeftClick()) return;
+                actions.cycleBeaconLevel(block);
+                plugin.getPlayerGuiManager().refresh(player, block);
+            }
+            case PlayerGuiManager.ADV_VOLUME -> {
+                actions.stepSpeakerVolume(block, !e.isRightClick());
+                plugin.getPlayerGuiManager().refresh(player, block);
+            }
+            case PlayerGuiManager.ADV_LOCAL_VOLUME -> {
+                if (e.isShiftClick()) {
+                    actions.followJukeboxVolume(player, block);
+                } else {
+                    actions.stepLocalVolume(player, block, !e.isRightClick());
+                }
+                plugin.getPlayerGuiManager().refresh(player, block);
+            }
+            case PlayerGuiManager.ADV_CROSSFADE -> {
+                actions.toggleCrossfade(block);
+                plugin.getPlayerGuiManager().refresh(player, block);
+            }
+            case PlayerGuiManager.ADV_TRACK_MESSAGES -> {
+                actions.toggleTrackMessages(player);
+                plugin.getPlayerGuiManager().refresh(player, block);
+            }
+            default -> {
+            }
         }
     }
 
@@ -164,8 +210,8 @@ public class PlayerGuiListener implements Listener {
         Action needed = switch (slot) {
             case PlayerGuiManager.SLOT_LYRICS ->
                     e.isRightClick() ? Action.LYRICS_PRESET : Action.LYRICS_TOGGLE;
-            case PlayerGuiManager.SLOT_TRACK_MESSAGES -> Action.PLAYER_MESSAGES;
-            case PlayerGuiManager.SLOT_LOCAL_VOLUME -> Action.PLAYER_LOCAL_VOLUME;
+            case PlayerGuiManager.LOCAL_TRACK_MESSAGES -> Action.PLAYER_MESSAGES;
+            case PlayerGuiManager.LOCAL_VOLUME -> Action.PLAYER_LOCAL_VOLUME;
             default -> null;
         };
         if (needed == null || !plugin.getPermissions().allows(player, needed)) return;
@@ -179,8 +225,8 @@ public class PlayerGuiListener implements Listener {
                 }
                 actions.cycleLyrics(player, block);
             }
-            case PlayerGuiManager.SLOT_TRACK_MESSAGES -> actions.toggleTrackMessages(player);
-            case PlayerGuiManager.SLOT_LOCAL_VOLUME -> {
+            case PlayerGuiManager.LOCAL_TRACK_MESSAGES -> actions.toggleTrackMessages(player);
+            case PlayerGuiManager.LOCAL_VOLUME -> {
                 if (!plugin.getPlayerGuiManager().carries(player, block)) return;
                 if (e.isShiftClick()) {
                     actions.followJukeboxVolume(player, block);
@@ -206,17 +252,10 @@ public class PlayerGuiListener implements Listener {
             case PlayerGuiManager.SLOT_PAUSE -> playing ? Action.PLAYER_PAUSE : Action.PLAYER_PLAY;
             case PlayerGuiManager.SLOT_REPEAT -> Action.PLAYER_REPEAT;
             case PlayerGuiManager.SLOT_SHUFFLE -> Action.PLAYER_SHUFFLE;
-            case PlayerGuiManager.SLOT_VOLUME -> Action.PLAYER_VOLUME;
-            case PlayerGuiManager.SLOT_LOCAL_VOLUME -> Action.PLAYER_LOCAL_VOLUME;
-            case PlayerGuiManager.SLOT_BEACON -> Action.PLAYER_BEACON;
-            case PlayerGuiManager.SLOT_PORTABLE -> Action.PLAYER_PORTABLE;
-            case PlayerGuiManager.SLOT_CHANNELS -> Action.PLAYER_CHANNELS;
-            case PlayerGuiManager.SLOT_TRACK_MESSAGES -> Action.PLAYER_MESSAGES;
             case PlayerGuiManager.SLOT_LYRICS ->
                     rightClick ? Action.LYRICS_PRESET : Action.LYRICS_TOGGLE;
-            case PlayerGuiManager.SLOT_VIEW -> Action.PLAYER_SCREEN;
 
-            // Exit closes the screen, and the pair button is judged by the screen it opens.
+            // Exit closes the screen, and the advanced button is judged by the buttons it holds.
             default -> null;
         };
     }

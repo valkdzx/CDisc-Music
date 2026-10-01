@@ -36,7 +36,7 @@ public class PortableJukeboxListener implements Listener {
         if (carry == null) return;
 
         e.setCancelled(true);
-        plugin.getPlayerGuiManager().open(e.getPlayer(), carry.origin());
+        plugin.getPlayerGuiManager().openRemembered(e.getPlayer(), carry.origin());
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)

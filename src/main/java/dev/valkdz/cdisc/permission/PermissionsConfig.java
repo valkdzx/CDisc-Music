@@ -123,7 +123,7 @@ public final class PermissionsConfig {
     static Map<String, List<Action>> legacyNodes() {
         Map<String, List<Action>> legacy = new LinkedHashMap<>();
 
-        legacy.put("cdisc.create", List.of(Action.DISC_CREATE, Action.DISC_CONVERT));
+        legacy.put("cdisc.create", List.of(Action.DISC_CREATE, Action.DISC_CONVERT, Action.DISC_BROADCAST));
         legacy.put("cdisc.create.playlist", List.of(Action.DISC_PLAYLIST));
         legacy.put("cdisc.clear", List.of(Action.DISC_CLEAR));
         legacy.put("cdisc.download", List.of(Action.DISC_DOWNLOAD));
@@ -138,7 +138,7 @@ public final class PermissionsConfig {
                 Action.PLAYER_SHUFFLE, Action.PLAYER_VOLUME, Action.PLAYER_LOCAL_VOLUME,
                 Action.PLAYER_BEACON, Action.PLAYER_CHANNELS, Action.PLAYER_SCREEN,
                 Action.PLAYER_INFO, Action.QUEUE_OPEN, Action.QUEUE_ADD, Action.QUEUE_REMOVE,
-                Action.QUEUE_PLAY, Action.QUEUE_POLICY, Action.LYRICS_TOGGLE,
+                Action.QUEUE_PLAY, Action.QUEUE_POLICY, Action.QUEUE_CROSSFADE, Action.LYRICS_TOGGLE,
                 Action.LYRICS_PRESET, Action.LYRICS_SCOREBOARD));
 
         legacy.put("cdisc.pair", List.of(Action.PAIR_CREATE, Action.PAIR_MANAGE,

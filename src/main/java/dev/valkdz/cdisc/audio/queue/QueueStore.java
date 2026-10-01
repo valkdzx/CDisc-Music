@@ -248,6 +248,8 @@ public final class QueueStore {
                 out.writeInt(i);
                 out.writeObject(disc);
             }
+            // Appended after the discs so queues saved before it still read, with crossfade on.
+            out.writeBoolean(queue.isCrossfade());
         } catch (Exception e) {
             plugin.getLogger().warning("[CDisc] Couldn't encode a jukebox queue: " + e.getMessage());
             return null;
@@ -285,6 +287,11 @@ public final class QueueStore {
                 int slot = in.readInt();
                 Object read = in.readObject();
                 if (read instanceof ItemStack disc) queue.setSlot(slot, disc);
+            }
+            try {
+                queue.setCrossfade(in.readBoolean());
+            } catch (java.io.EOFException ignored) {
+
             }
 
             queue.setCurrentIndex(queue.getSlot(current) == null ? -1 : current);

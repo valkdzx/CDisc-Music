@@ -124,11 +124,7 @@ public class JukeboxListener implements Listener {
 
         e.setCancelled(true);
 
-        if (plugin.getAudioPlayerManager().queueSize(block) > 1) {
-            plugin.getQueueGuiManager().open(player, block);
-        } else {
-            plugin.getPlayerGuiManager().open(player, block);
-        }
+        plugin.getPlayerGuiManager().openRemembered(player, block);
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)

@@ -9,6 +9,7 @@ public enum Action {
     DISC_CLEAR("disc.clear", "true"),
     DISC_CONVERT("disc.convert", "true"),
     DISC_DOWNLOAD("disc.download", "op"),
+    DISC_BROADCAST("disc.broadcast", "true"),
 
     PLAYER_GUI("player.gui", "true"),
     PLAYER_PLAY("player.play", "true"),
@@ -32,6 +33,7 @@ public enum Action {
     QUEUE_REMOVE("queue.remove", "true"),
     QUEUE_PLAY("queue.play", "true"),
     QUEUE_POLICY("queue.policy", "true"),
+    QUEUE_CROSSFADE("queue.crossfade", "true"),
 
     LYRICS_TOGGLE("lyrics.toggle", "true"),
     LYRICS_PRESET("lyrics.preset", "true"),

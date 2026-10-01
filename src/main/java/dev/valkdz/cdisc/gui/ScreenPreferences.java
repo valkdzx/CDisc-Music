@@ -37,7 +37,14 @@ public final class ScreenPreferences {
     private final ObjectMapper mapper = new ObjectMapper();
     private final SecureRandom random = new SecureRandom();
 
+    public enum Screen {
+        PLAYER,
+        QUEUE,
+        ADVANCED
+    }
+
     private final Map<UUID, Boolean> chosen = new ConcurrentHashMap<>();
+    private final Map<UUID, Screen> lastScreens = new ConcurrentHashMap<>();
 
     private final Object saveLock = new Object();
 
@@ -61,12 +68,21 @@ public final class ScreenPreferences {
         if (before == null || before != dialog) saveLater();
     }
 
+    public Screen last(UUID player) {
+        return lastScreens.get(player);
+    }
+
+    public void setLast(UUID player, Screen screen) {
+        if (lastScreens.put(player, screen) != screen) saveLater();
+    }
+
     public void clear(UUID player) {
         if (chosen.remove(player) != null) saveLater();
     }
 
     public void load() {
         chosen.clear();
+        lastScreens.clear();
         if (!file.isFile()) return;
 
         try {
@@ -77,15 +93,28 @@ public final class ScreenPreferences {
                 return;
             }
 
-            JsonNode all = mapper.readTree(json).path("screens");
-            if (!all.isObject()) return;
+            JsonNode root = mapper.readTree(json);
+            JsonNode all = root.path("screens");
+            if (all.isObject()) {
+                for (Iterator<Map.Entry<String, JsonNode>> it = all.fields(); it.hasNext(); ) {
+                    Map.Entry<String, JsonNode> entry = it.next();
+                    try {
+                        chosen.put(UUID.fromString(entry.getKey()), entry.getValue().asBoolean());
+                    } catch (IllegalArgumentException ignored) {
 
-            for (Iterator<Map.Entry<String, JsonNode>> it = all.fields(); it.hasNext(); ) {
-                Map.Entry<String, JsonNode> entry = it.next();
-                try {
-                    chosen.put(UUID.fromString(entry.getKey()), entry.getValue().asBoolean());
-                } catch (IllegalArgumentException ignored) {
+                    }
+                }
+            }
 
+            JsonNode last = root.path("last");
+            if (last.isObject()) {
+                for (Iterator<Map.Entry<String, JsonNode>> it = last.fields(); it.hasNext(); ) {
+                    Map.Entry<String, JsonNode> entry = it.next();
+                    try {
+                        lastScreens.put(UUID.fromString(entry.getKey()), Screen.valueOf(entry.getValue().asText()));
+                    } catch (IllegalArgumentException ignored) {
+
+                    }
                 }
             }
         } catch (IOException e) {
@@ -108,6 +137,10 @@ public final class ScreenPreferences {
             ObjectNode all = root.putObject("screens");
             for (Map.Entry<UUID, Boolean> entry : chosen.entrySet()) {
                 all.put(entry.getKey().toString(), entry.getValue());
+            }
+            ObjectNode last = root.putObject("last");
+            for (Map.Entry<UUID, Screen> entry : lastScreens.entrySet()) {
+                last.put(entry.getKey().toString(), entry.getValue().name());
             }
 
             try {

@@ -201,6 +201,17 @@ public final class PlayerActions {
         plugin.getQueueGuiManager().open(player, block);
     }
 
+    public void setCrossfade(Block block, boolean on) {
+        if (plugin.getAudioPlayerManager().crossfadeSeconds() <= 0) return;
+        dev.valkdz.cdisc.audio.queue.DiscQueue queue = plugin.getAudioPlayerManager().getOrCreateQueue(block);
+        if (queue.isCrossfade() != on) queue.setCrossfade(on);
+    }
+
+    public void toggleCrossfade(Block block) {
+        dev.valkdz.cdisc.audio.queue.DiscQueue queue = plugin.getAudioPlayerManager().getQueue(block);
+        setCrossfade(block, queue != null && !queue.isCrossfade());
+    }
+
     public void openMyLyricsLook(Player player) {
         if (!plugin.cdiscConfig().isLyricsEnabled()) return;
         plugin.getLyricsGuiManager().openPreset(player);

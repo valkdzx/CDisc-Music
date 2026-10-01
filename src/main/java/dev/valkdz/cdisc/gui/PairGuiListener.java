@@ -306,6 +306,7 @@ public final class PairGuiListener implements Listener {
             case DIFFERENT_WORLD -> msg(player, "§c", "command.pair.different_world");
             case TOO_FAR -> msg(player, "§c", "command.pair.too_far",
                     String.valueOf(plugin.cdiscConfig().getSpeakerMaxDistance()));
+            case BUSY -> msg(player, "§c", "command.pair.busy");
             case GROUP_FULL -> msg(player, "§c", "command.pair.group_full",
                     String.valueOf(plugin.cdiscConfig().getSpeakerMaxPerGroup()));
             default -> msg(player, "§c", "command.pair.add_failed");

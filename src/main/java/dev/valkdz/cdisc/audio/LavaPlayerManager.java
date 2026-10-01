@@ -10,6 +10,9 @@ import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrackEndReason;
 import dev.lavalink.youtube.YoutubeAudioSourceManager;
 import dev.valkdz.cdisc.Main;
+import dev.valkdz.cdisc.api.NowPlaying;
+import dev.valkdz.cdisc.api.event.PlaybackStopEvent;
+import dev.valkdz.cdisc.api.event.TrackStartEvent;
 import dev.valkdz.cdisc.audio.engine.NowPlayingBroadcaster;
 import dev.valkdz.cdisc.audio.engine.TrackLoader;
 import dev.valkdz.cdisc.audio.queue.DiscQueue;
@@ -82,6 +85,8 @@ public class LavaPlayerManager {
 
     private Consumer<Block> onSessionEnded;
 
+    private static final long CROSSFADE_PRELOAD_MS = 10_000L;
+
     public LavaPlayerManager(Main plugin) {
         this.plugin = plugin;
         this.trackLoader = new TrackLoader(plugin);
@@ -122,6 +127,7 @@ public class LavaPlayerManager {
             DiscQueue queue = entry.getValue();
             if (!queue.isEmpty() || queue.getCurrentIndex() >= 0) return false;
             if (queue.getPolicy() != dev.valkdz.cdisc.audio.queue.PlayedPolicy.NOTHING) return false;
+            if (!queue.isCrossfade()) return false;
 
             Block block = entry.getKey();
             if (hasActiveSession(block)) return false;
@@ -785,6 +791,11 @@ public class LavaPlayerManager {
 
     private void stored(Player player, ItemStack item, AudioTrack track, String query, String fallback,
                         String title, String author, String fetch, ItemUtils.Hint hint) {
+        dev.valkdz.cdisc.api.event.DiscCreateEvent event = new dev.valkdz.cdisc.api.event.DiscCreateEvent(
+                player, item, fallback != null ? fallback : query, title, author, track.getInfo().length);
+        Bukkit.getPluginManager().callEvent(event);
+        if (event.isCancelled()) return;
+
         ItemUtils.saveTrackToDisc(item, query, fallback, title, author, fetch, hint);
         long length = track.getInfo().length;
         if (!GoatHorns.isHorn(item)) {
@@ -863,6 +874,12 @@ public class LavaPlayerManager {
         BlockRef ref = new BlockRef(block);
         blockRefs.put(block, ref);
 
+        long fadeMs = crossfadeMs();
+        if (fadeMs > 0) {
+            session.watchEnd(fadeMs + CROSSFADE_PRELOAD_MS, () -> Tasks.region(plugin, ref.get(),
+                    () -> prepareCrossfade(ref.get(), gen, session, fadeMs)));
+        }
+
         AudioLoadResultHandler handler = new AudioLoadResultHandler() {
             @Override public void trackLoaded(AudioTrack track) {
 
@@ -873,82 +890,11 @@ public class LavaPlayerManager {
                 player.setVolume(volumeFor(track));
                 CDiscMetrics.recordTrackPlayed(track.getSourceManager() != null
                         ? track.getSourceManager().getSourceName() : null);
-                player.addListener(new AudioEventAdapter() {
-                    @Override
-                    public void onTrackEnd(AudioPlayer p, AudioTrack t, AudioTrackEndReason r) {
-                        if (generation.getOrDefault(ref.get(), 0) != gen) return;
-
-                        if (t.getInfo().isStream
-                                && (r == AudioTrackEndReason.FINISHED || r == AudioTrackEndReason.LOAD_FAILED)
-                                && session.allowStreamReconnect()) {
-                            p.playTrack(t.makeClone());
-                            return;
-                        }
-
-                        if (r == AudioTrackEndReason.LOAD_FAILED
-                                && trackLoader.hasNextSource(t, resolved)) {
-
-                            Bukkit.getLogger().warning("[CDisc] " + t.getUserData() + " could not play "
-                                    + "this track; trying the next source...");
-                            trackLoader.nextSourceAsync(t, resolved, replacement -> {
-                                if (generation.getOrDefault(ref.get(), 0) != gen) return;
-                                if (replacement == null) {
-                                    Bukkit.getLogger().severe("[CDisc] Nothing else could serve it either.");
-                                    Tasks.region(plugin, ref.get(), () -> advanceOrStop(ref.get(), gen));
-                                    return;
-                                }
-                                p.playTrack(replacement);
-                            });
-                            return;
-                        }
-
-                        if (r != AudioTrackEndReason.FINISHED) return;
-
-                        if (getRepeatMode(ref.get()) == RepeatMode.TRACK) {
-                            p.playTrack(t.makeClone());
-                            return;
-                        }
-
-                        Tasks.region(plugin, ref.get(), () -> advanceOrStop(ref.get(), gen));
-                    }
-
-                    @Override
-                    public void onTrackException(AudioPlayer p, AudioTrack t, com.sedmelluq.discord.lavaplayer.tools.FriendlyException e) {
-
-                        boolean willRetry = trackLoader.hasNextSource(t, resolved);
-
-                        String reason = e.getMessage() == null ? "" : e.getMessage().split("\n", 2)[0];
-                        Bukkit.getLogger().warning("[CDisc] Playback failed for \""
-                                + t.getInfo().title + "\" (" + t.getInfo().uri + ", via "
-                                + t.getSourceManager().getSourceName() + "): " + reason);
-
-                        if (TrackLoader.isSabrFailure(e)) {
-                            Bukkit.getLogger().warning("[CDisc] YouTube answered with SABR "
-                                    + "only: every format is there, none of them carries a "
-                                    + "direct link, and it all goes through "
-                                    + "serverAbrStreamingUrl, which youtube-source cannot play. "
-                                    + "Neither the tokens nor this server's address are at fault.");
-                        }
-
-                        if (!willRetry) {
-                            Throwable cause = e.getCause() != null ? e.getCause() : e;
-                            plugin.getLogger().log(java.util.logging.Level.WARNING,
-                                    "Playing \"" + t.getInfo().title + "\" failed", cause);
-                            warnOperators(t);
-                        }
-                    }
-
-                    @Override
-                    public void onTrackStuck(AudioPlayer p, AudioTrack t, long thresholdMs) {
-                        Bukkit.getLogger().warning("[CDisc] Track stalled (no frames for over "
-                                + thresholdMs + "ms): \"" + t.getInfo().title + "\" ("
-                                + t.getInfo().uri + ", via "
-                                + t.getSourceManager().getSourceName() + ")");
-                    }
-                });
+                player.addListener(trackEvents(ref, gen, session, resolved));
 
                 broadcaster.broadcast(ref.get(), audibleOrigin(ref.get()), track, discTitle, discAuthor,
                         (int) effectiveDistance(ref.get()), LavaPlayerManager.this::hasActiveSession);
+                announce(ref.get(), track, discTitle, discAuthor, TrackStartEvent.Cause.DISC);
             }
 
             @Override public void playlistLoaded(AudioPlaylist p) {
@@ -967,6 +913,202 @@ public class LavaPlayerManager {
         };
 
         trackLoader.load(resolved, musicFetch, discTitle, discAuthor, handler);
+    }
+
+    private AudioEventAdapter trackEvents(BlockRef ref, int gen, AudioSession session, String resolved) {
+        return new AudioEventAdapter() {
+            @Override
+            public void onTrackEnd(AudioPlayer p, AudioTrack t, AudioTrackEndReason r) {
+                if (generation.getOrDefault(ref.get(), 0) != gen) return;
+                if (session.getPlayer() != p) return;
+
+                if (t.getInfo().isStream
+                        && (r == AudioTrackEndReason.FINISHED || r == AudioTrackEndReason.LOAD_FAILED)
+                        && session.allowStreamReconnect()) {
+                    p.playTrack(t.makeClone());
+                    return;
+                }
+
+                if (r == AudioTrackEndReason.LOAD_FAILED
+                        && trackLoader.hasNextSource(t, resolved)) {
+
+                    Bukkit.getLogger().warning("[CDisc] " + t.getUserData() + " could not play "
+                            + "this track; trying the next source...");
+                    trackLoader.nextSourceAsync(t, resolved, replacement -> {
+                        if (generation.getOrDefault(ref.get(), 0) != gen) return;
+                        if (replacement == null) {
+                            Bukkit.getLogger().severe("[CDisc] Nothing else could serve it either.");
+                            Tasks.region(plugin, ref.get(), () -> advanceOrStop(ref.get(), gen));
+                            return;
+                        }
+                        p.playTrack(replacement);
+                    });
+                    return;
+                }
+
+                if (r != AudioTrackEndReason.FINISHED) return;
+
+                if (getRepeatMode(ref.get()) == RepeatMode.TRACK) {
+                    AudioTrack again = t.makeClone();
+                    p.playTrack(again);
+                    announce(ref.get(), again, session.getDiscTitle(), session.getDiscAuthor(),
+                            TrackStartEvent.Cause.REPEAT);
+                    return;
+                }
+
+                Tasks.region(plugin, ref.get(), () -> advanceOrStop(ref.get(), gen));
+            }
+
+            @Override
+            public void onTrackException(AudioPlayer p, AudioTrack t, com.sedmelluq.discord.lavaplayer.tools.FriendlyException e) {
+
+                boolean willRetry = trackLoader.hasNextSource(t, resolved);
+
+                String reason = e.getMessage() == null ? "" : e.getMessage().split("\n", 2)[0];
+                Bukkit.getLogger().warning("[CDisc] Playback failed for \""
+                        + t.getInfo().title + "\" (" + t.getInfo().uri + ", via "
+                        + t.getSourceManager().getSourceName() + "): " + reason);
+
+                if (TrackLoader.isSabrFailure(e)) {
+                    Bukkit.getLogger().warning("[CDisc] YouTube answered with SABR "
+                            + "only: every format is there, none of them carries a "
+                            + "direct link, and it all goes through "
+                            + "serverAbrStreamingUrl, which youtube-source cannot play. "
+                            + "Neither the tokens nor this server's address are at fault.");
+                }
+
+                if (!willRetry) {
+                    Throwable cause = e.getCause() != null ? e.getCause() : e;
+                    plugin.getLogger().log(java.util.logging.Level.WARNING,
+                            "Playing \"" + t.getInfo().title + "\" failed", cause);
+                    warnOperators(t);
+                }
+            }
+
+            @Override
+            public void onTrackStuck(AudioPlayer p, AudioTrack t, long thresholdMs) {
+                if (t instanceof dev.valkdz.cdisc.broadcast.BroadcastTrack) return;
+                Bukkit.getLogger().warning("[CDisc] Track stalled (no frames for over "
+                        + thresholdMs + "ms): \"" + t.getInfo().title + "\" ("
+                        + t.getInfo().uri + ", via "
+                        + t.getSourceManager().getSourceName() + ")");
+            }
+        };
+    }
+
+    public int crossfadeSeconds() {
+        return (int) (crossfadeMs() / 1000L);
+    }
+
+    private long crossfadeMs() {
+        return trackLoader.isPcmOutput() ? plugin.cdiscConfig().getCrossfadeSeconds() * 1000L : 0L;
+    }
+
+    private void prepareCrossfade(Block block, int gen, AudioSession session, long fadeMs) {
+        if (generation.getOrDefault(block, 0) != gen || !getSessions(block).contains(session)) return;
+
+        RepeatMode mode = getRepeatMode(block);
+        DiscQueue queue = queues.get(block);
+        if (mode == RepeatMode.TRACK || queue == null || !queue.isCrossfade()) return;
+
+        int current = queue.getCurrentIndex();
+        boolean shuffle = isShuffle(block);
+        int nextIndex = shuffle ? randomOther(queue, current) : queue.nextFilledAfter(current);
+        if (nextIndex < 0 && mode == RepeatMode.QUEUE) nextIndex = queue.firstFilled();
+        if (nextIndex < 0 || nextIndex == current) return;
+        int next = nextIndex;
+
+        ItemStack disc = queue.getSlot(next);
+        ItemUtils.DiscData data = ItemUtils.readDiscData(disc);
+        trackLoader.remember(data);
+        if (data == null) return;
+        String resolved = trackLoader.resolveQuery(data.query());
+        if (resolved == null) return;
+
+        LocalTrackSettings.Shown shown = plugin.getLocalMusic().shown(data.query(), data.title(), data.author());
+        String title = shown.title() != null ? Normalizer.normalize(shown.title(), Normalizer.Form.NFC) : null;
+        String author = shown.author() != null ? Normalizer.normalize(shown.author(), Normalizer.Form.NFC) : null;
+
+        int revision = queue.getRevision();
+        BlockRef ref = blockRefs.get(block);
+        AudioPlayer incoming = trackLoader.createPlayer();
+        incoming.setPaused(true);
+
+        trackLoader.load(resolved, data.fetch(), title, author, new AudioLoadResultHandler() {
+            @Override public void trackLoaded(AudioTrack track) {
+                Block here = here(ref, block);
+                if (generation.getOrDefault(here, 0) != gen || !getSessions(here).contains(session)) {
+                    incoming.destroy();
+                    return;
+                }
+                incoming.playTrack(track);
+                incoming.setVolume(volumeFor(track));
+                incoming.addListener(trackEvents(ref, gen, session, resolved));
+                session.stage(incoming, fadeMs, title, author,
+                        () -> queue.getRevision() == revision
+                                && getRepeatMode(here(ref, block)) == mode
+                                && isShuffle(here(ref, block)) == shuffle,
+                        () -> Tasks.region(plugin, here(ref, block),
+                                () -> crossfaded(here(ref, block), gen, queue, next, disc, track, title, author)));
+            }
+
+            @Override public void playlistLoaded(AudioPlaylist p) {
+                if (p.getTracks().isEmpty()) {
+                    incoming.destroy();
+                } else {
+                    trackLoaded(p.getTracks().get(0));
+                }
+            }
+
+            @Override public void noMatches() {
+                incoming.destroy();
+            }
+
+            @Override public void loadFailed(FriendlyException e) {
+                incoming.destroy();
+            }
+        });
+    }
+
+    private void crossfaded(Block block, int gen, DiscQueue queue, int next, ItemStack disc,
+                            AudioTrack track, String title, String author) {
+        if (generation.getOrDefault(block, 0) != gen) return;
+
+        int current = queue.getCurrentIndex();
+        if (current >= 0 && current != next && queue.getSlot(current) != null) {
+            switch (queue.getPolicy()) {
+                case EJECT -> {
+                    ItemStack finished = queue.getSlot(current);
+                    queue.setSlot(current, null);
+                    dropDisc(block, finished);
+                }
+                case MOVE_TO_END -> queue.moveToEnd(current);
+                case NOTHING -> { }
+            }
+        }
+        queue.setCurrentIndex(next);
+
+        plugin.getJukeboxListener().swapDiscVisual(block, disc);
+        broadcaster.broadcast(block, audibleOrigin(block), track, title, author,
+                (int) effectiveDistance(block), this::hasActiveSession);
+        refreshQueueGuis(block);
+        fireTrackStart(block, track, title, author, TrackStartEvent.Cause.CROSSFADE);
+    }
+
+    private void announce(Block block, AudioTrack track, String title, String author, TrackStartEvent.Cause cause) {
+        if (block == null) return;
+        Tasks.region(plugin, block, () -> fireTrackStart(block, track, title, author, cause));
+    }
+
+    private void fireTrackStart(Block block, AudioTrack track, String title, String author,
+                                TrackStartEvent.Cause cause) {
+        if (!hasActiveSession(block)) return;
+        String shownTitle = title != null ? title : track.getInfo().title;
+        String shownAuthor = author != null ? author : track.getInfo().author;
+        String source = track.getSourceManager() != null ? track.getSourceManager().getSourceName() : null;
+        Bukkit.getPluginManager().callEvent(new TrackStartEvent(block, shownTitle, shownAuthor,
+                track.getInfo().uri, track.getInfo().isStream ? -1L : track.getDuration(),
+                track.getInfo().isStream, source, cause));
     }
 
     // Load callbacks arrive on a LavaPlayer thread, and both halves spawn and remove
@@ -1000,6 +1142,7 @@ public class LavaPlayerManager {
         shuffled.remove(block);
         beaconRangeLevel.remove(block);
         if (onSessionEnded != null) onSessionEnded.accept(block);
+        if (list != null) Bukkit.getPluginManager().callEvent(new PlaybackStopEvent(block));
     }
 
     public boolean isPlaying(Block block) {
@@ -1251,6 +1394,7 @@ public class LavaPlayerManager {
             return;
         }
         AudioSession session = list.get(0);
+        session.dropStaged();
 
         LocalTrackSettings.Shown shown = plugin.getLocalMusic().shown(data.query(), data.title(), data.author());
         String title = shown.title() != null ? Normalizer.normalize(shown.title(), Normalizer.Form.NFC) : null;
@@ -1280,6 +1424,7 @@ public class LavaPlayerManager {
                 broadcaster.broadcast(here(ref, block), audibleOrigin(here(ref, block)), track, title, author,
                         (int) effectiveDistance(here(ref, block)), LavaPlayerManager.this::hasActiveSession);
                 Tasks.region(plugin, here(ref, block), () -> refreshQueueGuis(here(ref, block)));
+                announce(here(ref, block), track, title, author, TrackStartEvent.Cause.QUEUE);
             }
 
             @Override public void playlistLoaded(AudioPlaylist p) {
@@ -1556,6 +1701,69 @@ public class LavaPlayerManager {
                 plugin.getLocalMusic().lyricsOf(track),
                 track.getInfo().uri
         );
+    }
+
+    public NowPlaying nowPlaying(Block block) {
+        PlaybackInfo info = getPlaybackInfo(block);
+        if (info == null) return null;
+        return new NowPlaying(block, info.title(), info.author(), info.uri(), info.position(),
+                info.live() ? -1L : info.duration(), info.paused(), info.live());
+    }
+
+    public Block nearestAudible(Location where) {
+        if (where == null || where.getWorld() == null) return null;
+        Block nearest = null;
+        double best = Double.MAX_VALUE;
+        for (Block block : sessions.keySet()) {
+            double distance = audibleDistanceSquared(block, where);
+            if (distance < best) {
+                best = distance;
+                nearest = block;
+            }
+        }
+        return nearest;
+    }
+
+    public record AudibleAnchor(Block block, org.bukkit.entity.Entity entity) {
+    }
+
+    public List<AudibleAnchor> audibleAnchors(Block main) {
+        List<AudibleAnchor> out = new ArrayList<>();
+        SoundAnchor anchor = anchors.get(main);
+        if (anchor != null && anchor.isAlive()) out.add(new AudibleAnchor(main, anchor.entity()));
+        Map<Block, SpeakerOutput> attached = speakerOutputs.get(main);
+        if (attached != null) {
+            for (Map.Entry<Block, SpeakerOutput> entry : attached.entrySet()) {
+                SoundAnchor speaker = entry.getValue().anchor();
+                if (speaker.isAlive()) out.add(new AudibleAnchor(entry.getKey(), speaker.entity()));
+            }
+        }
+        return out;
+    }
+
+    public boolean canHear(Block block, Location where) {
+        return hasActiveSession(block) && audibleDistanceSquared(block, where) < Double.MAX_VALUE;
+    }
+
+    private double audibleDistanceSquared(Block block, Location where) {
+        if (where == null || where.getWorld() == null) return Double.MAX_VALUE;
+        double range = effectiveDistance(block);
+        List<Location> origins = new ArrayList<>();
+        origins.add(audibleOrigin(block));
+        Map<Block, SpeakerOutput> attached = speakerOutputs.get(block);
+        if (attached != null) {
+            for (SpeakerOutput output : attached.values()) {
+                if (output.anchor().isAlive()) origins.add(output.anchor().entity().getLocation());
+            }
+        }
+
+        double best = Double.MAX_VALUE;
+        for (Location origin : origins) {
+            if (!where.getWorld().equals(origin.getWorld())) continue;
+            double distance = origin.distanceSquared(where);
+            if (distance <= range * range) best = Math.min(best, distance);
+        }
+        return best;
     }
 
     public int getGeneration(Block block) {

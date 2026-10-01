@@ -10,9 +10,11 @@ import java.util.Objects;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BooleanSupplier;
 
 public class AudioSession {
-    private final AudioPlayer player;
+    private volatile AudioPlayer player;
     private volatile VoiceSession voiceSession;
 
     private final java.util.List<VoiceSession> speakerOutputs = new java.util.concurrent.CopyOnWriteArrayList<>();
@@ -33,6 +35,20 @@ public class AudioSession {
     private static final int STREAM_LEAD_CAP = 1500;
     private static final int STREAM_PREBUFFER = 75;
     private static final int DISC_LEAD_CAP = 2;
+
+    private record Staged(AudioPlayer next, long fadeMs, String title, String author,
+                          BooleanSupplier stillValid, Runnable handoff) {
+    }
+
+    private final AtomicReference<Staged> staged = new AtomicReference<>();
+    private volatile long nearEndLeadMs = -1L;
+    private volatile Runnable onNearEnd;
+    private AudioTrack nearEndFiredFor;
+
+    private AudioPlayer outgoing;
+    private final ArrayDeque<byte[]> outLead = new ArrayDeque<>();
+    private int fadeFrames;
+    private int fadeDone;
 
     public AudioSession(AudioPlayer player, VoiceSession voiceSession) {
         this(player, voiceSession, null, null);
@@ -85,13 +101,20 @@ public class AudioSession {
             return;
         }
 
+        Staged waiting = staged.get();
+        // lavaplayer stops a player nobody polls for a minute; paused, this reads no frame.
+        if (waiting != null) waiting.next().provide();
+
         if (player.isPaused()) {
 
             player.provide();
             lead.clear();
             priming = true;
+            endFade();
             return;
         }
+
+        watchEnd();
 
         if (trackChanged()) {
             lead.clear();
@@ -113,6 +136,7 @@ public class AudioSession {
         }
 
         byte[] data = lead.pollFirst();
+        if (outgoing != null) data = fade(data);
         if (data != null) {
             send(voiceSession, data);
             for (VoiceSession speaker : speakerOutputs) {
@@ -122,6 +146,109 @@ public class AudioSession {
 
             priming = true;
         }
+    }
+
+    public void watchEnd(long leadMs, Runnable callback) {
+        this.onNearEnd = callback;
+        this.nearEndLeadMs = leadMs;
+    }
+
+    public void stage(AudioPlayer next, long fadeMs, String title, String author,
+                      BooleanSupplier stillValid, Runnable handoff) {
+        Staged previous = staged.getAndSet(new Staged(next, fadeMs, title, author, stillValid, handoff));
+        if (previous != null) previous.next().destroy();
+    }
+
+    public void dropStaged() {
+        Staged previous = staged.getAndSet(null);
+        if (previous != null) previous.next().destroy();
+    }
+
+    private void watchEnd() {
+        AudioTrack track = player.getPlayingTrack();
+        long leadMs = nearEndLeadMs;
+        if (track == null || leadMs < 0 || track.getInfo().isStream) return;
+
+        long duration = track.getDuration();
+        if (duration <= 0 || duration == Long.MAX_VALUE) return;
+        long remaining = duration - track.getPosition();
+
+        if (nearEndFiredFor == track) {
+            if (remaining > leadMs + 2000L) {
+                nearEndFiredFor = null;
+                dropStaged();
+            }
+        } else if (remaining <= leadMs && remaining > 1000L && outgoing == null) {
+            nearEndFiredFor = track;
+            Runnable callback = onNearEnd;
+            if (callback != null) callback.run();
+        }
+
+        Staged ready = staged.get();
+        if (ready != null && outgoing == null && remaining <= ready.fadeMs()) handOff(remaining);
+    }
+
+    private void handOff(long remaining) {
+        Staged next = staged.getAndSet(null);
+        if (next == null) return;
+        AudioTrack incoming = next.next().getPlayingTrack();
+        if (incoming == null || remaining < 500L || !next.stillValid().getAsBoolean()) {
+            next.next().destroy();
+            return;
+        }
+
+        // The old player's end event must find it no longer current, or the queue advances twice.
+        outgoing = player;
+        player = next.next();
+        outLead.addAll(lead);
+        lead.clear();
+        lastTrackId = incoming.getInfo().identifier;
+        discTitle = next.title();
+        discAuthor = next.author();
+        fadeFrames = (int) Math.max(1, Math.min(remaining, next.fadeMs()) / 20);
+        fadeDone = 0;
+        player.setPaused(false);
+        next.handoff().run();
+    }
+
+    private byte[] fade(byte[] in) {
+        byte[] out = outLead.pollFirst();
+        if (out == null) {
+            AudioFrame frame = outgoing.provide();
+            if (frame != null) out = frame.getData();
+        }
+
+        double t = Math.min(1.0D, (fadeDone + 1) / (double) fadeFrames);
+        byte[] mixed = mix(in, Math.sin(t * Math.PI / 2), out, Math.cos(t * Math.PI / 2));
+        if (++fadeDone >= fadeFrames || (out == null && outgoing.getPlayingTrack() == null)) endFade();
+        return mixed;
+    }
+
+    private static byte[] mix(byte[] a, double gainA, byte[] b, double gainB) {
+        if (a == null && b == null) return null;
+        int length = Math.max(a == null ? 0 : a.length, b == null ? 0 : b.length);
+        byte[] result = new byte[length];
+        for (int i = 0; i + 1 < length; i += 2) {
+            long value = Math.round(sample(a, i) * gainA + sample(b, i) * gainB);
+            int clamped = (int) Math.max(Short.MIN_VALUE, Math.min(Short.MAX_VALUE, value));
+            result[i] = (byte) clamped;
+            result[i + 1] = (byte) (clamped >> 8);
+        }
+        return result;
+    }
+
+    private static int sample(byte[] pcm, int at) {
+        if (pcm == null || at + 1 >= pcm.length) return 0;
+        return (pcm[at] & 0xFF) | (pcm[at + 1] << 8);
+    }
+
+    private void endFade() {
+        AudioPlayer old = outgoing;
+        if (old == null) return;
+        outgoing = null;
+        outLead.clear();
+        old.stopTrack();
+        old.destroy();
     }
 
     private void send(VoiceSession output, byte[] data) {
@@ -204,6 +331,8 @@ public class AudioSession {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         } finally {
+            dropStaged();
+            endFade();
             player.stopTrack();
             player.destroy();
             voiceSession.close();

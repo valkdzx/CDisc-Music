@@ -12,6 +12,7 @@ public class DiscQueue {
     private final ItemStack[] slots = new ItemStack[CAPACITY];
     private int currentIndex = -1;
     private PlayedPolicy policy = PlayedPolicy.NOTHING;
+    private boolean crossfade = true;
 
     private int revision;
 
@@ -49,6 +50,15 @@ public class DiscQueue {
 
     public void setPolicy(PlayedPolicy policy) {
         this.policy = policy;
+        revision++;
+    }
+
+    public boolean isCrossfade() {
+        return crossfade;
+    }
+
+    public void setCrossfade(boolean crossfade) {
+        this.crossfade = crossfade;
         revision++;
     }
 

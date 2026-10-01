@@ -116,6 +116,10 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
             p.sendMessage("§c" + message(p, holdMessage()));
             return;
         }
+        if (dev.valkdz.cdisc.broadcast.BroadcastTrack.isAddress(query)) {
+            if (allowed(p, Action.DISC_BROADCAST)) plugin.getBroadcastManager().createDisc(p, item, query);
+            return;
+        }
         if (!creationAllowed(p, query)) return;
 
         plugin.getPermissions().markCreated(p);

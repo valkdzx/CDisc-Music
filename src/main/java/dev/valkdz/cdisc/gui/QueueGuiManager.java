@@ -79,6 +79,7 @@ public class QueueGuiManager {
         }
 
         int gen = apm.getGeneration(block);
+        plugin.getScreenPreferences().setLast(player.getUniqueId(), ScreenPreferences.Screen.QUEUE);
         QueueGuiHolder holder = new QueueGuiHolder(block, gen);
 
         String title = plugin.getMessageManager().get(player, "gui.queue.title");

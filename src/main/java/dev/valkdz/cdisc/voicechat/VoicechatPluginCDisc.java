@@ -29,6 +29,11 @@ public class VoicechatPluginCDisc implements VoicechatPlugin {
 
     @Override
     public void registerEvents(EventRegistration registration) {
+        dev.valkdz.cdisc.voice.simplevoicechat.SvcMicrophoneTap tap =
+                new dev.valkdz.cdisc.voice.simplevoicechat.SvcMicrophoneTap(plugin);
+        // Registered late so a mute plugin that cancels the packet is seen here.
+        registration.registerEvent(de.maxhenkel.voicechat.api.events.MicrophonePacketEvent.class, tap::onMicrophone, -1000);
+
         registration.registerEvent(VoicechatServerStartedEvent.class, event -> {
             String id = plugin.cdiscConfig().getSvcCategoryId();
             String name = plugin.cdiscConfig().getSvcCategoryName();

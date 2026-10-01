@@ -178,6 +178,12 @@ public class TrackProgressDisplay implements Listener {
             return;
         }
 
+        if (!apm.canHear(block, player.getLocation())) {
+            clearHint(id, player);
+            stopWatching(player);
+            return;
+        }
+
         updateBossBar(player, info);
 
         if (lookingAtPlayer) {

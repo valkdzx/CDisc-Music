@@ -34,6 +34,26 @@ pv-config:
 
 volume: 80
 
+### Crossfade
+# Seconds over which a jukebox blends the end of one queued disc into the next.
+# The next disc is loaded ten seconds before the end, so the switch has no gap.
+# 0 turns it off, 15 is the most. Live streams, repeat-one and a lone disc never blend.
+# Each jukebox can also switch it off: Advanced in the player screen, or Options in the dialog.
+crossfade: 5
+
+### Broadcast
+# /cdisc create broadcast:Name makes a disc that plays no music: in a jukebox it goes live, and
+# the host (whoever made the disc) or an operator adds up to 6 microphones from its screen.
+# Voices reach the jukebox and its paired speakers. A block microphone hears a player as far
+# as their voice carries, quieter the further away they stand. Simple Voice Chat and Plasmo Voice.
+broadcast:
+  # false switches broadcasting off: no new broadcast discs, and the ones there are stay silent.
+  enabled: true
+  # Furthest a block microphone may be from its jukebox, in blocks.
+  block-range: 16
+  # A handheld microphone taken further than this from its jukebox goes back to the host.
+  handheld-range: 24
+
 ### Sound anchor
 # Audio is emitted from an entity so it can follow a carried jukebox.
 # block_display (recommended) | marker (cheapest, may never reach the client) | armor_stand.
@@ -182,7 +202,7 @@ resume-playback: true
 # toggle (one press turns it on, the next turns it off) | release (shown only while the
 # key is held down) | off (crouching does nothing, so a disc goes in and out as usual).
 # Each player picks their own with /cdisc sneak toggle|release|off; this is what a player
-# who never did gets.
+# who never did gets. Walking out of earshot of the jukebox takes the progress bar away.
 sneak-mode: toggle
 
 ### Player screen as a dialog
@@ -225,6 +245,6 @@ update-checker:
 metrics: true
 
 ### Debug
-# Name in the console the source each track came from: direct read, SABR, backend or
-# youtube-source. One line per track, both when a disc is created and when it plays.
+# Name in the console the source each track came from: direct read, SABR or backend.
+# One line per track, both when a disc is created and when it plays.
 debug: false

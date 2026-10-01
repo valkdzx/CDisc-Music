@@ -22,6 +22,9 @@ public interface VoiceSession {
     default void applySpeakerSettings(dev.valkdz.cdisc.speaker.SpeakerSettings settings) {
     }
 
+    default void setSilencedListeners(java.util.Set<java.util.UUID> silenced) {
+    }
+
     default void setExcludedListeners(java.util.Set<java.util.UUID> excluded) {
     }
 }

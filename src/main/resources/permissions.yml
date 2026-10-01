@@ -37,6 +37,8 @@ actions:
     convert: true
     # /cdisc admin download. Operators only: it writes to the disk and spends bandwidth.
     download: op
+    # /cdisc create broadcast:Name, a disc that puts voices through the jukebox
+    broadcast: true
 
   ### The player screen, and /cdisc player
   player:
@@ -80,6 +82,8 @@ actions:
     play: true
     # What happens to a disc once it has played
     policy: true
+    # Switching crossfade on or off for that jukebox
+    crossfade: true
 
   ### Words over the jukebox
   lyrics:

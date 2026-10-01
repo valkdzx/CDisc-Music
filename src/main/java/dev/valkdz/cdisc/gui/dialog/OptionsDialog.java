@@ -34,9 +34,10 @@ final class OptionsDialog {
     private static final String KEY_MINE = "mine";
     private static final String KEY_LYRICS = "lyrics";
     private static final String KEY_MESSAGES = "messages";
+    private static final String KEY_CROSSFADE = "crossfade";
 
     private record Shown(long positionMs, int volume, int mine,
-                         LyricsMode lyrics, boolean messages) {
+                         LyricsMode lyrics, boolean messages, boolean crossfade) {
     }
 
     private OptionsDialog() {
@@ -52,7 +53,8 @@ final class OptionsDialog {
                 speaker.volume(),
                 PlayerPrefs.effectiveLocalVolume(player, speaker.volume()),
                 LyricsPrefs.mode(player),
-                PlayerPrefs.showsTrackMessages(player));
+                PlayerPrefs.showsTrackMessages(player),
+                apm.getQueue(block) == null || apm.getQueue(block).isCrossfade());
 
         List<DialogInput> inputs = new ArrayList<>();
 
@@ -111,6 +113,14 @@ final class OptionsDialog {
             inputs.add(DialogInput.bool(KEY_MESSAGES,
                             PlayerDialog.text(plugin, player, "gui.dialog.input_messages"))
                     .initial(shown.messages())
+                    .build());
+        }
+
+        if (apm.crossfadeSeconds() > 0 && may(plugin, player, Action.QUEUE_CROSSFADE)) {
+            inputs.add(DialogInput.bool(KEY_CROSSFADE,
+                            PlayerDialog.text(plugin, player, "gui.dialog.input_crossfade",
+                                    String.valueOf(apm.crossfadeSeconds())))
+                    .initial(shown.crossfade())
                     .build());
         }
 
@@ -189,6 +199,11 @@ final class OptionsDialog {
         Boolean messages = view.getBoolean(KEY_MESSAGES);
         if (messages != null && messages != shown.messages()) {
             actions.setTrackMessages(player, messages);
+        }
+
+        Boolean crossfade = view.getBoolean(KEY_CROSSFADE);
+        if (crossfade != null && crossfade != shown.crossfade()) {
+            actions.setCrossfade(block, crossfade);
         }
     }
 }

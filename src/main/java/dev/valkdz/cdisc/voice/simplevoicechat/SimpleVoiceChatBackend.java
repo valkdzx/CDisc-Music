@@ -113,6 +113,8 @@ public class SimpleVoiceChatBackend implements VoiceBackend {
 
         private volatile Set<UUID> excluded = Set.of();
 
+        private volatile Set<UUID> silenced = Set.of();
+
         private volatile StaticAudioChannel lingeringChannel;
 
         private volatile Tasks.Handle handoff;
@@ -404,6 +406,12 @@ public class SimpleVoiceChatBackend implements VoiceBackend {
         }
 
         @Override
+        public void setSilencedListeners(Set<UUID> silenced) {
+            this.silenced = silenced == null || silenced.isEmpty() ? Set.of() : Set.copyOf(silenced);
+            applyFilters();
+        }
+
+        @Override
         public void setExcludedListeners(Set<UUID> excluded) {
             this.excluded = excluded == null || excluded.isEmpty()
                     ? Set.of()
@@ -411,9 +419,16 @@ public class SimpleVoiceChatBackend implements VoiceBackend {
             applyFilters();
         }
 
+
+        private static Set<UUID> union(Set<UUID> a, Set<UUID> b) {
+            if (a.isEmpty()) return b;
+            Set<UUID> all = new java.util.HashSet<>(a);
+            all.addAll(b);
+            return all;
+        }
         private void applyFilters() {
             UUID carrier = filteredCarrier;
-            Set<UUID> skip = excluded;
+            Set<UUID> skip = silenced.isEmpty() ? excluded : union(excluded, silenced);
 
             Predicate<ServerPlayer> filter = carrier == null && skip.isEmpty()
                     ? NO_FILTER

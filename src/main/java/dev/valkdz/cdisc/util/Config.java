@@ -373,6 +373,22 @@ public final class Config {
         return cfg().getBoolean("speaker-group.protect-members", true);
     }
 
+    public boolean isBroadcastEnabled() {
+        return cfg().getBoolean("broadcast.enabled", true);
+    }
+
+    public int getBroadcastBlockRange() {
+        return Math.max(1, cfg().getInt("broadcast.block-range", 16));
+    }
+
+    public int getBroadcastHandheldRange() {
+        return Math.max(1, cfg().getInt("broadcast.handheld-range", 24));
+    }
+
+    public int getCrossfadeSeconds() {
+        return Math.max(0, Math.min(15, cfg().getInt("crossfade", 5)));
+    }
+
     public int getVolume() {
         return cfg().getInt("volume", 80);
     }

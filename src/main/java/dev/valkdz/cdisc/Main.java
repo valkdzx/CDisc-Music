@@ -49,6 +49,8 @@ public final class Main extends JavaPlugin {
             new dev.valkdz.cdisc.lyrics.PresetOffers();
     private dev.valkdz.cdisc.gui.JukeboxViewers jukeboxViewers;
     private VoiceBackendManager voiceBackendManager;
+    private dev.valkdz.cdisc.broadcast.BroadcastManager broadcastManager;
+    private dev.valkdz.cdisc.broadcast.BroadcastGui broadcastGui;
     private UpdateChecker updateChecker;
     private PortableJukeboxManager portableJukeboxManager;
     private dev.valkdz.cdisc.horn.HornPlayer hornPlayer;
@@ -208,6 +210,8 @@ public final class Main extends JavaPlugin {
         getServer().getPluginManager().registerEvents(hornPlayer, this);
         hornPlayer.start();
 
+        dev.valkdz.cdisc.placeholder.PlaceholderHook.register(this);
+
         updateChecker = new UpdateChecker(this);
         getServer().getPluginManager().registerEvents(updateChecker, this);
         updateChecker.check();
@@ -218,6 +222,16 @@ public final class Main extends JavaPlugin {
         if (voiceBackendManager.getBackend() != null) {
             float distance = (float) getConfig().getDouble("svc-config.distance", 32.0);
             audioPlayerManager.setVoiceBackend(voiceBackendManager.getBackend(), distance);
+        }
+
+        if (isEnabled()) {
+            broadcastManager = new dev.valkdz.cdisc.broadcast.BroadcastManager(this);
+            broadcastGui = new dev.valkdz.cdisc.broadcast.BroadcastGui(this);
+            getServer().getPluginManager().registerEvents(broadcastManager, this);
+            getServer().getPluginManager().registerEvents(broadcastGui, this);
+            getServer().getPluginManager().registerEvents(
+                    new dev.valkdz.cdisc.broadcast.MicrophoneItemListener(this), this);
+            broadcastManager.start();
         }
 
         int orphans = audioPlayerManager.getAnchorManager().sweepOrphans();
@@ -247,6 +261,10 @@ public final class Main extends JavaPlugin {
     public void onDisable() {
         if (localDownloader != null) {
             localDownloader.shutdown();
+        }
+
+        if (broadcastManager != null) {
+            broadcastManager.shutdown();
         }
 
         if (playbackResume != null) {
@@ -345,6 +363,8 @@ public final class Main extends JavaPlugin {
     public dev.valkdz.cdisc.lyrics.PresetOffers getPresetOffers() { return presetOffers; }
     public JukeboxListener getJukeboxListener() { return jukeboxListener; }
     public VoiceBackendManager getVoiceBackendManager() { return voiceBackendManager; }
+    public dev.valkdz.cdisc.broadcast.BroadcastManager getBroadcastManager() { return broadcastManager; }
+    public dev.valkdz.cdisc.broadcast.BroadcastGui getBroadcastGui() { return broadcastGui; }
     public UpdateChecker getUpdateChecker() { return updateChecker; }
     public PortableJukeboxManager getPortableJukeboxManager() { return portableJukeboxManager; }
     public dev.valkdz.cdisc.horn.HornPlayer getHornPlayer() { return hornPlayer; }
