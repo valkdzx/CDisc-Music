@@ -16,6 +16,7 @@
 - Folia: jukebox queues are saved again. The save reached into every jukebox from the global thread, which Folia refuses, so nothing was kept and the console logged an error every two seconds.
 - An explosion next to a playing jukebox no longer silences it. Jukeboxes that play, hold a CDisc disc or keep a queue are still spared by explosions; other jukeboxes now break as they do without the plugin.
 - The queue screen takes only CDisc discs. A right click on a queued disc with another item on the cursor used to swap that item into the queue, and a queue full of loaded shulker boxes could break the chunk it stood in.
+- Breaking a jukebox is handled after every other plugin has had its say. A protection plugin that cancelled the break late used to leave the jukebox standing with a second jukebox, holding its queue, dropped beside it.
 
 ## 2.1.1-fix2
 

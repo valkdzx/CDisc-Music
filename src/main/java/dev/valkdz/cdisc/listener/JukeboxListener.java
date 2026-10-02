@@ -324,7 +324,9 @@ public class JukeboxListener implements Listener {
                 + "the spinning animation may not resume correctly, but playback itself is unaffected.");
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    // MONITOR: the queue leaves the block here, so a plugin cancelling the break after
+    // this point would leave the jukebox standing and its queue dropped beside it.
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBreak(BlockBreakEvent e) {
         if (e.getBlock().getType() == Material.JUKEBOX) {
             clearJukeboxNBT(e.getBlock());
@@ -338,7 +340,7 @@ public class JukeboxListener implements Listener {
         }
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBurn(BlockBurnEvent e) {
         if (e.getBlock().getType() != Material.JUKEBOX) return;
         clearJukeboxNBT(e.getBlock());
