@@ -80,6 +80,7 @@ public final class SabrResolver {
 
     private String mintedVisitorData;
     private long mintedVisitorDataUntil;
+    private volatile String verifiedVisitor;
     private volatile String region;
     private final HttpInterfaceManager cipherInterfaces = HttpClientTools.createDefaultThreadLocalManager();
 
@@ -203,9 +204,11 @@ public final class SabrResolver {
                                      boolean namesWin) throws PlaybackRefused {
         for (int attempt = 0; attempt < SESSION_ATTEMPTS; attempt++) {
             InnerTubePlayer.PlayerResponse response;
+            String visitor;
             try {
+                visitor = visitorData();
                 response = new InnerTubePlayer(
-                        http, InnerTubePlayer.ClientIdentity.visionOs(visitorData())).fetch(videoId);
+                        http, InnerTubePlayer.ClientIdentity.visionOs(visitor)).fetch(videoId);
             } catch (Exception e) {
                 return null;
             }
@@ -225,12 +228,14 @@ public final class SabrResolver {
                 InnerTubePlayer.AudioFormat format = best.get();
                 String url = descramble(format.directUrl(), format);
 
-                // Some visitor sessions get links googlevideo refuses past the first bytes;
-                // a request for the middle catches them before the track starts.
-                if (!servesMiddle(url, format.contentLength())) {
+                // Some visitor sessions get links googlevideo refuses past the first bytes; the
+                // fault is the session's, so one request for the middle clears it for every video.
+                boolean verified = visitor != null && visitor.equals(verifiedVisitor);
+                if (!verified && !servesMiddle(url, format.contentLength())) {
                     forgetVisitor();
                     continue;
                 }
+                if (visitor != null) verifiedVisitor = visitor;
 
                 plans.put(videoId, response.playableInEmbed() ? Plan.VISION_THEN_EMBED : Plan.VISION_ONLY);
                 long durationMs = response.durationMs() > 0 ? response.durationMs() : format.durationMs();
