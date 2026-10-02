@@ -18,17 +18,10 @@ enabled:
   yandex-music: true
   vk-music: true
   twitch: true
-  mixcloud: true
   tiktok: true
-  reddit: true
   # Files attached to a Discord message. Separate from `http` on purpose: one host
   # rather than the whole internet. Discord's links expire about a day after copying.
   discord: true
-  vimeo: false
-  bandcamp: false
-  ocremix: false
-  soundgasm: false
-  pornhub: false
   # Any direct link to an audio file. Off by default: it lets a player point the
   # server at an arbitrary URL. Links into this server's own network are always refused.
   http: false

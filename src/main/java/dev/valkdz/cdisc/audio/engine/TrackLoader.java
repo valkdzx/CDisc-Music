@@ -1,10 +1,5 @@
 package dev.valkdz.cdisc.audio.engine;
 
-import com.dunctebot.sourcemanagers.mixcloud.MixcloudAudioSourceManager;
-import com.dunctebot.sourcemanagers.ocremix.OCRemixAudioSourceManager;
-import com.dunctebot.sourcemanagers.pornhub.PornHubAudioSourceManager;
-import com.dunctebot.sourcemanagers.reddit.RedditAudioSourceManager;
-import com.dunctebot.sourcemanagers.soundgasm.SoundGasmAudioSourceManager;
 import com.github.topi314.lavasearch.SearchManager;
 import com.github.topi314.lavasrc.mirror.DefaultMirroringAudioTrackResolver;
 import com.github.topi314.lavasrc.spotify.SpotifySourceManager;
@@ -14,11 +9,9 @@ import com.sedmelluq.discord.lavaplayer.format.StandardAudioDataFormats;
 import com.sedmelluq.discord.lavaplayer.player.*;
 import com.sedmelluq.discord.lavaplayer.player.event.AudioEventAdapter;
 import com.sedmelluq.discord.lavaplayer.source.AudioSourceManagers;
-import com.sedmelluq.discord.lavaplayer.source.bandcamp.BandcampAudioSourceManager;
 import com.sedmelluq.discord.lavaplayer.source.http.HttpAudioSourceManager;
 import com.sedmelluq.discord.lavaplayer.source.http.HttpAudioTrack;
 import com.sedmelluq.discord.lavaplayer.source.soundcloud.SoundCloudAudioSourceManager;
-import com.sedmelluq.discord.lavaplayer.source.vimeo.VimeoAudioSourceManager;
 import com.sedmelluq.discord.lavaplayer.tools.FriendlyException;
 import com.sedmelluq.discord.lavaplayer.track.AudioItem;
 import com.sedmelluq.discord.lavaplayer.track.AudioPlaylist;
@@ -469,31 +462,6 @@ public class TrackLoader {
             }
         }
 
-        if (config.isPornhubEnabled()) {
-            PornHubAudioSourceManager ph = new PornHubAudioSourceManager();
-            lavaPlayer.registerSourceManager(ph);
-        }
-
-        if (config.isRedditEnabled()) {
-            RedditAudioSourceManager rd = new RedditAudioSourceManager();
-            lavaPlayer.registerSourceManager(rd);
-        }
-
-        if (config.isMixcloudEnabled()) {
-            MixcloudAudioSourceManager mc = new MixcloudAudioSourceManager();
-            lavaPlayer.registerSourceManager(mc);
-        }
-
-        if (config.isOcremixEnabled()) {
-            OCRemixAudioSourceManager rm = new OCRemixAudioSourceManager();
-            lavaPlayer.registerSourceManager(rm);
-        }
-
-        if (config.isSoundgasmEnabled()) {
-            SoundGasmAudioSourceManager sg = new SoundGasmAudioSourceManager();
-            lavaPlayer.registerSourceManager(sg);
-        }
-
         if (config.isVkMusicEnabled()) {
             String token = config.getVkMusicUserToken();
             registerBackendMusic(BackendMusicSourceManager.Service.VK,
@@ -507,16 +475,6 @@ public class TrackLoader {
 
         if (config.isTwitchEnabled()) {
             lavaPlayer.registerSourceManager(new dev.valkdz.cdisc.audio.twitch.TwitchSourceManager());
-        }
-
-        if (config.isBandcampEnabled()) {
-            BandcampAudioSourceManager bc = new BandcampAudioSourceManager();
-            lavaPlayer.registerSourceManager(bc);
-        }
-
-        if (config.isVimeoEnabled()) {
-            VimeoAudioSourceManager vm = new VimeoAudioSourceManager();
-            lavaPlayer.registerSourceManager(vm);
         }
 
         if (config.isHttpEnabled()) {

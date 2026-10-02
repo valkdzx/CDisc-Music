@@ -77,7 +77,7 @@ configured, and this is the command that says which.
 | VK Music | `vk:` | nothing (through the backend; a token is the fallback) |
 | YouTube | `yt:` | nothing to start; a po-token in practice |
 | Discord attachments | — | nothing (links expire after about a day) |
-| Twitch, TikTok, Reddit, Mixcloud | — | nothing |
+| Twitch, TikTok | — | nothing |
 
 A bare query with no prefix is searched on YouTube.
 

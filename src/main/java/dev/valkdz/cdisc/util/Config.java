@@ -68,36 +68,8 @@ public final class Config {
         return sources.isEnabled("twitch", true);
     }
 
-    public boolean isMixcloudEnabled() {
-        return sources.isEnabled("mixcloud", true);
-    }
-
     public boolean isTiktokEnabled() {
         return sources.isEnabled("tiktok", true);
-    }
-
-    public boolean isRedditEnabled() {
-        return sources.isEnabled("reddit", true);
-    }
-
-    public boolean isVimeoEnabled() {
-        return sources.isEnabled("vimeo", false);
-    }
-
-    public boolean isPornhubEnabled() {
-        return sources.isEnabled("pornhub", false);
-    }
-
-    public boolean isOcremixEnabled() {
-        return sources.isEnabled("ocremix", false);
-    }
-
-    public boolean isSoundgasmEnabled() {
-        return sources.isEnabled("soundgasm", false);
-    }
-
-    public boolean isBandcampEnabled() {
-        return sources.isEnabled("bandcamp", false);
     }
 
     public boolean isHttpEnabled() {

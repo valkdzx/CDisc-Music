@@ -102,10 +102,6 @@
             <url>https://maven.topi.wtf/releases</url>
         </repository>
         <repository>
-            <id>DuncteBot</id>
-            <url>https://m2.duncte123.dev/releases</url>
-        </repository>
-        <repository>
             <id>papermc</id>
             <url>https://repo.papermc.io/repository/maven-public/</url>
         </repository>
@@ -241,11 +237,6 @@
             <artifactId>bstats-bukkit</artifactId>
             <version>3.1.0</version>
             <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.dunctebot</groupId>
-            <artifactId>sourcemanagers</artifactId>
-            <version>1.9.0</version>
         </dependency>
     </dependencies>
 </project>

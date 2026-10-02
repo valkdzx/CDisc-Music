@@ -76,9 +76,7 @@ final class Diagnostics {
                 has(config.getYandexMusicAccessToken()), "yandex-music", "ym:", "access-token in tokens.yml"));
         out.add(backendMusic(config.isVkMusicEnabled(), config.getVkMusicBackendUrl(),
                 has(config.getVkMusicUserToken()), "vk-music", "vk:", "user-token in tokens.yml"));
-        out.add(source(config.isMixcloudEnabled(), true, "mixcloud", null, null));
         out.add(source(config.isTiktokEnabled(), true, "tiktok", "tt:", null));
-        out.add(source(config.isRedditEnabled(), true, "reddit", null, null));
         out.add(source(config.isTwitchEnabled(), true, "twitch", null, null));
         out.add(source(config.isDiscordEnabled(), true, "discord", null, null));
 
