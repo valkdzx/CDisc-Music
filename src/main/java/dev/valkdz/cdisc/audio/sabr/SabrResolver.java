@@ -77,6 +77,9 @@ public final class SabrResolver {
     private final CipherManager cipher;
 
     private static final long VISITOR_DATA_TTL_MS = 60 * 60 * 1000L;
+    private static final long VISITOR_RENEW_AHEAD_MS = 5 * 60 * 1000L;
+    private final java.util.concurrent.atomic.AtomicBoolean renewing =
+            new java.util.concurrent.atomic.AtomicBoolean();
 
     private String mintedVisitorData;
     private long mintedVisitorDataUntil;
@@ -360,8 +363,18 @@ public final class SabrResolver {
         long now = System.currentTimeMillis();
         if (mintedVisitorData == null || now > mintedVisitorDataUntil) {
             accept(new dev.valkdz.cdisc.youtube.VisitorRenewal().mintPage(15), now);
+        } else if (now > mintedVisitorDataUntil - VISITOR_RENEW_AHEAD_MS) {
+            renewLater();
         }
         return mintedVisitorData;
+    }
+
+    // Minted before the old one runs out, so no track waits on the page that mints it.
+    private void renewLater() {
+        if (!renewing.compareAndSet(false, true)) return;
+        new dev.valkdz.cdisc.youtube.VisitorRenewal().mintPageAsync(15)
+                .thenAccept(page -> accept(page, System.currentTimeMillis()))
+                .whenComplete((ignored, error) -> renewing.set(false));
     }
 
     private synchronized void accept(dev.valkdz.cdisc.youtube.VisitorRenewal.Page page, long now) {
