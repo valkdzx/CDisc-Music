@@ -1,6 +1,7 @@
 package dev.valkdz.cdisc.command;
 
 import dev.valkdz.cdisc.Main;
+import dev.valkdz.cdisc.config.SneakMode;
 import dev.valkdz.cdisc.disc.ItemUtils;
 import dev.valkdz.cdisc.disc.PvDiscs;
 import dev.valkdz.cdisc.feature.horn.GoatHorns;
@@ -10,7 +11,6 @@ import dev.valkdz.cdisc.feature.lyrics.LyricsPrefs;
 import dev.valkdz.cdisc.gui.dialog.Dialogs;
 import dev.valkdz.cdisc.permission.Action;
 import dev.valkdz.cdisc.permission.Perms;
-import dev.valkdz.cdisc.util.SneakMode;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -176,10 +176,10 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
         if (!allowed(p, Action.PLAYER_MESSAGES)) return;
 
         boolean on = parts.length > 1
-                ? parseToggle(parts[1], dev.valkdz.cdisc.util.PlayerPrefs.showsTrackMessages(p))
-                : !dev.valkdz.cdisc.util.PlayerPrefs.showsTrackMessages(p);
+                ? parseToggle(parts[1], dev.valkdz.cdisc.config.PlayerPrefs.showsTrackMessages(p))
+                : !dev.valkdz.cdisc.config.PlayerPrefs.showsTrackMessages(p);
 
-        dev.valkdz.cdisc.util.PlayerPrefs.setTrackMessages(p, on);
+        dev.valkdz.cdisc.config.PlayerPrefs.setTrackMessages(p, on);
         p.sendMessage("§a" + message(p,
                 on ? "gui.track_messages.enabled" : "gui.track_messages.disabled"));
     }
@@ -213,7 +213,7 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
             return;
         }
 
-        dev.valkdz.cdisc.util.PlayerPrefs.setSneakMode(p, mode);
+        dev.valkdz.cdisc.config.PlayerPrefs.setSneakMode(p, mode);
         plugin.getTrackProgressDisplay().stopWatching(p);
         p.sendMessage("§a" + message(p, switch (mode) {
             case TOGGLE -> "cdisc.sneak_toggle";

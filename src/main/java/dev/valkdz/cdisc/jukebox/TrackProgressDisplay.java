@@ -1,10 +1,10 @@
 package dev.valkdz.cdisc.jukebox;
 
 import dev.valkdz.cdisc.Main;
+import dev.valkdz.cdisc.config.PlayerPrefs;
+import dev.valkdz.cdisc.config.SneakMode;
 import dev.valkdz.cdisc.disc.ItemUtils;
 import dev.valkdz.cdisc.util.Chat;
-import dev.valkdz.cdisc.util.PlayerPrefs;
-import dev.valkdz.cdisc.util.SneakMode;
 import dev.valkdz.cdisc.util.Tasks;
 import dev.valkdz.cdisc.util.TimeUtils;
 import org.bukkit.Bukkit;

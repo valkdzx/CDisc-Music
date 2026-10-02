@@ -1,11 +1,11 @@
 package dev.valkdz.cdisc.feature.lyrics;
 
 import dev.valkdz.cdisc.Main;
+import dev.valkdz.cdisc.config.Config;
+import dev.valkdz.cdisc.config.PlayerPrefs;
 import dev.valkdz.cdisc.feature.portable.PortableJukeboxManager;
 import dev.valkdz.cdisc.jukebox.PlaybackManager;
-import dev.valkdz.cdisc.util.Config;
 import dev.valkdz.cdisc.util.DisplayCompat;
-import dev.valkdz.cdisc.util.PlayerPrefs;
 import dev.valkdz.cdisc.util.Tasks;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;

@@ -1,4 +1,4 @@
-package dev.valkdz.cdisc.voicechat;
+package dev.valkdz.cdisc.voice.simplevoicechat;
 
 import de.maxhenkel.voicechat.api.*;
 import de.maxhenkel.voicechat.api.events.EventRegistration;

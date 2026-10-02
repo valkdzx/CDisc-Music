@@ -1,6 +1,7 @@
-package dev.valkdz.cdisc.util;
+package dev.valkdz.cdisc.config;
 
 import dev.valkdz.cdisc.Main;
+import dev.valkdz.cdisc.util.NetProxy;
 import org.bukkit.configuration.file.YamlConfiguration;
 
 import java.io.File;

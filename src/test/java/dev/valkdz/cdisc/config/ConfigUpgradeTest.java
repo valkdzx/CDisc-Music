@@ -1,4 +1,4 @@
-package dev.valkdz.cdisc.util;
+package dev.valkdz.cdisc.config;
 
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.junit.jupiter.api.DisplayName;

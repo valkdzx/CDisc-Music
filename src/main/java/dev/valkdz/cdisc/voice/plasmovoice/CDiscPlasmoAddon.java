@@ -1,7 +1,7 @@
 package dev.valkdz.cdisc.voice.plasmovoice;
 
 import dev.valkdz.cdisc.Main;
-import dev.valkdz.cdisc.util.Config;
+import dev.valkdz.cdisc.config.Config;
 import su.plo.voice.api.addon.AddonInitializer;
 import su.plo.voice.api.addon.InjectPlasmoVoice;
 import su.plo.voice.api.addon.annotation.Addon;

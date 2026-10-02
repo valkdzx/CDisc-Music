@@ -1,9 +1,9 @@
 package dev.valkdz.cdisc.feature.lyrics;
 
 import dev.valkdz.cdisc.Main;
+import dev.valkdz.cdisc.config.Config;
 import dev.valkdz.cdisc.feature.lyrics.chat.ChatFeed;
 import dev.valkdz.cdisc.jukebox.PlaybackManager;
-import dev.valkdz.cdisc.util.Config;
 import dev.valkdz.cdisc.util.DisplayCompat;
 import dev.valkdz.cdisc.util.Tasks;
 import org.bukkit.Bukkit;

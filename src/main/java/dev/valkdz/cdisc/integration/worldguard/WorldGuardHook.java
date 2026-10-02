@@ -1,4 +1,4 @@
-package dev.valkdz.cdisc.region;
+package dev.valkdz.cdisc.integration.worldguard;
 
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldguard.LocalPlayer;

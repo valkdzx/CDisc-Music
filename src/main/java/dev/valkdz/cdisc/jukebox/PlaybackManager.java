@@ -15,6 +15,7 @@ import dev.valkdz.cdisc.audio.player.LoadException;
 import dev.valkdz.cdisc.audio.source.DiscordSource;
 import dev.valkdz.cdisc.audio.source.TrackLoader;
 import dev.valkdz.cdisc.audio.source.youtube.CustomYoutubeApiResolver;
+import dev.valkdz.cdisc.config.Config;
 import dev.valkdz.cdisc.disc.ItemUtils;
 import dev.valkdz.cdisc.disc.LoadDiagnosis;
 import dev.valkdz.cdisc.disc.SearchQuery;
@@ -25,11 +26,10 @@ import dev.valkdz.cdisc.feature.local.LocalTrackSettings;
 import dev.valkdz.cdisc.feature.lyrics.SyncedLyrics;
 import dev.valkdz.cdisc.feature.speaker.SpeakerGroup;
 import dev.valkdz.cdisc.feature.speaker.SpeakerSettings;
+import dev.valkdz.cdisc.integration.metrics.CDiscMetrics;
 import dev.valkdz.cdisc.jukebox.queue.DiscQueue;
 import dev.valkdz.cdisc.jukebox.queue.QueueStore;
 import dev.valkdz.cdisc.jukebox.queue.RepeatMode;
-import dev.valkdz.cdisc.metrics.CDiscMetrics;
-import dev.valkdz.cdisc.util.Config;
 import dev.valkdz.cdisc.util.Tasks;
 import dev.valkdz.cdisc.util.TimeUtils;
 import dev.valkdz.cdisc.voice.VoiceBackend;
@@ -292,7 +292,7 @@ public class PlaybackManager {
         Player carrier = Bukkit.getPlayer(carry.carrier());
         if (carrier == null) return;
 
-        int volume = dev.valkdz.cdisc.util.PlayerPrefs
+        int volume = dev.valkdz.cdisc.config.PlayerPrefs
                 .effectiveLocalVolume(carrier, settings.volume());
         for (AudioSession session : list) {
             session.getVoiceSession().setDirectVolume(volume);
@@ -1632,7 +1632,7 @@ public class PlaybackManager {
 
             for (AudioSession session : list) {
                 session.getVoiceSession().setDirectVolume(
-                        dev.valkdz.cdisc.util.PlayerPrefs.VOLUME_FOLLOWS_JUKEBOX);
+                        dev.valkdz.cdisc.config.PlayerPrefs.VOLUME_FOLLOWS_JUKEBOX);
             }
             return;
         }
@@ -1640,7 +1640,7 @@ public class PlaybackManager {
         Player carrier = Bukkit.getPlayer(listener);
         if (carrier == null) return;
 
-        int volume = dev.valkdz.cdisc.util.PlayerPrefs.effectiveLocalVolume(
+        int volume = dev.valkdz.cdisc.config.PlayerPrefs.effectiveLocalVolume(
                 carrier, SpeakerSettings.of(block).volume());
         for (AudioSession session : list) {
             session.getVoiceSession().setDirectVolume(volume);

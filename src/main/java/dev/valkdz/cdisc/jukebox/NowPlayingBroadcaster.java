@@ -45,7 +45,7 @@ public class NowPlayingBroadcaster {
 
         for (Player p : Bukkit.getOnlinePlayers()) {
 
-            if (!dev.valkdz.cdisc.util.PlayerPrefs.showsTrackMessages(p)) continue;
+            if (!dev.valkdz.cdisc.config.PlayerPrefs.showsTrackMessages(p)) continue;
 
             String msg = plugin.getMessageManager().track(p, "actionbar.playing", 0, author, title);
             if (msg == null) msg = " ";

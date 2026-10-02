@@ -1,4 +1,4 @@
-package dev.valkdz.cdisc.util;
+package dev.valkdz.cdisc.config;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

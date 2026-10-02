@@ -16,7 +16,7 @@ public final class SimpleVoiceChatActivator {
             plugin.getLogger().warning("Simple Voice Chat is installed, but no service was found!");
             return;
         }
-        service.registerPlugin(new dev.valkdz.cdisc.voicechat.VoicechatPluginCDisc(plugin));
+        service.registerPlugin(new dev.valkdz.cdisc.voice.simplevoicechat.VoicechatPluginCDisc(plugin));
     }
 
     public static VoiceBackend createBackend(Object api, String categoryId) {

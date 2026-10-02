@@ -1,6 +1,6 @@
 package dev.valkdz.cdisc.feature.lyrics;
 
-import dev.valkdz.cdisc.util.Config;
+import dev.valkdz.cdisc.config.Config;
 import dev.valkdz.cdisc.util.Json;
 
 public record HologramStyle(

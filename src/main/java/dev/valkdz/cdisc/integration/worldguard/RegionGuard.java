@@ -1,4 +1,4 @@
-package dev.valkdz.cdisc.region;
+package dev.valkdz.cdisc.integration.worldguard;
 
 import dev.valkdz.cdisc.Main;
 import dev.valkdz.cdisc.util.Chat;

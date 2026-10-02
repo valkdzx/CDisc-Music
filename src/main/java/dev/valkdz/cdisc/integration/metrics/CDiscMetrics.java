@@ -1,7 +1,7 @@
-package dev.valkdz.cdisc.metrics;
+package dev.valkdz.cdisc.integration.metrics;
 
 import dev.valkdz.cdisc.Main;
-import dev.valkdz.cdisc.util.Config;
+import dev.valkdz.cdisc.config.Config;
 import dev.valkdz.cdisc.util.Tasks;
 import org.bstats.MetricsBase;
 import org.bstats.bukkit.Metrics;

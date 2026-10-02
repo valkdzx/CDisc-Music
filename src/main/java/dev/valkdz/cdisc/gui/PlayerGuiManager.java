@@ -1,6 +1,7 @@
 package dev.valkdz.cdisc.gui;
 
 import dev.valkdz.cdisc.Main;
+import dev.valkdz.cdisc.config.Config;
 import dev.valkdz.cdisc.feature.lyrics.LyricsMode;
 import dev.valkdz.cdisc.feature.lyrics.LyricsPrefs;
 import dev.valkdz.cdisc.feature.lyrics.LyricsRenderer;
@@ -12,7 +13,6 @@ import dev.valkdz.cdisc.jukebox.PlaybackManager;
 import dev.valkdz.cdisc.jukebox.queue.DiscQueue;
 import dev.valkdz.cdisc.jukebox.queue.RepeatMode;
 import dev.valkdz.cdisc.permission.Action;
-import dev.valkdz.cdisc.util.Config;
 import dev.valkdz.cdisc.util.HeadUtils;
 import dev.valkdz.cdisc.util.Tasks;
 import dev.valkdz.cdisc.util.TimeUtils;
@@ -28,9 +28,9 @@ import org.bukkit.block.data.Levelled;
 import org.bukkit.inventory.meta.BlockDataMeta;
 import org.bukkit.inventory.meta.ItemMeta;
 
+import dev.valkdz.cdisc.config.PlayerPrefs;
 import dev.valkdz.cdisc.feature.speaker.SpeakerGroup;
 import dev.valkdz.cdisc.feature.speaker.SpeakerSettings;
-import dev.valkdz.cdisc.util.PlayerPrefs;
 
 import java.util.ArrayList;
 import java.util.List;

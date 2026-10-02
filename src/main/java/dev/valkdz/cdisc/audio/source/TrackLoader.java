@@ -17,8 +17,8 @@ import dev.valkdz.cdisc.audio.source.music.YandexMusicSourceManager;
 import dev.valkdz.cdisc.audio.source.soundcloud.SoundCloudSourceManager;
 import dev.valkdz.cdisc.audio.source.spotify.SpotifySourceManager;
 import dev.valkdz.cdisc.audio.source.youtube.CustomYoutubeApiResolver;
+import dev.valkdz.cdisc.config.Config;
 import dev.valkdz.cdisc.feature.local.LocalMusicLibrary;
-import dev.valkdz.cdisc.util.Config;
 import org.bukkit.Bukkit;
 
 import java.util.ArrayList;

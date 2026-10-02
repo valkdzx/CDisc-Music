@@ -1,8 +1,8 @@
 package dev.valkdz.cdisc.command;
 
-import dev.valkdz.cdisc.util.Json;
 import dev.valkdz.cdisc.Main;
-import dev.valkdz.cdisc.util.Config;
+import dev.valkdz.cdisc.config.Config;
+import dev.valkdz.cdisc.util.Json;
 import dev.valkdz.cdisc.util.NetProxy;
 import org.bukkit.Bukkit;
 

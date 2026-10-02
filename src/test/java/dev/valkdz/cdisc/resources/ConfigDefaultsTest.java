@@ -21,10 +21,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ConfigDefaultsTest {
 
     private static final Map<String, String> PAIRS = Map.of(
-            "src/main/java/dev/valkdz/cdisc/util/Config.java",
+            "src/main/java/dev/valkdz/cdisc/config/Config.java",
             "src/main/resources/config.yml",
 
-            "src/main/java/dev/valkdz/cdisc/util/SourcesConfig.java",
+            "src/main/java/dev/valkdz/cdisc/config/SourcesConfig.java",
             "src/main/resources/sources.yml");
 
     private static final Pattern WITH_DEFAULT = Pattern.compile(

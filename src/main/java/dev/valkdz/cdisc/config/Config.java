@@ -1,4 +1,4 @@
-package dev.valkdz.cdisc.util;
+package dev.valkdz.cdisc.config;
 
 import dev.valkdz.cdisc.Main;
 import dev.valkdz.cdisc.voice.anchor.AnchorType;

@@ -2,6 +2,8 @@ package dev.valkdz.cdisc;
 
 import de.tr7zw.changeme.nbtapi.NBT;
 import dev.valkdz.cdisc.command.CDiscCommand;
+import dev.valkdz.cdisc.config.Config;
+import dev.valkdz.cdisc.config.MessageManager;
 import dev.valkdz.cdisc.feature.portable.PortableJukeboxListener;
 import dev.valkdz.cdisc.feature.portable.PortableJukeboxManager;
 import dev.valkdz.cdisc.gui.PlayerActions;
@@ -9,13 +11,11 @@ import dev.valkdz.cdisc.gui.PlayerGuiListener;
 import dev.valkdz.cdisc.gui.PlayerGuiManager;
 import dev.valkdz.cdisc.gui.QueueGuiListener;
 import dev.valkdz.cdisc.gui.QueueGuiManager;
+import dev.valkdz.cdisc.integration.metrics.CDiscMetrics;
 import dev.valkdz.cdisc.jukebox.JukeboxListener;
 import dev.valkdz.cdisc.jukebox.PlaybackManager;
 import dev.valkdz.cdisc.jukebox.TrackProgressDisplay;
-import dev.valkdz.cdisc.metrics.CDiscMetrics;
 import dev.valkdz.cdisc.update.UpdateChecker;
-import dev.valkdz.cdisc.util.Config;
-import dev.valkdz.cdisc.util.MessageManager;
 import dev.valkdz.cdisc.util.Tasks;
 import dev.valkdz.cdisc.voice.VoiceBackendManager;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -59,7 +59,7 @@ public final class Main extends JavaPlugin {
     private dev.valkdz.cdisc.feature.local.TrackDownloader trackDownloader;
     private dev.valkdz.cdisc.jukebox.PlaybackResume playbackResume;
     private dev.valkdz.cdisc.permission.PermissionsConfig permissions;
-    private dev.valkdz.cdisc.region.RegionGuard regionGuard;
+    private dev.valkdz.cdisc.integration.worldguard.RegionGuard regionGuard;
     private dev.valkdz.cdisc.audio.source.youtube.PoTokenService poTokenService;
     private dev.valkdz.cdisc.feature.lyrics.LyricsService lyricsService;
     private dev.valkdz.cdisc.feature.lyrics.LyricsDisplay lyricsDisplay;
@@ -75,7 +75,7 @@ public final class Main extends JavaPlugin {
         config = new Config(this);
         dev.valkdz.cdisc.util.NetProxy.prepare();
         applyProxy();
-        dev.valkdz.cdisc.region.RegionGuard.registerFlag(this);
+        dev.valkdz.cdisc.integration.worldguard.RegionGuard.registerFlag(this);
 
         // The config must already be saved: Plasmo Voice initialises registered addons
         // during its own onEnable, and reads ours there.
@@ -88,7 +88,7 @@ public final class Main extends JavaPlugin {
         messageManager = new MessageManager(this);
 
         permissions = new dev.valkdz.cdisc.permission.PermissionsConfig(this);
-        regionGuard = new dev.valkdz.cdisc.region.RegionGuard(this);
+        regionGuard = new dev.valkdz.cdisc.integration.worldguard.RegionGuard(this);
 
 
         // Must exist before PlaybackManager starts a session: playback asks it
@@ -195,7 +195,7 @@ public final class Main extends JavaPlugin {
         getServer().getPluginManager().registerEvents(hornPlayer, this);
         hornPlayer.start();
 
-        dev.valkdz.cdisc.placeholder.PlaceholderHook.register(this);
+        dev.valkdz.cdisc.integration.placeholder.PlaceholderHook.register(this);
 
         updateChecker = new UpdateChecker(this);
         getServer().getPluginManager().registerEvents(updateChecker, this);
@@ -327,7 +327,7 @@ public final class Main extends JavaPlugin {
     public MessageManager getMessageManager() { return messageManager; }
     public Config cdiscConfig() { return config; }
     public dev.valkdz.cdisc.permission.PermissionsConfig getPermissions() { return permissions; }
-    public dev.valkdz.cdisc.region.RegionGuard getRegionGuard() { return regionGuard; }
+    public dev.valkdz.cdisc.integration.worldguard.RegionGuard getRegionGuard() { return regionGuard; }
     public TrackProgressDisplay getTrackProgressDisplay() { return trackProgressDisplay; }
     public PlayerGuiManager getPlayerGuiManager() { return playerGuiManager; }
 

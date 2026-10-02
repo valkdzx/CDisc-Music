@@ -1,10 +1,10 @@
 package dev.valkdz.cdisc.gui.dialog;
 
 import dev.valkdz.cdisc.Main;
+import dev.valkdz.cdisc.config.ConfigEditor.Field;
+import dev.valkdz.cdisc.config.ConfigEditor.Kind;
+import dev.valkdz.cdisc.config.ConfigEditor;
 import dev.valkdz.cdisc.permission.Perms;
-import dev.valkdz.cdisc.util.ConfigEditor;
-import dev.valkdz.cdisc.util.ConfigEditor.Field;
-import dev.valkdz.cdisc.util.ConfigEditor.Kind;
 import io.papermc.paper.dialog.Dialog;
 import io.papermc.paper.dialog.DialogResponseView;
 import io.papermc.paper.registry.data.dialog.ActionButton;

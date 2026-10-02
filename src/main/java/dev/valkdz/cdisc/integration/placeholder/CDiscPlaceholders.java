@@ -1,4 +1,4 @@
-package dev.valkdz.cdisc.placeholder;
+package dev.valkdz.cdisc.integration.placeholder;
 
 import dev.valkdz.cdisc.Main;
 import dev.valkdz.cdisc.api.CDiscApi;

@@ -1,8 +1,8 @@
 package dev.valkdz.cdisc.command;
 
 import dev.valkdz.cdisc.Main;
+import dev.valkdz.cdisc.config.Config;
 import dev.valkdz.cdisc.feature.local.LocalMusicLibrary;
-import dev.valkdz.cdisc.util.Config;
 
 import java.util.ArrayList;
 import java.util.List;

@@ -112,10 +112,10 @@ public final class PlayerSubcommand {
         }
 
         boolean on = args.length > 2
-                ? parseToggle(args[2], dev.valkdz.cdisc.util.PlayerPrefs.showsLyricsScoreboard(player))
-                : !dev.valkdz.cdisc.util.PlayerPrefs.showsLyricsScoreboard(player);
+                ? parseToggle(args[2], dev.valkdz.cdisc.config.PlayerPrefs.showsLyricsScoreboard(player))
+                : !dev.valkdz.cdisc.config.PlayerPrefs.showsLyricsScoreboard(player);
 
-        dev.valkdz.cdisc.util.PlayerPrefs.setLyricsScoreboard(player, on);
+        dev.valkdz.cdisc.config.PlayerPrefs.setLyricsScoreboard(player, on);
         if (!on) plugin.getCarriedLyrics().clear(player.getUniqueId());
 
         msg(player, "§a", on ? "command.player.scoreboard_on" : "command.player.scoreboard_off");
