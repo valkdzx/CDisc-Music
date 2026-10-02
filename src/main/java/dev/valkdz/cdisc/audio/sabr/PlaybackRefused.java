@@ -51,6 +51,14 @@ public final class PlaybackRefused extends IOException {
         return author;
     }
 
+    public boolean botCheck() {
+        return mentionsBot(reason) || mentionsBot(subreason);
+    }
+
+    private static boolean mentionsBot(String text) {
+        return text != null && text.toLowerCase(Locale.ROOT).contains("not a bot");
+    }
+
     public boolean regional() {
         return mentionsRegion(reason) || mentionsRegion(subreason);
     }

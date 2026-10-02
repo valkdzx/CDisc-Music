@@ -22,6 +22,7 @@
 - A CDisc disc a hopper puts into a jukebox starts playing on its own, also with nobody nearby or with another plugin intercepting the jukebox's packets.
 - A disc moved to another slot while its track was still loading no longer stays blank under a "loaded" message: the track is written to the disc or horn in hand when loading ends.
 - YouTube: the plugin finds YouTube's current player again, which now names it in an escaped form. Without it the player script was no longer prepared at startup, so the first embedded-player track waited for it, and links that carry a throttling parameter went out unsolved.
+- YouTube: on a server whose address YouTube distrusts, tracks start sooner. After three direct reads in a row fail for the server's address (the bot check, or no answer), the backend is asked first for ten minutes instead of after another failed attempt each time.
 
 ## 2.1.1-fix2
 

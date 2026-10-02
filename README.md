@@ -99,9 +99,11 @@ youtube:
 
 The backend asks from its own address, and mints its own proof-of-origin
 token while doing it. Nothing else needs configuring — no po-token, no
-visitor-data, no keys. Both paths start at once and whichever answers first
-wins, so it costs nothing where YouTube already works. What it does cost is a
-dependency on someone else's machine.
+visitor-data, no keys. The direct read is tried first and the backend only
+when it fails, so it costs nothing where YouTube already works. When the
+direct read fails three times in a row for this server's address — YouTube's
+bot check, or no answer at all — the backend goes first for ten minutes. What
+it does cost is a dependency on someone else's machine.
 
 CDisc switches it on once at startup, and on a server located in Russia also
 switches on `proxy`, since YouTube is slowed there. Set either back to `false`

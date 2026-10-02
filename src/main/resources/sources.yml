@@ -119,7 +119,8 @@ youtube:
   # token, so nothing else here needs configuring. Order: the direct read first, then this;
   # youtube-source never plays a track, it only lists searches and playlists. A video YouTube
   # does not offer in this server's country skips the direct read and comes straight here.
-  # Age-restricted tracks use it even when this is off.
+  # After three direct reads in a row fail for this server's address (YouTube's bot check,
+  # no answer), it goes first for ten minutes. Age-restricted tracks use it even when off.
   # Switched on once at startup if it was off; set it back to false and it stays false.
   fallback-api: true
 

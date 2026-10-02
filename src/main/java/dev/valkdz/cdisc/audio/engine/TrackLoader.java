@@ -110,6 +110,12 @@ public class TrackLoader {
 
     private final java.util.Set<String> preferBackend = ConcurrentHashMap.newKeySet();
 
+    private static final int DIRECT_MISSES_TO_PAUSE = 3;
+    private static final long DIRECT_PAUSE_MS = 10 * 60 * 1000L;
+    private final java.util.concurrent.atomic.AtomicInteger directMisses =
+            new java.util.concurrent.atomic.AtomicInteger();
+    private volatile long directPausedUntil;
+
     public CompletableFuture<List<CustomYoutubeApiResolver.Hit>> searchBackend(String query, int limit) {
         if (customApiResolver == null || isBlank(query)) {
             return CompletableFuture.completedFuture(List.of());
@@ -729,12 +735,20 @@ public class TrackLoader {
             return;
         }
 
+        if (customApiResolver != null && System.currentTimeMillis() < directPausedUntil) {
+            loadViaBackend(resolved, handler);
+            return;
+        }
+
         CompletableFuture
                 .supplyAsync(() -> attemptDirect(resolved, preferredTitle, preferredAuthor,
                         preferredTitle != null), resolveExecutor)
                 .exceptionally(ex -> Direct.NOTHING)
                 .whenComplete((direct, ex) -> {
                     Direct answer = direct == null ? Direct.NOTHING : direct;
+
+                    if (answer.track() != null) directMisses.set(0);
+                    if (answer.addressRefused()) noteDirectMiss();
 
                     if (answer.track() != null) {
                         setTrackSourceMetadata(answer.track(), directLabel(answer.track()));
@@ -752,6 +766,19 @@ public class TrackLoader {
                             + "directly; asking the backend.");
                     loadViaBackend(resolved, handler);
                 });
+    }
+
+    // A server whose address YouTube distrusts fails every direct read, each costing a second or
+    // more before the backend is asked, so after a few in a row the backend goes first for a while.
+    private void noteDirectMiss() {
+        if (customApiResolver == null) return;
+        if (directMisses.incrementAndGet() < DIRECT_MISSES_TO_PAUSE) return;
+
+        directMisses.set(0);
+        directPausedUntil = System.currentTimeMillis() + DIRECT_PAUSE_MS;
+        Bukkit.getLogger().info("[CDisc] YouTube refused this server's direct reads "
+                + DIRECT_MISSES_TO_PAUSE + " times in a row; playing YouTube through the backend for the next "
+                + DIRECT_PAUSE_MS / 60_000 + " minutes.");
     }
 
     private void resolveSpotify(String trackId, String original, AudioLoadResultHandler handler) {
@@ -981,8 +1008,12 @@ public class TrackLoader {
         return attemptDirect(identifier, discTitle, discAuthor, namesWin).track();
     }
 
-    public record Direct(AudioTrack track, boolean ageRestricted) {
+    public record Direct(AudioTrack track, boolean ageRestricted, boolean addressRefused) {
         static final Direct NOTHING = new Direct(null, false);
+
+        Direct(AudioTrack track, boolean ageRestricted) {
+            this(track, ageRestricted, false);
+        }
     }
 
     private Direct attemptDirect(String identifier, String discTitle, String discAuthor,
@@ -1003,8 +1034,9 @@ public class TrackLoader {
         }
 
         try {
-            return new Direct(sabrResolver.resolve(identifier, discTitle, discAuthor, namesWin,
-                    known == null ? null : known.plan()), false);
+            AudioTrack track = sabrResolver.resolve(identifier, discTitle, discAuthor, namesWin,
+                    known == null ? null : known.plan());
+            return new Direct(track, false, track == null);
         } catch (Exception e) {
             if (looksAgeRestricted(e.getMessage())) {
                 if (!mayReupload) return new Direct(null, true);
@@ -1028,7 +1060,9 @@ public class TrackLoader {
                 markBlocked(dev.valkdz.cdisc.audio.sabr.SabrResolver.videoIdOf(identifier));
             }
             Bukkit.getLogger().warning("[CDisc] The direct read could not serve the track: " + e.getMessage());
-            return Direct.NOTHING;
+            boolean addressRefused = !(e instanceof dev.valkdz.cdisc.audio.sabr.PlaybackRefused refused)
+                    || refused.botCheck();
+            return new Direct(null, false, addressRefused);
         }
     }
 
