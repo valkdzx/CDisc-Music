@@ -15,6 +15,7 @@
 - A carried jukebox whose item left the inventory without being dropped — put in an item frame, a bundle or a decorated pot, handed to an allay, or held on the cursor when the music ended — no longer gives back a second jukebox. Its discs come back on their own.
 - Folia: jukebox queues are saved again. The save reached into every jukebox from the global thread, which Folia refuses, so nothing was kept and the console logged an error every two seconds.
 - An explosion next to a playing jukebox no longer silences it. Jukeboxes that play, hold a CDisc disc or keep a queue are still spared by explosions; other jukeboxes now break as they do without the plugin.
+- The queue screen takes only CDisc discs. A right click on a queued disc with another item on the cursor used to swap that item into the queue, and a queue full of loaded shulker boxes could break the chunk it stood in.
 
 ## 2.1.1-fix2
 

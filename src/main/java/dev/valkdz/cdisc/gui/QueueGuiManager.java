@@ -7,6 +7,7 @@ import dev.valkdz.cdisc.audio.queue.PlayedPolicy;
 import dev.valkdz.cdisc.permission.Action;
 import dev.valkdz.cdisc.speaker.SpeakerGroup;
 import dev.valkdz.cdisc.util.HeadUtils;
+import dev.valkdz.cdisc.util.ItemUtils;
 import dev.valkdz.cdisc.util.Tasks;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -139,6 +140,12 @@ public class QueueGuiManager {
                 shown[i] = copyOf(queue.getSlot(i));
                 inventory.setItem(QUEUE_SLOTS[i], shown[i]);
                 continue;
+            }
+
+            if (now != null && !ItemUtils.isCdiscDisc(now)) {
+                block.getWorld().dropItemNaturally(block.getLocation().add(0.5, 1.1, 0.5), now);
+                inventory.setItem(QUEUE_SLOTS[i], null);
+                now = null;
             }
 
             if (i == current && shown[i] != null) takenCurrent = shown[i];

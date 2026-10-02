@@ -85,7 +85,10 @@ public class QueueGuiListener implements Listener {
                     if (qIndex >= 0) plugin.getQueueGuiManager().openPlayConfirm(player, block, qIndex);
                     return;
                 }
-                if ((e.getClick() == ClickType.RIGHT || e.getClick().isShiftClick())
+                // With something else on the cursor a right click swaps it in, and the queue
+                // takes anything it is given, a shulker full of books included.
+                boolean emptyCursor = cursor == null || cursor.getType().isAir();
+                if (((e.getClick() == ClickType.RIGHT && emptyCursor) || e.getClick().isShiftClick())
                         && may(player, Action.QUEUE_REMOVE)) {
 
                     plugin.getQueueGuiManager().schedulePersist(block, e.getView().getTopInventory());
