@@ -74,6 +74,8 @@ class MediaDecodeTest {
             "tone.mka, 1.0, 35",
             "tone.flac, 1.0, 70",
             "tone.ogg, 1.0, 70",
+            "tone-vorbis.ogg, 1.0, 35",
+            "tone-vorbis.webm, 1.0, 35",
             "tone.wav, 0.25, 70"
     })
     void decodesTheTone(String name, double seconds, double minSnr) throws IOException {

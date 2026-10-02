@@ -31,7 +31,7 @@ final class HuffmanTree {
         }
     }
 
-    int decode(BitReader in) {
+    int decode(BitSource in) {
         int node = 0;
         for (int depth = 0; depth < 32; depth++) {
             int next = in.bit() != 0 ? right[node] : left[node];

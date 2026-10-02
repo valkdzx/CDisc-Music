@@ -321,7 +321,7 @@ public final class MatroskaReader implements Demuxer {
             if (type != 2 || format != null || codec == null) continue;
             TrackFormat found = formatOf(codec, codecPrivate, (int) Math.round(rate), channels, bitDepth);
             if (found != null) {
-                if (delay > 0 && found.codec() != Codec.OPUS) {
+                if (delay > 0 && found.codec() != Codec.OPUS && found.codec() != Codec.VORBIS) {
                     found = found.withSkip((int) ((delay * found.sampleRate() + 500_000_000L) / 1_000_000_000L), found.seekPrerollMs());
                 }
                 format = found;

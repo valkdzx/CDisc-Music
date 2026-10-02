@@ -1,6 +1,6 @@
 package dev.valkdz.cdisc.audio.media.codec;
 
-public final class BitReader {
+public final class BitReader implements BitSource {
 
     private byte[] data;
     private int start;
@@ -34,6 +34,7 @@ public final class BitReader {
         return value;
     }
 
+    @Override
     public int bit() {
         int index = (int) (position >> 3);
         if (index >= end) {
