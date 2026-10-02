@@ -46,7 +46,8 @@ import java.util.regex.Pattern;
 
 public final class YoutubeCipher {
 
-    private static final Pattern PLAYER_ID = Pattern.compile("/s/player/([0-9a-f]{8})/");
+    // The iframe API writes the path JSON-escaped (\/s\/player\/...), the embed page does not.
+    private static final Pattern PLAYER_ID = Pattern.compile("\\\\?/s\\\\?/player\\\\?/([0-9a-f]{8})\\\\?/");
     private static final Pattern TIMESTAMP = Pattern.compile("(?:signatureTimestamp|sts)\\s*:\\s*(\\d{5})");
     private static final long PLAYER_ID_TTL_MS = 60 * 60 * 1000L;
     private static final int KEPT_PLAYERS = 2;

@@ -21,6 +21,7 @@
 - A disc whose track could not start, such as one pointing at a deleted local file or played with no voice mod working, no longer leaves copies of itself in the jukebox's queue for every player nearby.
 - A CDisc disc a hopper puts into a jukebox starts playing on its own, also with nobody nearby or with another plugin intercepting the jukebox's packets.
 - A disc moved to another slot while its track was still loading no longer stays blank under a "loaded" message: the track is written to the disc or horn in hand when loading ends.
+- YouTube: the plugin finds YouTube's current player again, which now names it in an escaped form. Without it the player script was no longer prepared at startup, so the first embedded-player track waited for it, and links that carry a throttling parameter went out unsolved.
 
 ## 2.1.1-fix2
 
