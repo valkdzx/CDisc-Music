@@ -96,6 +96,7 @@ public class TrackProgressDisplay implements Listener {
 
         if (!watching.remove(id)) {
             watching.add(id);
+            watchedBlocks.put(id, target);
         } else {
             dropState(id);
         }
