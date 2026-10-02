@@ -18,6 +18,7 @@
 - The queue screen takes only CDisc discs. A right click on a queued disc with another item on the cursor used to swap that item into the queue, and a queue full of loaded shulker boxes could break the chunk it stood in.
 - Breaking a jukebox is handled after every other plugin has had its say. A protection plugin that cancelled the break late used to leave the jukebox standing with a second jukebox, holding its queue, dropped beside it.
 - A vanilla disc in a jukebox that also keeps a CDisc queue drops when the jukebox is broken, instead of disappearing.
+- A disc whose track could not start, such as one pointing at a deleted local file or played with no voice mod working, no longer leaves copies of itself in the jukebox's queue for every player nearby.
 
 ## 2.1.1-fix2
 

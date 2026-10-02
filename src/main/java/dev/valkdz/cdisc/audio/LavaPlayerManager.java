@@ -1308,8 +1308,10 @@ public class LavaPlayerManager {
         }
     }
 
+    // The record-start packet reaches every player nearby and each one asks for a start, so a
+    // seed must be idempotent or a disc that fails to start leaves extra copies in the queue.
     public void seedQueue(Block block, ItemStack currentDisc) {
-        seedQueue(block, currentDisc, false);
+        seedQueue(block, currentDisc, true);
     }
 
     public void seedQueue(Block block, ItemStack currentDisc, boolean restoring) {
