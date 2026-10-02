@@ -86,8 +86,8 @@ vk-music:
 ### YouTube
 youtube:
   # Where operators are pointed when YouTube fails and nothing here gets past it.
-  # Blank names the page without linking to it. A Russian client is sent to the Russian page.
-  setup-guide-url: 'https://wiki.2281273.xyz/#/youtube'
+  # Blank names the page without linking to it.
+  setup-guide-url: 'https://github.com/valkdzx/CDisc-Music/wiki/YouTube'
 
   # Fetch through the backend API instead of asking YouTube from here. THE FIRST THING
   # TO TRY WHEN YOUTUBE STOPS PLAYING: it asks from its own address and mints its own

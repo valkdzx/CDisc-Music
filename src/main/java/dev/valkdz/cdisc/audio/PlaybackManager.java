@@ -544,16 +544,10 @@ public class PlaybackManager {
                     op.sendMessage("§7" + plugin.getMessageManager()
                             .get(op, url.isEmpty()
                                     ? "diagnose.youtube_operator_where"
-                                    : "diagnose.youtube_operator_link", localised(url, op)));
+                                    : "diagnose.youtube_operator_link", url));
                 });
             }
         });
-    }
-
-    private String localised(String url, Player op) {
-        if (!plugin.getMessageManager().localeFor(op).startsWith("ru")) return url;
-        if (url.contains("/ru/") || !url.contains("/#/")) return url;
-        return url.replace("/#/", "/ru/#/");
     }
 
     private void search(Player player, ItemStack item, String query, String resolved, int limit) {
