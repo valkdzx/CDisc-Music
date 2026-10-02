@@ -1650,22 +1650,31 @@ public class LavaPlayerManager {
     }
 
     public void seek(Block block, long deltaMs) {
-        AudioTrack track = getPlayingTrack(block);
+        AudioSession session = firstSession(block);
+        AudioTrack track = session == null ? null : session.getPlayer().getPlayingTrack();
         if (track == null || !track.isSeekable()) return;
-        seekTo(block, track.getPosition() + deltaMs);
+        seekTo(block, session.positionOf(track) + deltaMs);
     }
 
     public void seekTo(Block block, long positionMs) {
-        AudioTrack track = getPlayingTrack(block);
+        AudioSession session = firstSession(block);
+        AudioTrack track = session == null ? null : session.getPlayer().getPlayingTrack();
         if (track == null || !track.isSeekable()) return;
         long duration = track.getDuration();
         long clamped = Math.max(0, duration > 0 && duration != Long.MAX_VALUE ? Math.min(positionMs, duration) : positionMs);
+        session.seeking(track, clamped);
         track.setPosition(clamped);
     }
 
     public long getPosition(Block block) {
-        AudioTrack track = getPlayingTrack(block);
-        return track != null ? track.getPosition() : -1;
+        AudioSession session = firstSession(block);
+        AudioTrack track = session == null ? null : session.getPlayer().getPlayingTrack();
+        return track != null ? session.positionOf(track) : -1;
+    }
+
+    private AudioSession firstSession(Block block) {
+        List<AudioSession> list = sessions.get(block);
+        return list == null || list.isEmpty() ? null : list.get(0);
     }
 
     public long getDuration(Block block) {
@@ -1711,7 +1720,7 @@ public class LavaPlayerManager {
         return new PlaybackInfo(
                 Normalizer.normalize(rawTitle, Normalizer.Form.NFC),
                 Normalizer.normalize(rawAuthor, Normalizer.Form.NFC),
-                track.getPosition(),
+                session.positionOf(track),
                 track.getDuration(),
                 player.isPaused(),
                 getRepeatMode(block),

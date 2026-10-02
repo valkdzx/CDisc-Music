@@ -45,6 +45,12 @@ public class AudioSession {
     private volatile Runnable onNearEnd;
     private AudioTrack nearEndFiredFor;
 
+    private static final long SEEK_LANDING_MS = 3000L;
+    private static final long SEEK_PATIENCE_MS = 15_000L;
+    private volatile AudioTrack seekTrack;
+    private volatile long seekTarget = -1L;
+    private volatile long seekSince;
+
     private AudioPlayer outgoing;
     private final ArrayDeque<byte[]> outLead = new ArrayDeque<>();
     private int fadeFrames;
@@ -126,6 +132,7 @@ public class AudioSession {
 
         AudioFrame frame;
         while (lead.size() < cap && (frame = player.provide()) != null) {
+            landSeek(frame);
             lead.addLast(frame.getData());
         }
 
@@ -146,6 +153,28 @@ public class AudioSession {
 
             priming = true;
         }
+    }
+
+    // Until the first frame from the new place arrives, lavaplayer reports the last frame it
+    // played, so the bar, the lyrics and a second seek would all start from the old place.
+    public void seeking(AudioTrack track, long target) {
+        seekSince = System.currentTimeMillis();
+        seekTrack = track;
+        seekTarget = target;
+    }
+
+    public long positionOf(AudioTrack track) {
+        long target = seekTarget;
+        if (target >= 0 && track == seekTrack
+                && System.currentTimeMillis() - seekSince < SEEK_PATIENCE_MS) {
+            return target;
+        }
+        return track.getPosition();
+    }
+
+    private void landSeek(AudioFrame frame) {
+        long target = seekTarget;
+        if (target >= 0 && Math.abs(frame.getTimecode() - target) <= SEEK_LANDING_MS) seekTarget = -1L;
     }
 
     public void watchEnd(long leadMs, Runnable callback) {
@@ -171,7 +200,7 @@ public class AudioSession {
 
         long duration = track.getDuration();
         if (duration <= 0 || duration == Long.MAX_VALUE) return;
-        long remaining = duration - track.getPosition();
+        long remaining = duration - positionOf(track);
 
         if (nearEndFiredFor == track) {
             if (remaining > leadMs + 2000L) {

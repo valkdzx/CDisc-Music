@@ -377,6 +377,8 @@ public class TrackLoader {
         this.lavaPlayer = new DefaultAudioPlayerManager();
 
         this.lavaPlayer.setFrameBufferDuration(30000);
+        // With ghosting the old place keeps playing out of that buffer until the new one loads.
+        this.lavaPlayer.setUseSeekGhosting(false);
         this.lavaPlayer.setHttpBuilderConfigurator(dev.valkdz.cdisc.util.NetProxy::apply);
         registerSources();
     }
