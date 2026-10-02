@@ -1,8 +1,8 @@
 package dev.valkdz.cdisc.command;
 
 import dev.valkdz.cdisc.Main;
-import dev.valkdz.cdisc.audio.PlaybackManager;
-import dev.valkdz.cdisc.audio.queue.RepeatMode;
+import dev.valkdz.cdisc.jukebox.PlaybackManager;
+import dev.valkdz.cdisc.jukebox.queue.RepeatMode;
 import dev.valkdz.cdisc.permission.Action;
 import dev.valkdz.cdisc.portable.PortableJukeboxManager;
 import dev.valkdz.cdisc.util.TimeUtils;
@@ -143,8 +143,8 @@ public final class PlayerSubcommand {
             return;
         }
 
-        dev.valkdz.cdisc.util.ItemUtils.DiscData data =
-                dev.valkdz.cdisc.util.ItemUtils.readDiscData(next);
+        dev.valkdz.cdisc.disc.ItemUtils.DiscData data =
+                dev.valkdz.cdisc.disc.ItemUtils.readDiscData(next);
         if (data == null || data.title() == null || data.title().isBlank()) {
             player.sendMessage("§7" + plugin.getMessageManager()
                     .get(player, "command.player.up_next_unnamed"));

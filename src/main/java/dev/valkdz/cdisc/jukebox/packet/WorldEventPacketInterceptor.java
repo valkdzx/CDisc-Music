@@ -1,4 +1,4 @@
-package dev.valkdz.cdisc.net;
+package dev.valkdz.cdisc.jukebox.packet;
 
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelDuplexHandler;

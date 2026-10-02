@@ -1,6 +1,7 @@
-package dev.valkdz.cdisc.audio;
+package dev.valkdz.cdisc.disc;
 
 import dev.valkdz.cdisc.Main;
+import dev.valkdz.cdisc.audio.LocalMusicLibrary;
 import dev.valkdz.cdisc.audio.source.DiscordSource;
 import dev.valkdz.cdisc.util.Config;
 import org.bukkit.entity.Player;

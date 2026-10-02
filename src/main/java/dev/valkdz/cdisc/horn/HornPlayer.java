@@ -1,8 +1,8 @@
 package dev.valkdz.cdisc.horn;
 
 import dev.valkdz.cdisc.Main;
-import dev.valkdz.cdisc.audio.PlaybackManager;
-import dev.valkdz.cdisc.util.ItemUtils;
+import dev.valkdz.cdisc.disc.ItemUtils;
+import dev.valkdz.cdisc.jukebox.PlaybackManager;
 import dev.valkdz.cdisc.util.Tasks;
 import dev.valkdz.cdisc.voice.VoiceSession;
 import dev.valkdz.cdisc.voice.anchor.SoundAnchor;

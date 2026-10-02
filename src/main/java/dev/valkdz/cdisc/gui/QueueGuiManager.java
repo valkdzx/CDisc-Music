@@ -1,13 +1,13 @@
 package dev.valkdz.cdisc.gui;
 
 import dev.valkdz.cdisc.Main;
-import dev.valkdz.cdisc.audio.PlaybackManager;
-import dev.valkdz.cdisc.audio.queue.DiscQueue;
-import dev.valkdz.cdisc.audio.queue.PlayedPolicy;
+import dev.valkdz.cdisc.disc.ItemUtils;
+import dev.valkdz.cdisc.jukebox.PlaybackManager;
+import dev.valkdz.cdisc.jukebox.queue.DiscQueue;
+import dev.valkdz.cdisc.jukebox.queue.PlayedPolicy;
 import dev.valkdz.cdisc.permission.Action;
 import dev.valkdz.cdisc.speaker.SpeakerGroup;
 import dev.valkdz.cdisc.util.HeadUtils;
-import dev.valkdz.cdisc.util.ItemUtils;
 import dev.valkdz.cdisc.util.Tasks;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;

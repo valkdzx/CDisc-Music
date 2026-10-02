@@ -1,8 +1,8 @@
 package dev.valkdz.cdisc.horn;
 
-import dev.valkdz.cdisc.audio.player.AudioTrackInfo;
 import dev.valkdz.cdisc.Main;
-import dev.valkdz.cdisc.util.ItemUtils;
+import dev.valkdz.cdisc.audio.player.AudioTrackInfo;
+import dev.valkdz.cdisc.disc.ItemUtils;
 import dev.valkdz.cdisc.util.TimeUtils;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;

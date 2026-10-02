@@ -1,4 +1,4 @@
-package dev.valkdz.cdisc.audio.queue;
+package dev.valkdz.cdisc.jukebox.queue;
 
 public enum PlayedPolicy {
 

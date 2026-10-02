@@ -1,7 +1,7 @@
-package dev.valkdz.cdisc.audio;
+package dev.valkdz.cdisc.disc;
 
-import dev.valkdz.cdisc.audio.player.AudioTrack;
 import dev.valkdz.cdisc.Main;
+import dev.valkdz.cdisc.audio.player.AudioTrack;
 import dev.valkdz.cdisc.util.Chat;
 import dev.valkdz.cdisc.util.TimeUtils;
 import org.bukkit.command.CommandSender;

@@ -1,15 +1,15 @@
 package dev.valkdz.cdisc;
 
 import de.tr7zw.changeme.nbtapi.NBT;
-import dev.valkdz.cdisc.audio.PlaybackManager;
 import dev.valkdz.cdisc.command.CDiscCommand;
 import dev.valkdz.cdisc.gui.PlayerActions;
 import dev.valkdz.cdisc.gui.PlayerGuiListener;
 import dev.valkdz.cdisc.gui.PlayerGuiManager;
 import dev.valkdz.cdisc.gui.QueueGuiListener;
 import dev.valkdz.cdisc.gui.QueueGuiManager;
-import dev.valkdz.cdisc.listener.JukeboxListener;
-import dev.valkdz.cdisc.listener.TrackProgressDisplay;
+import dev.valkdz.cdisc.jukebox.JukeboxListener;
+import dev.valkdz.cdisc.jukebox.PlaybackManager;
+import dev.valkdz.cdisc.jukebox.TrackProgressDisplay;
 import dev.valkdz.cdisc.metrics.CDiscMetrics;
 import dev.valkdz.cdisc.portable.PortableJukeboxListener;
 import dev.valkdz.cdisc.portable.PortableJukeboxManager;
@@ -53,11 +53,11 @@ public final class Main extends JavaPlugin {
     private dev.valkdz.cdisc.speaker.SpeakerParticles speakerParticles;
     private dev.valkdz.cdisc.gui.PlaylistGuiManager playlistGuiManager;
     private dev.valkdz.cdisc.gui.LocalConfigGuiManager localConfigGuiManager;
-    private dev.valkdz.cdisc.audio.SearchResults searchResults;
+    private dev.valkdz.cdisc.disc.SearchResults searchResults;
     private dev.valkdz.cdisc.audio.LocalMusicLibrary localMusic;
     private dev.valkdz.cdisc.audio.LocalDownloader localDownloader;
     private dev.valkdz.cdisc.audio.TrackDownloader trackDownloader;
-    private dev.valkdz.cdisc.audio.PlaybackResume playbackResume;
+    private dev.valkdz.cdisc.jukebox.PlaybackResume playbackResume;
     private dev.valkdz.cdisc.permission.PermissionsConfig permissions;
     private dev.valkdz.cdisc.region.RegionGuard regionGuard;
     private dev.valkdz.cdisc.audio.source.youtube.PoTokenService poTokenService;
@@ -163,9 +163,9 @@ public final class Main extends JavaPlugin {
         localConfigGuiManager = new dev.valkdz.cdisc.gui.LocalConfigGuiManager(this);
         getServer().getPluginManager().registerEvents(new dev.valkdz.cdisc.gui.LocalConfigGuiListener(this), this);
 
-        searchResults = new dev.valkdz.cdisc.audio.SearchResults(this);
+        searchResults = new dev.valkdz.cdisc.disc.SearchResults(this);
 
-        playbackResume = new dev.valkdz.cdisc.audio.PlaybackResume(this);
+        playbackResume = new dev.valkdz.cdisc.jukebox.PlaybackResume(this);
         getServer().getPluginManager().registerEvents(playbackResume, this);
         playbackResume.load();
         getServer().getPluginManager().registerEvents(
@@ -360,7 +360,7 @@ public final class Main extends JavaPlugin {
     public dev.valkdz.cdisc.gui.PairGuiManager getPairGuiManager() { return pairGuiManager; }
     public dev.valkdz.cdisc.gui.PlaylistGuiManager getPlaylistGuiManager() { return playlistGuiManager; }
     public dev.valkdz.cdisc.gui.LocalConfigGuiManager getLocalConfigGuiManager() { return localConfigGuiManager; }
-    public dev.valkdz.cdisc.audio.SearchResults getSearchResults() { return searchResults; }
+    public dev.valkdz.cdisc.disc.SearchResults getSearchResults() { return searchResults; }
     public dev.valkdz.cdisc.audio.LocalMusicLibrary getLocalMusic() { return localMusic; }
     public dev.valkdz.cdisc.audio.LocalDownloader getLocalDownloader() { return localDownloader; }
     public dev.valkdz.cdisc.audio.TrackDownloader getTrackDownloader() { return trackDownloader; }

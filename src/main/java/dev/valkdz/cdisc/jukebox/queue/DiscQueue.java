@@ -1,4 +1,4 @@
-package dev.valkdz.cdisc.audio.queue;
+package dev.valkdz.cdisc.jukebox.queue;
 
 import org.bukkit.inventory.ItemStack;
 

@@ -1,13 +1,13 @@
 package dev.valkdz.cdisc.gui;
 
 import dev.valkdz.cdisc.Main;
-import dev.valkdz.cdisc.audio.PlaybackManager;
-import dev.valkdz.cdisc.audio.queue.DiscQueue;
-import dev.valkdz.cdisc.audio.queue.RepeatMode;
+import dev.valkdz.cdisc.jukebox.BeaconUtils;
+import dev.valkdz.cdisc.jukebox.PlaybackManager;
+import dev.valkdz.cdisc.jukebox.queue.DiscQueue;
+import dev.valkdz.cdisc.jukebox.queue.RepeatMode;
 import dev.valkdz.cdisc.lyrics.LyricsMode;
 import dev.valkdz.cdisc.lyrics.LyricsPrefs;
 import dev.valkdz.cdisc.speaker.SpeakerSettings;
-import dev.valkdz.cdisc.util.BeaconUtils;
 import dev.valkdz.cdisc.util.Chat;
 import dev.valkdz.cdisc.util.PlayerPrefs;
 import org.bukkit.block.Block;
@@ -204,12 +204,12 @@ public final class PlayerActions {
 
     public void setCrossfade(Block block, boolean on) {
         if (plugin.getAudioPlayerManager().crossfadeSeconds() <= 0) return;
-        dev.valkdz.cdisc.audio.queue.DiscQueue queue = plugin.getAudioPlayerManager().getOrCreateQueue(block);
+        dev.valkdz.cdisc.jukebox.queue.DiscQueue queue = plugin.getAudioPlayerManager().getOrCreateQueue(block);
         if (queue.isCrossfade() != on) queue.setCrossfade(on);
     }
 
     public void toggleCrossfade(Block block) {
-        dev.valkdz.cdisc.audio.queue.DiscQueue queue = plugin.getAudioPlayerManager().getQueue(block);
+        dev.valkdz.cdisc.jukebox.queue.DiscQueue queue = plugin.getAudioPlayerManager().getQueue(block);
         setCrossfade(block, queue != null && !queue.isCrossfade());
     }
 

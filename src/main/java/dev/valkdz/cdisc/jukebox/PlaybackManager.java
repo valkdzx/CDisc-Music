@@ -1,10 +1,11 @@
-package dev.valkdz.cdisc.audio;
+package dev.valkdz.cdisc.jukebox;
 
 import dev.valkdz.cdisc.Main;
 import dev.valkdz.cdisc.api.NowPlaying;
 import dev.valkdz.cdisc.api.event.PlaybackStopEvent;
 import dev.valkdz.cdisc.api.event.TrackStartEvent;
-import dev.valkdz.cdisc.audio.engine.NowPlayingBroadcaster;
+import dev.valkdz.cdisc.audio.LocalMusicLibrary;
+import dev.valkdz.cdisc.audio.LocalTrackSettings;
 import dev.valkdz.cdisc.audio.player.AudioEventAdapter;
 import dev.valkdz.cdisc.audio.player.AudioLoadResultHandler;
 import dev.valkdz.cdisc.audio.player.AudioPlayer;
@@ -13,19 +14,22 @@ import dev.valkdz.cdisc.audio.player.AudioTrack;
 import dev.valkdz.cdisc.audio.player.AudioTrackEndReason;
 import dev.valkdz.cdisc.audio.player.AudioTrackInfo;
 import dev.valkdz.cdisc.audio.player.LoadException;
-import dev.valkdz.cdisc.audio.queue.DiscQueue;
-import dev.valkdz.cdisc.audio.queue.QueueStore;
-import dev.valkdz.cdisc.audio.queue.RepeatMode;
 import dev.valkdz.cdisc.audio.source.DiscordSource;
 import dev.valkdz.cdisc.audio.source.TrackLoader;
 import dev.valkdz.cdisc.audio.source.youtube.CustomYoutubeApiResolver;
+import dev.valkdz.cdisc.disc.ItemUtils;
+import dev.valkdz.cdisc.disc.LoadDiagnosis;
+import dev.valkdz.cdisc.disc.SearchQuery;
+import dev.valkdz.cdisc.disc.SearchResults;
 import dev.valkdz.cdisc.horn.GoatHorns;
+import dev.valkdz.cdisc.jukebox.queue.DiscQueue;
+import dev.valkdz.cdisc.jukebox.queue.QueueStore;
+import dev.valkdz.cdisc.jukebox.queue.RepeatMode;
 import dev.valkdz.cdisc.lyrics.SyncedLyrics;
 import dev.valkdz.cdisc.metrics.CDiscMetrics;
 import dev.valkdz.cdisc.speaker.SpeakerGroup;
 import dev.valkdz.cdisc.speaker.SpeakerSettings;
 import dev.valkdz.cdisc.util.Config;
-import dev.valkdz.cdisc.util.ItemUtils;
 import dev.valkdz.cdisc.util.Tasks;
 import dev.valkdz.cdisc.util.TimeUtils;
 import dev.valkdz.cdisc.voice.VoiceBackend;
@@ -127,7 +131,7 @@ public class PlaybackManager {
         queues.entrySet().removeIf(entry -> {
             DiscQueue queue = entry.getValue();
             if (!queue.isEmpty() || queue.getCurrentIndex() >= 0) return false;
-            if (queue.getPolicy() != dev.valkdz.cdisc.audio.queue.PlayedPolicy.NOTHING) return false;
+            if (queue.getPolicy() != dev.valkdz.cdisc.jukebox.queue.PlayedPolicy.NOTHING) return false;
             if (!queue.isCrossfade()) return false;
 
             Block block = entry.getKey();

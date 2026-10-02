@@ -1,11 +1,10 @@
-package dev.valkdz.cdisc.listener;
+package dev.valkdz.cdisc.jukebox;
 
 import dev.valkdz.cdisc.Main;
-import dev.valkdz.cdisc.audio.PlaybackManager;
-import dev.valkdz.cdisc.util.ItemUtils;
+import dev.valkdz.cdisc.disc.ItemUtils;
+import dev.valkdz.cdisc.util.Chat;
 import dev.valkdz.cdisc.util.PlayerPrefs;
 import dev.valkdz.cdisc.util.SneakMode;
-import dev.valkdz.cdisc.util.Chat;
 import dev.valkdz.cdisc.util.Tasks;
 import dev.valkdz.cdisc.util.TimeUtils;
 import org.bukkit.Bukkit;

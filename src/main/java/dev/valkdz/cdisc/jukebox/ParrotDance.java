@@ -1,9 +1,9 @@
-package dev.valkdz.cdisc.listener;
+package dev.valkdz.cdisc.jukebox;
 
 import dev.valkdz.cdisc.Main;
 import dev.valkdz.cdisc.api.event.PlaybackStopEvent;
 import dev.valkdz.cdisc.api.event.TrackStartEvent;
-import dev.valkdz.cdisc.net.WorldEventPacketInterceptor;
+import dev.valkdz.cdisc.jukebox.packet.WorldEventPacketInterceptor;
 import dev.valkdz.cdisc.util.Chat;
 import dev.valkdz.cdisc.util.Tasks;
 import org.bukkit.Bukkit;

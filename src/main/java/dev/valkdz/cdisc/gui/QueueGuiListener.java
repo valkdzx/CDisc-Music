@@ -1,10 +1,10 @@
 package dev.valkdz.cdisc.gui;
 
 import dev.valkdz.cdisc.Main;
-import dev.valkdz.cdisc.audio.PlaybackManager;
-import dev.valkdz.cdisc.audio.queue.DiscQueue;
+import dev.valkdz.cdisc.disc.ItemUtils;
+import dev.valkdz.cdisc.jukebox.PlaybackManager;
+import dev.valkdz.cdisc.jukebox.queue.DiscQueue;
 import dev.valkdz.cdisc.permission.Action;
-import dev.valkdz.cdisc.util.ItemUtils;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;

@@ -1,8 +1,8 @@
-package dev.valkdz.cdisc.audio;
+package dev.valkdz.cdisc.jukebox;
 
+import dev.valkdz.cdisc.audio.player.AudioFrame;
 import dev.valkdz.cdisc.audio.player.AudioPlayer;
 import dev.valkdz.cdisc.audio.player.AudioTrack;
-import dev.valkdz.cdisc.audio.player.AudioFrame;
 import dev.valkdz.cdisc.voice.VoiceSession;
 
 import java.util.ArrayDeque;

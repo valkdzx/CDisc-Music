@@ -1,7 +1,7 @@
-package dev.valkdz.cdisc.audio;
+package dev.valkdz.cdisc.jukebox;
 
 import dev.valkdz.cdisc.Main;
-import dev.valkdz.cdisc.audio.queue.RepeatMode;
+import dev.valkdz.cdisc.jukebox.queue.RepeatMode;
 import dev.valkdz.cdisc.util.Tasks;
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;

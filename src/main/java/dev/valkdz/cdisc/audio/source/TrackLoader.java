@@ -237,7 +237,7 @@ public class TrackLoader {
                 known == null ? null : known.plan()));
     }
 
-    public void remember(dev.valkdz.cdisc.util.ItemUtils.DiscData data) {
+    public void remember(dev.valkdz.cdisc.disc.ItemUtils.DiscData data) {
         if (data == null || data.hint() == null || !data.hint().fresh()) return;
 
         String videoId = dev.valkdz.cdisc.audio.source.youtube.SabrResolver.videoIdOf(data.query());
@@ -248,9 +248,9 @@ public class TrackLoader {
                 hint.allowedHere(), hint.writtenAt(), hint.plan()));
     }
 
-    public dev.valkdz.cdisc.util.ItemUtils.Hint hintFor(String videoId) {
+    public dev.valkdz.cdisc.disc.ItemUtils.Hint hintFor(String videoId) {
         Route route = videoId == null ? null : route(videoId);
-        return route == null ? null : new dev.valkdz.cdisc.util.ItemUtils.Hint(
+        return route == null ? null : new dev.valkdz.cdisc.disc.ItemUtils.Hint(
                 route.contentType(), route.lengthMs(), route.live(), route.allowedHere(),
                 route.at(), route.plan());
     }
@@ -270,9 +270,9 @@ public class TrackLoader {
                 }));
     }
 
-    public CompletableFuture<dev.valkdz.cdisc.util.ItemUtils.Hint> hintLater(String videoId,
+    public CompletableFuture<dev.valkdz.cdisc.disc.ItemUtils.Hint> hintLater(String videoId,
                                                                             AudioTrack track) {
-        dev.valkdz.cdisc.util.ItemUtils.Hint local = localHint(videoId, track);
+        dev.valkdz.cdisc.disc.ItemUtils.Hint local = localHint(videoId, track);
 
         if (local != null && local.contentType() != null) {
             if (videoId != null) {
@@ -287,19 +287,19 @@ public class TrackLoader {
 
         return infoFor(videoId)
                 .thenApply(ignored -> {
-                    dev.valkdz.cdisc.util.ItemUtils.Hint asked = hintFor(videoId);
+                    dev.valkdz.cdisc.disc.ItemUtils.Hint asked = hintFor(videoId);
                     return asked != null ? asked : local;
                 })
                 .completeOnTimeout(local, 3, TimeUnit.SECONDS);
     }
 
-    private dev.valkdz.cdisc.util.ItemUtils.Hint localHint(String videoId, AudioTrack track) {
+    private dev.valkdz.cdisc.disc.ItemUtils.Hint localHint(String videoId, AudioTrack track) {
         if (track == null) return null;
 
         Route known = videoId == null ? null : route(videoId);
         long length = track.getInfo().length;
 
-        return new dev.valkdz.cdisc.util.ItemUtils.Hint(
+        return new dev.valkdz.cdisc.disc.ItemUtils.Hint(
                 contentTypeOf(track),
                 length == AudioTrackInfo.UNKNOWN_LENGTH ? 0 : length,
                 track.getInfo().isStream,

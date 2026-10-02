@@ -1,4 +1,4 @@
-package dev.valkdz.cdisc.util;
+package dev.valkdz.cdisc.disc;
 
 import dev.valkdz.cdisc.Main;
 import org.bukkit.NamespacedKey;

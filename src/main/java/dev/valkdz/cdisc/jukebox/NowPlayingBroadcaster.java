@@ -1,7 +1,7 @@
-package dev.valkdz.cdisc.audio.engine;
+package dev.valkdz.cdisc.jukebox;
 
-import dev.valkdz.cdisc.audio.player.AudioTrack;
 import dev.valkdz.cdisc.Main;
+import dev.valkdz.cdisc.audio.player.AudioTrack;
 import dev.valkdz.cdisc.util.Chat;
 import dev.valkdz.cdisc.util.Tasks;
 import org.bukkit.Bukkit;

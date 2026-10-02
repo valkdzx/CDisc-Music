@@ -1,12 +1,12 @@
 package dev.valkdz.cdisc.gui;
 
+import dev.valkdz.cdisc.Main;
 import dev.valkdz.cdisc.audio.player.AudioLoadResultHandler;
-import dev.valkdz.cdisc.audio.player.LoadException;
 import dev.valkdz.cdisc.audio.player.AudioPlaylist;
 import dev.valkdz.cdisc.audio.player.AudioTrack;
-import dev.valkdz.cdisc.Main;
+import dev.valkdz.cdisc.audio.player.LoadException;
+import dev.valkdz.cdisc.disc.ItemUtils;
 import dev.valkdz.cdisc.util.Chat;
-import dev.valkdz.cdisc.util.ItemUtils;
 import dev.valkdz.cdisc.util.Tasks;
 import dev.valkdz.cdisc.util.TimeUtils;
 import org.bukkit.Bukkit;

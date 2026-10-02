@@ -1,9 +1,10 @@
 package dev.valkdz.cdisc.gui;
 
 import dev.valkdz.cdisc.Main;
-import dev.valkdz.cdisc.audio.PlaybackManager;
-import dev.valkdz.cdisc.audio.queue.DiscQueue;
-import dev.valkdz.cdisc.audio.queue.RepeatMode;
+import dev.valkdz.cdisc.jukebox.BeaconUtils;
+import dev.valkdz.cdisc.jukebox.PlaybackManager;
+import dev.valkdz.cdisc.jukebox.queue.DiscQueue;
+import dev.valkdz.cdisc.jukebox.queue.RepeatMode;
 import dev.valkdz.cdisc.lyrics.LyricsMode;
 import dev.valkdz.cdisc.lyrics.LyricsPrefs;
 import dev.valkdz.cdisc.lyrics.LyricsRenderer;
@@ -11,7 +12,6 @@ import dev.valkdz.cdisc.lyrics.LyricsService;
 import dev.valkdz.cdisc.lyrics.LyricsStyle;
 import dev.valkdz.cdisc.lyrics.chat.ChatFeed;
 import dev.valkdz.cdisc.permission.Action;
-import dev.valkdz.cdisc.util.BeaconUtils;
 import dev.valkdz.cdisc.util.Config;
 import dev.valkdz.cdisc.util.HeadUtils;
 import dev.valkdz.cdisc.util.Tasks;

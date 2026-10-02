@@ -1,7 +1,7 @@
 package dev.valkdz.cdisc.api;
 
 import dev.valkdz.cdisc.Main;
-import dev.valkdz.cdisc.audio.PlaybackManager;
+import dev.valkdz.cdisc.jukebox.PlaybackManager;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 

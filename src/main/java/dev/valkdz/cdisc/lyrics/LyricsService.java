@@ -1,7 +1,7 @@
 package dev.valkdz.cdisc.lyrics;
 
 import dev.valkdz.cdisc.Main;
-import dev.valkdz.cdisc.audio.PlaybackManager;
+import dev.valkdz.cdisc.jukebox.PlaybackManager;
 
 import java.time.Duration;
 import java.util.ArrayList;

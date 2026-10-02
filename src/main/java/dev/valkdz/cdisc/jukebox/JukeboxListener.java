@@ -1,13 +1,11 @@
-package dev.valkdz.cdisc.listener;
+package dev.valkdz.cdisc.jukebox;
 
 import de.tr7zw.changeme.nbtapi.NBT;
 import de.tr7zw.changeme.nbtapi.iface.ReadWriteNBT;
 import dev.valkdz.cdisc.Main;
-import dev.valkdz.cdisc.audio.AudioSession;
-import dev.valkdz.cdisc.audio.PlaybackManager;
-import dev.valkdz.cdisc.net.WorldEventPacketInterceptor;
+import dev.valkdz.cdisc.disc.ItemUtils;
+import dev.valkdz.cdisc.jukebox.packet.WorldEventPacketInterceptor;
 import dev.valkdz.cdisc.region.RegionGuard;
-import dev.valkdz.cdisc.util.ItemUtils;
 import dev.valkdz.cdisc.util.SneakMode;
 import dev.valkdz.cdisc.util.Tasks;
 import org.bukkit.Location;
@@ -18,8 +16,7 @@ import org.bukkit.block.BlockState;
 import org.bukkit.block.Jukebox;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
-import dev.valkdz.cdisc.audio.queue.DiscQueue;
-import dev.valkdz.cdisc.util.DiscStorage;
+import dev.valkdz.cdisc.jukebox.queue.DiscQueue;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.Listener;

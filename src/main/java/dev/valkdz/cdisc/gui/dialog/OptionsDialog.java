@@ -1,8 +1,8 @@
 package dev.valkdz.cdisc.gui.dialog;
 
 import dev.valkdz.cdisc.Main;
-import dev.valkdz.cdisc.audio.PlaybackManager;
 import dev.valkdz.cdisc.gui.PlayerActions;
+import dev.valkdz.cdisc.jukebox.PlaybackManager;
 import dev.valkdz.cdisc.lyrics.LyricsMode;
 import dev.valkdz.cdisc.lyrics.LyricsPrefs;
 import dev.valkdz.cdisc.permission.Action;

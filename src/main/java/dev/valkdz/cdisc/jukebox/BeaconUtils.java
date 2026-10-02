@@ -1,4 +1,4 @@
-package dev.valkdz.cdisc.util;
+package dev.valkdz.cdisc.jukebox;
 
 import org.bukkit.Material;
 import org.bukkit.Tag;

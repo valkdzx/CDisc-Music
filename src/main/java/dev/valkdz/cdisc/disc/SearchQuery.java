@@ -1,4 +1,4 @@
-package dev.valkdz.cdisc.audio;
+package dev.valkdz.cdisc.disc;
 
 public record SearchQuery(String text, int requestedResults) {
 

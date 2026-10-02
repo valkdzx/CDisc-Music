@@ -2,14 +2,14 @@ package dev.valkdz.cdisc.command;
 
 import dev.valkdz.cdisc.Main;
 import dev.valkdz.cdisc.audio.LocalMusicLibrary;
+import dev.valkdz.cdisc.disc.ItemUtils;
+import dev.valkdz.cdisc.disc.PvDiscs;
 import dev.valkdz.cdisc.gui.dialog.Dialogs;
 import dev.valkdz.cdisc.horn.GoatHorns;
 import dev.valkdz.cdisc.lyrics.LyricsMode;
 import dev.valkdz.cdisc.lyrics.LyricsPrefs;
 import dev.valkdz.cdisc.permission.Action;
 import dev.valkdz.cdisc.permission.Perms;
-import dev.valkdz.cdisc.util.ItemUtils;
-import dev.valkdz.cdisc.util.PvDiscs;
 import dev.valkdz.cdisc.util.SneakMode;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -354,7 +354,7 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
             return;
         }
 
-        dev.valkdz.cdisc.audio.SearchResults.Pick picked =
+        dev.valkdz.cdisc.disc.SearchResults.Pick picked =
                 plugin.getSearchResults().claim(sender, number);
         if (picked == null) {
 
@@ -362,7 +362,7 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
             return;
         }
 
-        if (picked.kind() == dev.valkdz.cdisc.audio.SearchResults.Kind.DOWNLOAD) {
+        if (picked.kind() == dev.valkdz.cdisc.disc.SearchResults.Kind.DOWNLOAD) {
             if (!allowed(sender, Action.DISC_DOWNLOAD)) return;
             plugin.getTrackDownloader().pick(sender, picked.track(), picked.address(), null);
             return;
