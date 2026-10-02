@@ -112,7 +112,8 @@ public class AudioSession {
         if (waiting != null) waiting.next().provide();
 
         if (player.isPaused()) {
-
+            // A paused player reads no frame, so a seek made meanwhile can only land on resume.
+            if (seekTarget >= 0) seekSince = System.currentTimeMillis();
             player.provide();
             lead.clear();
             priming = true;
