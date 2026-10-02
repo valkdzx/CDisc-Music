@@ -66,6 +66,7 @@ public class JukeboxListener implements Listener {
 
     private final Main plugin;
     private final ParrotDance parrotDance;
+    private WorldEventPacketInterceptor interceptor;
 
     public JukeboxListener(Main plugin) {
         this.plugin = plugin;
@@ -74,8 +75,12 @@ public class JukeboxListener implements Listener {
         initPacketListener();
     }
 
+    public void shutdown() {
+        if (interceptor != null) interceptor.unregister();
+    }
+
     private void initPacketListener() {
-        WorldEventPacketInterceptor interceptor = new WorldEventPacketInterceptor(
+        interceptor = new WorldEventPacketInterceptor(
                 plugin,
                 this::onWorldEventDecoded,
                 () -> {

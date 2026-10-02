@@ -36,7 +36,8 @@ public final class WorldEventPacketInterceptor {
     private final JavaPlugin plugin;
     private final BiFunction<Player, WorldEventPacket, Boolean> onWorldEvent;
     private final Runnable onUnsupported;
-    private final Set<Channel> injected = java.util.Collections.newSetFromMap(new java.util.WeakHashMap<>());
+    private final Set<Channel> injected = java.util.Collections.synchronizedSet(
+            java.util.Collections.newSetFromMap(new java.util.WeakHashMap<>()));
 
     public WorldEventPacketInterceptor(JavaPlugin plugin, BiFunction<Player, WorldEventPacket, Boolean> onWorldEvent, Runnable onUnsupported) {
         this.plugin = plugin;
@@ -59,6 +60,25 @@ public final class WorldEventPacketInterceptor {
 
         for (Player p : plugin.getServer().getOnlinePlayers()) {
             inject(p);
+        }
+    }
+
+    // A handler left in the pipeline outlives a reload: the new instance finds the name taken
+    // and never adds its own, while the old one keeps calling into the disabled plugin.
+    public void unregister() {
+        List<Channel> channels;
+        synchronized (injected) {
+            channels = new ArrayList<>(injected);
+            injected.clear();
+        }
+        for (Channel channel : channels) {
+            if (!channel.isOpen()) continue;
+            try {
+                channel.eventLoop().execute(() -> {
+                    if (channel.pipeline().get(HANDLER_NAME) != null) channel.pipeline().remove(HANDLER_NAME);
+                });
+            } catch (java.util.concurrent.RejectedExecutionException ignored) {
+            }
         }
     }
 

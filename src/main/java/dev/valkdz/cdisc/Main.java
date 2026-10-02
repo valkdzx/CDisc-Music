@@ -322,6 +322,9 @@ public final class Main extends JavaPlugin {
             poTokenService.stop();
         }
         audioPlayerManager.shutdown();
+        if (jukeboxListener != null) {
+            jukeboxListener.shutdown();
+        }
         if (updateChecker != null) {
             updateChecker.shutdown();
         }
