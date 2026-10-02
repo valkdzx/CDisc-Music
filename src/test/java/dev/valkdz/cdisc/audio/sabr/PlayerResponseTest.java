@@ -1,7 +1,6 @@
 package dev.valkdz.cdisc.audio.sabr;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import dev.valkdz.cdisc.util.Json;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -14,10 +13,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PlayerResponseTest {
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
 
-    private static InnerTubePlayer.PlayerResponse parse(String json) throws JsonProcessingException {
-        return InnerTubePlayer.parse(MAPPER.readTree(json));
+    private static InnerTubePlayer.PlayerResponse parse(String json) throws java.io.IOException {
+        return InnerTubePlayer.parse(Json.parse(json));
     }
 
     private static final String SABR_ONLY = """

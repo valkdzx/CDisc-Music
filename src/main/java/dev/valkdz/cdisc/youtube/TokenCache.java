@@ -1,8 +1,6 @@
 package dev.valkdz.cdisc.youtube;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import dev.valkdz.cdisc.util.Json;
 
 import java.io.File;
 import java.io.IOException;
@@ -14,7 +12,6 @@ public final class TokenCache {
 
     public static final String FILE_NAME = "backend-youtube-tokens.json";
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     public record Entry(String poToken, String visitorData, String visitorId,
                         long updatedAt, long expiresInSeconds, String source) {
@@ -47,7 +44,7 @@ public final class TokenCache {
         if (!file.isFile()) return null;
 
         try {
-            JsonNode root = MAPPER.readTree(Files.readString(file.toPath(), StandardCharsets.UTF_8));
+            Json root = Json.parse(Files.readString(file.toPath(), StandardCharsets.UTF_8));
             String visitorData = text(root, "visitor-data");
             if (visitorData == null) return null;
 
@@ -70,7 +67,7 @@ public final class TokenCache {
     public void write(String poToken, String visitorData, long expiresInSeconds,
                       String source) throws IOException {
 
-        ObjectNode root = MAPPER.createObjectNode();
+        Json root = Json.object();
         root.put("po-token", poToken == null ? "" : poToken);
         root.put("visitor-data", visitorData == null ? "" : visitorData);
         root.put("visitor-id", VisitorRenewal.identityOf(visitorData));
@@ -82,12 +79,12 @@ public final class TokenCache {
         if (parent != null) parent.mkdirs();
 
         Files.writeString(file.toPath(),
-                MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(root) + "\n",
+                root.toPrettyString() + "\n",
                 StandardCharsets.UTF_8);
     }
 
-    private static String text(JsonNode root, String field) {
-        JsonNode node = root.path(field);
+    private static String text(Json root, String field) {
+        Json node = root.path(field);
         if (node.isMissingNode() || node.isNull()) return null;
         String value = node.asText("");
         return value.isBlank() ? null : value;

@@ -1,8 +1,6 @@
 package dev.valkdz.cdisc.lyrics.chat;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import dev.valkdz.cdisc.util.Json;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -23,7 +21,6 @@ final class YouTubeChat extends ChatFeed {
     private static final long MIN_POLL_MS = 1_000;
     private static final long MAX_POLL_MS = 3_000;
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final String videoId;
     private final HttpClient http;
@@ -55,8 +52,8 @@ final class YouTubeChat extends ChatFeed {
     private void poll() {
         if (closed) return;
 
-        ObjectNode body = MAPPER.createObjectNode();
-        ObjectNode client = body.putObject("context").putObject("client");
+        Json body = Json.object();
+        Json client = body.putObject("context").putObject("client");
         client.put("clientName", "WEB");
         client.put("clientVersion", clientVersion.get());
         client.put("hl", "en");
@@ -77,7 +74,7 @@ final class YouTubeChat extends ChatFeed {
                     long wait;
                     try {
                         if (error != null || response.statusCode() != 200) throw new IllegalStateException();
-                        JsonNode root = MAPPER.readTree(response.body());
+                        Json root = Json.parse(response.body());
                         wait = from == null ? start(root) : read(root);
                         failures = 0;
                     } catch (Exception e) {
@@ -88,8 +85,8 @@ final class YouTubeChat extends ChatFeed {
                 });
     }
 
-    private long start(JsonNode root) {
-        JsonNode chat = root.path("contents").path("twoColumnWatchNextResults")
+    private long start(Json root) {
+        Json chat = root.path("contents").path("twoColumnWatchNextResults")
                 .path("conversationBar").path("liveChatRenderer");
         String first = chat.path("continuations").path(0)
                 .path("reloadContinuationData").path("continuation").asText(null);
@@ -100,12 +97,12 @@ final class YouTubeChat extends ChatFeed {
         return 0;
     }
 
-    private long read(JsonNode root) {
-        JsonNode live = root.path("continuationContents").path("liveChatContinuation");
+    private long read(Json root) {
+        Json live = root.path("continuationContents").path("liveChatContinuation");
 
-        for (JsonNode action : live.path("actions")) {
-            JsonNode item = action.path("addChatItemAction").path("item");
-            JsonNode message = item.has("liveChatTextMessageRenderer")
+        for (Json action : live.path("actions")) {
+            Json item = action.path("addChatItemAction").path("item");
+            Json message = item.has("liveChatTextMessageRenderer")
                     ? item.path("liveChatTextMessageRenderer")
                     : item.path("liveChatPaidMessageRenderer");
             if (message.isMissingNode()) continue;
@@ -114,8 +111,8 @@ final class YouTubeChat extends ChatFeed {
                     null, text(message.path("message").path("runs")), maxLength.getAsInt()));
         }
 
-        JsonNode next = live.path("continuations").path(0);
-        JsonNode data = next.has("invalidationContinuationData") ? next.path("invalidationContinuationData")
+        Json next = live.path("continuations").path(0);
+        Json data = next.has("invalidationContinuationData") ? next.path("invalidationContinuationData")
                 : next.has("timedContinuationData") ? next.path("timedContinuationData")
                 : next.path("reloadContinuationData");
 
@@ -127,14 +124,14 @@ final class YouTubeChat extends ChatFeed {
         return Math.max(MIN_POLL_MS, Math.min(MAX_POLL_MS, timeout));
     }
 
-    private static String text(JsonNode runs) {
+    private static String text(Json runs) {
         StringBuilder out = new StringBuilder();
-        for (JsonNode run : runs) {
+        for (Json run : runs) {
             if (run.has("text")) {
                 out.append(run.path("text").asText(""));
                 continue;
             }
-            JsonNode emoji = run.path("emoji");
+            Json emoji = run.path("emoji");
             // The font has no colour emoji, so the shortcut reads better than an empty box.
             String shortcut = emoji.path("shortcuts").path(0).asText("");
             out.append(shortcut.isEmpty() ? emoji.path("emojiId").asText("") : shortcut);

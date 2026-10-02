@@ -1,6 +1,6 @@
 package dev.valkdz.cdisc.youtube;
 
-import com.sedmelluq.discord.lavaplayer.tools.JsonBrowser;
+import dev.valkdz.cdisc.util.Json;
 
 import java.io.IOException;
 import java.net.URI;
@@ -66,7 +66,7 @@ public final class PoTokenBackend {
                     + describe(response.body()));
         }
 
-        JsonBrowser body = JsonBrowser.parse(response.body());
+        Json body = Json.parse(response.body());
         String poToken = body.get("poToken").text();
         String visitorData = body.get("visitorData").text();
 
@@ -100,7 +100,7 @@ public final class PoTokenBackend {
     private static String describe(String body) {
         if (body == null || body.isBlank()) return "";
         try {
-            String error = JsonBrowser.parse(body).get("error").text();
+            String error = Json.parse(body).get("error").text();
             return error == null || error.isBlank() ? "" : " (" + error + ")";
         } catch (IOException e) {
             return "";

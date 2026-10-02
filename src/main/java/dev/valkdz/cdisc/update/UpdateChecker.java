@@ -1,6 +1,6 @@
 package dev.valkdz.cdisc.update;
 
-import com.sedmelluq.discord.lavaplayer.tools.JsonBrowser;
+import dev.valkdz.cdisc.util.Json;
 import dev.valkdz.cdisc.Main;
 import dev.valkdz.cdisc.util.Chat;
 import dev.valkdz.cdisc.util.Tasks;
@@ -257,7 +257,7 @@ public class UpdateChecker implements Listener {
             return null;
         }
 
-        JsonBrowser root = JsonBrowser.parse(response.body());
+        Json root = Json.parse(response.body());
         if (root == null || root.isNull()) {
             plugin.getLogger().warning("Update check: Modrinth returned no version list.");
             return null;
@@ -265,7 +265,7 @@ public class UpdateChecker implements Listener {
 
         Release best = null;
         int read = 0;
-        for (JsonBrowser entry : root.values()) {
+        for (Json entry : root.values()) {
             read++;
 
             if (!"release".equals(entry.get("version_type").text())) continue;
@@ -317,10 +317,10 @@ public class UpdateChecker implements Listener {
             plugin.getLogger().warning("Update check: GitHub returned HTTP " + status);
             return null;
         }
-        return githubRelease(JsonBrowser.parse(response.body()));
+        return githubRelease(Json.parse(response.body()));
     }
 
-    static Release githubRelease(JsonBrowser root) {
+    static Release githubRelease(Json root) {
         if (root == null || root.isNull() || root.get("draft").asBoolean(false)
                 || root.get("prerelease").asBoolean(false)) {
             return null;
@@ -332,9 +332,9 @@ public class UpdateChecker implements Listener {
         return new Release(number, "GitHub", root.get("html_url").text(), List.of(), releaseJar(root));
     }
 
-    private static PluginUpdater.Download releaseJar(JsonBrowser release) {
-        JsonBrowser chosen = null;
-        for (JsonBrowser asset : release.get("assets").values()) {
+    private static PluginUpdater.Download releaseJar(Json release) {
+        Json chosen = null;
+        for (Json asset : release.get("assets").values()) {
             String name = asset.get("name").text();
             if (name == null || !name.toLowerCase(Locale.ROOT).endsWith(".jar")) continue;
             if (chosen == null || name.toLowerCase(Locale.ROOT).startsWith("cdisc")) chosen = asset;
@@ -347,8 +347,8 @@ public class UpdateChecker implements Listener {
                 chosen.get("name").text(), "SHA-256", digest.substring("sha256:".length()));
     }
 
-    private static boolean runsOnBukkit(JsonBrowser entry) {
-        for (JsonBrowser loader : entry.get("loaders").values()) {
+    private static boolean runsOnBukkit(Json entry) {
+        for (Json loader : entry.get("loaders").values()) {
             String name = loader.text();
             if (name != null && BUKKIT_LOADERS.contains(name.toLowerCase(Locale.ROOT))) {
                 return true;
@@ -357,9 +357,9 @@ public class UpdateChecker implements Listener {
         return false;
     }
 
-    private static PluginUpdater.Download primaryJar(JsonBrowser entry) {
-        JsonBrowser chosen = null;
-        for (JsonBrowser file : entry.get("files").values()) {
+    private static PluginUpdater.Download primaryJar(Json entry) {
+        Json chosen = null;
+        for (Json file : entry.get("files").values()) {
             String name = file.get("filename").text();
             if (name == null || !name.toLowerCase(Locale.ROOT).endsWith(".jar")) continue;
             if (chosen == null || file.get("primary").asBoolean(false)) chosen = file;
@@ -369,9 +369,9 @@ public class UpdateChecker implements Listener {
                 chosen.get("filename").text(), "SHA-512", chosen.get("hashes").get("sha512").text());
     }
 
-    private static List<String> textList(JsonBrowser array) {
+    private static List<String> textList(Json array) {
         List<String> out = new ArrayList<>();
-        for (JsonBrowser item : array.values()) {
+        for (Json item : array.values()) {
             String text = item.text();
             if (text != null) out.add(text);
         }

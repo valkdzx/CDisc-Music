@@ -1,6 +1,6 @@
 package dev.valkdz.cdisc.update;
 
-import com.sedmelluq.discord.lavaplayer.tools.JsonBrowser;
+import dev.valkdz.cdisc.util.Json;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -10,7 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class GitHubReleaseTest {
 
     private static UpdateChecker.Release parse(String json) throws Exception {
-        return UpdateChecker.githubRelease(JsonBrowser.parse(json));
+        return UpdateChecker.githubRelease(Json.parse(json));
     }
 
     @Test

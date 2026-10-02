@@ -1,6 +1,6 @@
 package dev.valkdz.cdisc.audio.tiktok;
 
-import com.sedmelluq.discord.lavaplayer.tools.JsonBrowser;
+import dev.valkdz.cdisc.util.Json;
 import com.sedmelluq.discord.lavaplayer.tools.io.HttpClientTools;
 import com.sedmelluq.discord.lavaplayer.tools.io.HttpInterface;
 import org.apache.http.client.config.RequestConfig;
@@ -91,10 +91,13 @@ public final class TikTokReader {
     private TikTokItem fromPlayerApi(HttpInterface http, String id) throws IOException {
         HttpGet get = new HttpGet(PLAYER_API + id);
         get.setHeader("User-Agent", USER_AGENT);
-        JsonBrowser root = HttpClientTools.fetchResponseAsJson(http, get);
-        if (root == null) throw new IOException("player API returned an empty body");
+        Json root;
+        try (CloseableHttpResponse response = http.execute(get)) {
+            HttpClientTools.assertSuccessWithContent(response, "TikTok player API");
+            root = Json.parse(EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8));
+        }
 
-        JsonBrowser item = root.get("items").index(0);
+        Json item = root.get("items").index(0);
         if (item.isNull()) {
             String code = root.get("results").index(0).get("code").text();
             if ("nil_core_data".equals(code)) {
@@ -104,12 +107,12 @@ public final class TikTokReader {
                     + " " + root.get("status_msg").safeText() + (code == null ? "" : " / " + code));
         }
 
-        JsonBrowser video = item.get("video_info");
+        Json video = item.get("video_info");
         String media = pickProfile(video);
         if (media == null) media = video.get("url_list").index(0).text();
         if (media == null) return null;
 
-        JsonBrowser author = item.get("author_info");
+        Json author = item.get("author_info");
         return new TikTokItem(
                 id,
                 titleOf(item.get("desc").text(), item.get("music_info").get("title").text(), id),
@@ -122,7 +125,7 @@ public final class TikTokReader {
                 "player-api");
     }
 
-    private static String pickProfile(JsonBrowser video) {
+    private static String pickProfile(Json video) {
         return video.get("profiles").values().stream()
                 .filter(p -> !p.get("play_addr").get("url_list").index(0).isNull())
                 .min(Comparator.comparingLong(p -> p.get("bitrate").asLong(Long.MAX_VALUE)))
@@ -146,14 +149,14 @@ public final class TikTokReader {
         Matcher m = EMBED_STATE.matcher(html);
         if (!m.find()) throw new IOException("TikTok embed page carries no state (HTTP " + status + ")");
 
-        JsonBrowser data = JsonBrowser.parse(m.group(1)).get("source").get("data").get(route);
+        Json data = Json.parse(m.group(1)).get("source").get("data").get(route);
         if (data.get("isError").asBoolean(false)) {
             throw new TikTokException("TikTok refused video " + id + ": error " + data.get("errorCode").safeText());
         }
 
-        JsonBrowser info = data.get("videoData").get("itemInfos");
-        JsonBrowser music = data.get("videoData").get("musicInfos");
-        JsonBrowser author = data.get("videoData").get("authorInfos");
+        Json info = data.get("videoData").get("itemInfos");
+        Json music = data.get("videoData").get("musicInfos");
+        Json author = data.get("videoData").get("authorInfos");
 
         String media = info.get("video").get("urls").index(0).text();
         String mime = "video/mp4";

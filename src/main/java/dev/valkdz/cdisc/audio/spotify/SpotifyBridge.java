@@ -1,7 +1,6 @@
 package dev.valkdz.cdisc.audio.spotify;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import dev.valkdz.cdisc.util.Json;
 import dev.valkdz.cdisc.audio.sabr.YouTubeSearch;
 
 import java.io.IOException;
@@ -24,7 +23,6 @@ import java.util.regex.Pattern;
 
 public final class SpotifyBridge {
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private static final String TOKEN_URL = "https://accounts.spotify.com/api/token";
     private static final String TRACK_URL = "https://api.spotify.com/v1/tracks/";
@@ -153,10 +151,10 @@ public final class SpotifyBridge {
     }
 
     static Collection parseBackend(String json) throws IOException {
-        JsonNode body = MAPPER.readTree(json);
+        Json body = Json.parse(json);
 
         List<Entry> entries = new java.util.ArrayList<>();
-        for (JsonNode track : body.path("tracks")) {
+        for (Json track : body.path("tracks")) {
             String id = track.path("id").asText("");
             if (id.isBlank()) continue;
 
@@ -170,9 +168,9 @@ public final class SpotifyBridge {
         return new Collection(body.path("name").asText("Spotify"), entries);
     }
 
-    private static String artistsOf(JsonNode artists) {
+    private static String artistsOf(Json artists) {
         StringBuilder out = new StringBuilder();
-        for (JsonNode artist : artists) {
+        for (Json artist : artists) {
             if (!out.isEmpty()) out.append(", ");
             out.append(artist.asText(""));
         }
@@ -181,7 +179,7 @@ public final class SpotifyBridge {
 
     private static String explain(String body) {
         try {
-            String error = MAPPER.readTree(body).path("error").asText("");
+            String error = Json.parse(body).path("error").asText("");
             return error.isBlank() ? "" : ": " + error;
         } catch (IOException unreadable) {
             return "";
@@ -209,11 +207,11 @@ public final class SpotifyBridge {
         Matcher data = NEXT_DATA.matcher(html);
         if (!data.find()) throw new IOException("the Spotify embed page carried no track list");
 
-        JsonNode entity = MAPPER.readTree(data.group(1))
+        Json entity = Json.parse(data.group(1))
                 .path("props").path("pageProps").path("state").path("data").path("entity");
 
         List<Entry> entries = new java.util.ArrayList<>();
-        for (JsonNode track : entity.path("trackList")) {
+        for (Json track : entity.path("trackList")) {
             String uri = track.path("uri").asText("");
             if (!uri.startsWith("spotify:track:")) continue;
 
@@ -229,7 +227,7 @@ public final class SpotifyBridge {
         Match cached = matches.get(trackId);
         if (cached != null) return cached;
 
-        JsonNode track = hasCredentials() ? spotifyTrack(trackId) : backendTrack(trackId);
+        Json track = hasCredentials() ? spotifyTrack(trackId) : backendTrack(trackId);
         Match found = matchOnYouTube(trackId, track);
         matches.put(trackId, found);
         return found;
@@ -238,8 +236,8 @@ public final class SpotifyBridge {
     record Wanted(String isrc, String title, String artist, long durationMs) {
     }
 
-    static Wanted wantedOf(JsonNode track) {
-        JsonNode artists = track.path("artists");
+    static Wanted wantedOf(Json track) {
+        Json artists = track.path("artists");
         String isrc = track.path("external_ids").path("isrc").asText("");
 
         return new Wanted(isrc.isBlank() ? null : isrc,
@@ -248,7 +246,7 @@ public final class SpotifyBridge {
                 track.path("duration_ms").asLong(0));
     }
 
-    private Match matchOnYouTube(String trackId, JsonNode track)
+    private Match matchOnYouTube(String trackId, Json track)
             throws IOException, InterruptedException {
 
         Wanted wanted = wantedOf(track);
@@ -297,7 +295,7 @@ public final class SpotifyBridge {
                 : new IOException("YouTube search failed: " + cause, cause);
     }
 
-    private JsonNode spotifyTrack(String trackId) throws IOException, InterruptedException {
+    private Json spotifyTrack(String trackId) throws IOException, InterruptedException {
         HttpResponse<String> response = http.send(
                 HttpRequest.newBuilder(URI.create(TRACK_URL + trackId))
                         .header("Authorization", "Bearer " + appToken())
@@ -311,7 +309,7 @@ public final class SpotifyBridge {
         if (response.statusCode() != 200) {
             throw new IOException("Spotify answered " + response.statusCode());
         }
-        return MAPPER.readTree(response.body());
+        return Json.parse(response.body());
     }
 
     private synchronized String appToken() throws IOException, InterruptedException {
@@ -334,7 +332,7 @@ public final class SpotifyBridge {
                     + response.statusCode() + " — check the client id and secret in tokens.yml");
         }
 
-        JsonNode body = MAPPER.readTree(response.body());
+        Json body = Json.parse(response.body());
         appToken = body.path("access_token").asText(null);
         if (appToken == null) throw new IOException("Spotify issued no token");
 
@@ -343,7 +341,7 @@ public final class SpotifyBridge {
         return appToken;
     }
 
-    private JsonNode backendTrack(String trackId) throws IOException, InterruptedException {
+    private Json backendTrack(String trackId) throws IOException, InterruptedException {
         HttpRequest.Builder request = HttpRequest.newBuilder(
                         URI.create(origin(backendUrl.get()) + "/spotify?beta=true&url="
                                 + URLEncoder.encode(OPEN_URL + "track/" + trackId, StandardCharsets.UTF_8)))
@@ -361,7 +359,7 @@ public final class SpotifyBridge {
             throw new IOException("the backend answered " + response.statusCode()
                     + " for Spotify track " + trackId + explain(response.body()));
         }
-        return MAPPER.readTree(response.body());
+        return Json.parse(response.body());
     }
 
     private static String origin(String url) {

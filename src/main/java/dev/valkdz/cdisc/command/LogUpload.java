@@ -1,6 +1,6 @@
 package dev.valkdz.cdisc.command;
 
-import com.sedmelluq.discord.lavaplayer.tools.JsonBrowser;
+import dev.valkdz.cdisc.util.Json;
 import dev.valkdz.cdisc.Main;
 import dev.valkdz.cdisc.util.Config;
 import dev.valkdz.cdisc.util.NetProxy;
@@ -67,7 +67,7 @@ final class LogUpload {
                 .build();
 
         HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
-        JsonBrowser json = JsonBrowser.parse(response.body());
+        Json json = Json.parse(response.body());
         if (response.statusCode() != 200 || !json.get("success").asBoolean(false)) {
             String error = json.get("error").text();
             throw new IOException(error != null ? error : "mclo.gs answered " + response.statusCode());

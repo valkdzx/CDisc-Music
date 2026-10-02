@@ -1,9 +1,6 @@
 package dev.valkdz.cdisc.audio;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.json.JsonReadFeature;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.json.JsonMapper;
+import dev.valkdz.cdisc.util.Json;
 import dev.valkdz.cdisc.lyrics.SyncedLyrics;
 
 import java.io.IOException;
@@ -30,13 +27,6 @@ public final class LocalTrackSettings {
 
     private static final Pattern TIMED_LINE =
             Pattern.compile("^\\s*\\[(\\d{1,3}:\\d{1,2}(?:[.:]\\d{1,3})?)]\\s?(.*)$", Pattern.DOTALL);
-
-    private static final JsonMapper JSON = JsonMapper.builder()
-            .enable(JsonReadFeature.ALLOW_JAVA_COMMENTS)
-            .enable(JsonReadFeature.ALLOW_YAML_COMMENTS)
-            .enable(JsonReadFeature.ALLOW_TRAILING_COMMA)
-            .enable(JsonReadFeature.ALLOW_SINGLE_QUOTES)
-            .build();
 
     public static final LocalTrackSettings EMPTY =
             new LocalTrackSettings(null, null, List.of(), Meta.NONE, true, true, List.of());
@@ -255,7 +245,7 @@ public final class LocalTrackSettings {
     }
 
     public static LocalTrackSettings parse(String text) throws IOException {
-        JsonNode root = JSON.readTree(text == null || text.isBlank() ? "{}" : text);
+        Json root = Json.parseLenient(text == null || text.isBlank() ? "{}" : text);
         if (root == null || !root.isObject()) throw new IOException("the file is not a JSON object");
 
         String name = root.path("name").isTextual() ? root.get("name").asText() : null;
@@ -263,33 +253,33 @@ public final class LocalTrackSettings {
                 ? root.get("default-volume").asInt() : null;
 
         List<String> permissions = new ArrayList<>();
-        JsonNode perms = root.path("permissions");
+        Json perms = root.path("permissions");
         if (perms.isArray()) {
-            for (JsonNode one : perms) addPermissions(permissions, one.asText());
+            for (Json one : perms) addPermissions(permissions, one.asText());
         } else if (perms.isValueNode() && !perms.isNull()) {
             addPermissions(permissions, perms.asText());
         }
 
-        JsonNode rawMeta = root.path("metadata");
+        Json rawMeta = root.path("metadata");
         Meta meta = new Meta(textOf(rawMeta, "title"), textOf(rawMeta, "author"),
                 textOf(rawMeta, "text"), rawMeta.path("one-line").asBoolean(false));
 
-        JsonNode lyrics = root.path("lyrics");
+        Json lyrics = root.path("lyrics");
         boolean enabled = lyrics.path("enabled").asBoolean(true);
         boolean sync = lyrics.path("sync-with-time").asBoolean(true);
 
         List<Line> lines = new ArrayList<>();
-        JsonNode raw = lyrics.path("lines");
+        Json raw = lyrics.path("lines");
         if (raw.isObject()) {
-            Iterator<Map.Entry<String, JsonNode>> fields = raw.fields();
+            Iterator<Map.Entry<String, Json>> fields = raw.fields();
             while (fields.hasNext()) {
-                Map.Entry<String, JsonNode> field = fields.next();
+                Map.Entry<String, Json> field = fields.next();
                 Long at = parseTime(field.getKey());
                 String line = field.getValue().asText("").strip();
                 lines.add(new Line(at, line));
             }
         } else if (raw.isArray()) {
-            for (JsonNode one : raw) {
+            for (Json one : raw) {
                 Line line = parseTyped(one.asText(""));
                 if (line != null) lines.add(line);
             }
@@ -297,8 +287,8 @@ public final class LocalTrackSettings {
         return new LocalTrackSettings(name, volume, permissions, meta, enabled, sync, lines);
     }
 
-    private static String textOf(JsonNode node, String field) {
-        JsonNode value = node.path(field);
+    private static String textOf(Json node, String field) {
+        Json value = node.path(field);
         return value.isValueNode() && !value.isNull() ? value.asText() : null;
     }
 
@@ -377,10 +367,6 @@ public final class LocalTrackSettings {
     }
 
     private static String quote(String value) {
-        try {
-            return JSON.writeValueAsString(value);
-        } catch (JsonProcessingException e) {
-            throw new IllegalStateException(e);
-        }
+        return Json.of(value).toString();
     }
 }

@@ -1,6 +1,6 @@
 package dev.valkdz.cdisc.lyrics;
 
-import com.sedmelluq.discord.lavaplayer.tools.JsonBrowser;
+import dev.valkdz.cdisc.util.Json;
 
 import java.io.IOException;
 import java.net.URI;
@@ -61,13 +61,13 @@ public final class NetEaseProvider implements LyricsProvider {
         if (query == null || !query.isUsable()) return null;
 
         String terms = (query.artist().isBlank() ? "" : query.artist() + " ") + query.track();
-        JsonBrowser body = get(SEARCH + "?s=" + encode(terms) + "&type=1&limit=" + MAX_CANDIDATES);
+        Json body = get(SEARCH + "?s=" + encode(terms) + "&type=1&limit=" + MAX_CANDIDATES);
         if (body == null) return null;
 
         long bestId = -1;
         long bestGap = Long.MAX_VALUE;
 
-        for (JsonBrowser song : body.get("result").get("songs").values()) {
+        for (Json song : body.get("result").get("songs").values()) {
             long id = song.get("id").asLong(-1);
             if (id < 0) continue;
 
@@ -86,7 +86,7 @@ public final class NetEaseProvider implements LyricsProvider {
     }
 
     private SyncedLyrics lyricsOf(long songId) throws Exception {
-        JsonBrowser body = get(LYRIC + "?id=" + songId + "&lv=1&kv=1&tv=-1");
+        Json body = get(LYRIC + "?id=" + songId + "&lv=1&kv=1&tv=-1");
         if (body == null) return null;
 
         String lrc = body.get("lrc").get("lyric").text();
@@ -117,7 +117,7 @@ public final class NetEaseProvider implements LyricsProvider {
         return kept == 0 ? null : SyncedLyrics.parse(rebuilt.toString());
     }
 
-    private static long durationGap(LyricsQuery query, JsonBrowser song) {
+    private static long durationGap(LyricsQuery query, Json song) {
         int wanted = query.durationSeconds();
         if (wanted <= 0) return 0;
 
@@ -127,7 +127,7 @@ public final class NetEaseProvider implements LyricsProvider {
         return Math.abs(found / 1000L - wanted);
     }
 
-    private JsonBrowser get(String url) throws Exception {
+    private Json get(String url) throws Exception {
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .header("User-Agent", USER_AGENT)
                 .header("Referer", "https://music.163.com/")
@@ -141,7 +141,7 @@ public final class NetEaseProvider implements LyricsProvider {
             throw new IOException("NetEase returned HTTP " + response.statusCode());
         }
 
-        JsonBrowser body = JsonBrowser.parse(response.body());
+        Json body = Json.parse(response.body());
 
         long code = body.get("code").asLong(200);
         return code == 200 ? body : null;

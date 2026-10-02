@@ -3,7 +3,7 @@ package dev.valkdz.cdisc.audio.backend;
 import com.sedmelluq.discord.lavaplayer.player.AudioPlayerManager;
 import com.sedmelluq.discord.lavaplayer.source.AudioSourceManager;
 import com.sedmelluq.discord.lavaplayer.tools.FriendlyException;
-import com.sedmelluq.discord.lavaplayer.tools.JsonBrowser;
+import dev.valkdz.cdisc.util.Json;
 import com.sedmelluq.discord.lavaplayer.tools.Units;
 import com.sedmelluq.discord.lavaplayer.tools.io.HttpClientTools;
 import com.sedmelluq.discord.lavaplayer.tools.io.HttpInterface;
@@ -90,7 +90,7 @@ public final class BackendMusicSourceManager implements AudioSourceManager {
     private AudioItem search(String query) {
         if (query.isEmpty()) return AudioReference.NO_TRACK;
 
-        JsonBrowser json = ask("/search?q=" + encode(query) + "&limit=" + SEARCH_LIMIT, true);
+        Json json = ask("/search?q=" + encode(query) + "&limit=" + SEARCH_LIMIT, true);
         if (json == null) return null;
 
         List<AudioTrack> tracks = tracksOf(json.get("results"));
@@ -99,7 +99,7 @@ public final class BackendMusicSourceManager implements AudioSourceManager {
     }
 
     private AudioItem link(String url) {
-        JsonBrowser json = ask("?url=" + encode(url), true);
+        Json json = ask("?url=" + encode(url), true);
         if (json == null) return null;
 
         if (!json.get("tracks").isNull()) {
@@ -115,7 +115,7 @@ public final class BackendMusicSourceManager implements AudioSourceManager {
     }
 
     Stream resolve(String url) {
-        JsonBrowser json = ask("?url=" + encode(url), false);
+        Json json = ask("?url=" + encode(url), false);
         if (json == null) {
             throw new FriendlyException(service.label + " does not recognise this link",
                     FriendlyException.Severity.COMMON, null);
@@ -126,9 +126,9 @@ public final class BackendMusicSourceManager implements AudioSourceManager {
         return stream;
     }
 
-    private List<AudioTrack> tracksOf(JsonBrowser list) {
+    private List<AudioTrack> tracksOf(Json list) {
         List<AudioTrack> tracks = new ArrayList<>();
-        for (JsonBrowser entry : list.values()) {
+        for (Json entry : list.values()) {
             String url = entry.get("url").text();
             if (url == null || url.isBlank() || !entry.get("available").asBoolean(true)) continue;
             tracks.add(new BackendMusicTrack(infoOf(entry, url), this, null));
@@ -136,7 +136,7 @@ public final class BackendMusicSourceManager implements AudioSourceManager {
         return tracks;
     }
 
-    private AudioTrackInfo infoOf(JsonBrowser json, String asked) {
+    private AudioTrackInfo infoOf(Json json, String asked) {
         String url = json.get("url").text();
         if (url == null || url.isBlank()) url = asked;
 
@@ -149,7 +149,7 @@ public final class BackendMusicSourceManager implements AudioSourceManager {
                 json.get("artwork").text(), json.get("isrc").text());
     }
 
-    private static long lengthOf(JsonBrowser json) {
+    private static long lengthOf(Json json) {
         long ms = json.get("duration_ms").asLong(0);
         if (ms > 0) return ms;
 
@@ -161,21 +161,21 @@ public final class BackendMusicSourceManager implements AudioSourceManager {
         }
     }
 
-    private static Stream streamOf(JsonBrowser json) {
-        JsonBrowser stream = json.get("stream");
+    private static Stream streamOf(Json json) {
+        Json stream = json.get("stream");
         String url = stream.get("url").text();
         if (url == null || url.isBlank()) return null;
         return new Stream(url, stream.get("protocol").text(), stream.get("mime_type").text());
     }
 
-    private JsonBrowser ask(String path, boolean mayFallBack) {
+    private Json ask(String path, boolean mayFallBack) {
         int status;
-        JsonBrowser json = null;
+        Json json = null;
         try (HttpInterface http = interfaces.getInterface();
              CloseableHttpResponse response = http.execute(new HttpGet(endpoint + path))) {
             status = response.getStatusLine().getStatusCode();
             String body = EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8);
-            if (body.trim().startsWith("{")) json = JsonBrowser.parse(body);
+            if (body.trim().startsWith("{")) json = Json.parse(body);
         } catch (IOException e) {
             return unanswered(mayFallBack, "could not be reached (" + e.getMessage() + ")", e);
         }
@@ -186,7 +186,7 @@ public final class BackendMusicSourceManager implements AudioSourceManager {
         throw refused(json, status);
     }
 
-    private JsonBrowser unanswered(boolean mayFallBack, String what, Throwable cause) {
+    private Json unanswered(boolean mayFallBack, String what, Throwable cause) {
         if (fallback && mayFallBack) {
             logger.warning("The " + service.label + " backend " + what + "; trying the token instead.");
             return null;
@@ -195,7 +195,7 @@ public final class BackendMusicSourceManager implements AudioSourceManager {
                 FriendlyException.Severity.SUSPICIOUS, cause);
     }
 
-    private FriendlyException refused(JsonBrowser json, int status) {
+    private FriendlyException refused(Json json, int status) {
         String code = json.get("code").text();
         if ("not_found".equals(code)) {
             return new FriendlyException("No such " + service.label + " track",

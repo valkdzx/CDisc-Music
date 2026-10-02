@@ -1,14 +1,11 @@
 package dev.valkdz.cdisc.util;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.valkdz.cdisc.Main;
 import org.bukkit.configuration.file.YamlConfiguration;
 
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.logging.Logger;
 
@@ -33,8 +30,10 @@ final class TokensJsonMigration {
 
         Map<String, Object> root;
         try {
-            root = new ObjectMapper().readValue(json,
-                    new TypeReference<LinkedHashMap<String, Object>>() {});
+            Object read = Json.parse(java.nio.file.Files.readString(json.toPath(), java.nio.charset.StandardCharsets.UTF_8)).toJava();
+            if (!(read instanceof Map<?, ?>)) throw new java.io.IOException("the file is not a JSON object");
+            @SuppressWarnings("unchecked") Map<String, Object> object = (Map<String, Object>) read;
+            root = object;
         } catch (Exception e) {
             log.severe("Couldn't read " + LEGACY_FILE_NAME + ": " + e.getMessage()
                     + " — check it for a missing comma or quote. Nothing has been changed;"

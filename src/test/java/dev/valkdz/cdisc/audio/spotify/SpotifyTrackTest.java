@@ -1,6 +1,6 @@
 package dev.valkdz.cdisc.audio.spotify;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import dev.valkdz.cdisc.util.Json;
 import dev.valkdz.cdisc.audio.sabr.YouTubeSearch;
 import org.junit.jupiter.api.Test;
 
@@ -17,7 +17,7 @@ class SpotifyTrackTest {
                 + "\"duration_ms\":213573,\"external_ids\":{\"isrc\":\"GBARL9300135\"},"
                 + "\"id\":\"4cOdK2wGLETKBW3PvgPWqT\",\"name\":\"Never Gonna Give You Up\"}";
 
-        SpotifyBridge.Wanted wanted = SpotifyBridge.wantedOf(new ObjectMapper().readTree(json));
+        SpotifyBridge.Wanted wanted = SpotifyBridge.wantedOf(Json.parse(json));
 
         assertEquals("GBARL9300135", wanted.isrc());
         assertEquals("Never Gonna Give You Up", wanted.title());
@@ -27,7 +27,7 @@ class SpotifyTrackTest {
 
     @Test
     void aTrackWithoutIsrcIsSearchedByNameOnly() throws Exception {
-        SpotifyBridge.Wanted wanted = SpotifyBridge.wantedOf(new ObjectMapper().readTree(
+        SpotifyBridge.Wanted wanted = SpotifyBridge.wantedOf(Json.parse(
                 "{\"name\":\"x\",\"artists\":[],\"external_ids\":{}}"));
 
         assertNull(wanted.isrc());

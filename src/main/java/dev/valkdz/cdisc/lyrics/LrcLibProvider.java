@@ -1,6 +1,6 @@
 package dev.valkdz.cdisc.lyrics;
 
-import com.sedmelluq.discord.lavaplayer.tools.JsonBrowser;
+import dev.valkdz.cdisc.util.Json;
 
 import java.io.IOException;
 import java.net.URI;
@@ -70,7 +70,7 @@ public final class LrcLibProvider implements LyricsProvider {
             url.append("&duration=").append(seconds);
         }
 
-        JsonBrowser body = get(url.toString());
+        Json body = get(url.toString());
         return body == null ? null : synced(body);
     }
 
@@ -78,14 +78,14 @@ public final class LrcLibProvider implements LyricsProvider {
         String url = BASE + "search?track_name=" + encode(query.track())
                 + (query.artist().isBlank() ? "" : "&artist_name=" + encode(query.artist()));
 
-        JsonBrowser body = get(url);
+        Json body = get(url);
         if (body == null) return null;
 
-        JsonBrowser best = null;
+        Json best = null;
         long bestGap = Long.MAX_VALUE;
         int seen = 0;
 
-        for (JsonBrowser candidate : body.values()) {
+        for (Json candidate : body.values()) {
             if (++seen > MAX_CANDIDATES) break;
             if (candidate.get("syncedLyrics").isNull()) continue;
             if (candidate.get("instrumental").asBoolean(false)) continue;
@@ -104,7 +104,7 @@ public final class LrcLibProvider implements LyricsProvider {
         return synced(best);
     }
 
-    private static long durationGap(LyricsQuery query, JsonBrowser candidate) {
+    private static long durationGap(LyricsQuery query, Json candidate) {
         int wanted = query.durationSeconds();
         if (wanted <= 0) return 0;
 
@@ -122,13 +122,13 @@ public final class LrcLibProvider implements LyricsProvider {
         return Math.abs(Math.round(found) - wanted);
     }
 
-    private static SyncedLyrics synced(JsonBrowser body) {
+    private static SyncedLyrics synced(Json body) {
         if (body.get("instrumental").asBoolean(false)) return null;
         String lrc = body.get("syncedLyrics").text();
         return lrc == null ? null : SyncedLyrics.parse(lrc);
     }
 
-    private JsonBrowser get(String url) throws Exception {
+    private Json get(String url) throws Exception {
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .header("User-Agent", userAgent)
                 .header("Accept", "application/json")
@@ -143,7 +143,7 @@ public final class LrcLibProvider implements LyricsProvider {
         if (status != 200) {
             throw new IOException("LRCLIB returned HTTP " + status);
         }
-        return JsonBrowser.parse(response.body());
+        return Json.parse(response.body());
     }
 
     private static String encode(String value) {

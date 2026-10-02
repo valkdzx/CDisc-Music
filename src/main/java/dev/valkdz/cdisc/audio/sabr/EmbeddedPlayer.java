@@ -1,8 +1,6 @@
 package dev.valkdz.cdisc.audio.sabr;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import dev.valkdz.cdisc.util.Json;
 
 import java.io.IOException;
 import java.net.URI;
@@ -19,7 +17,6 @@ import java.util.regex.Pattern;
 
 final class EmbeddedPlayer {
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final Pattern YTCFG = Pattern.compile("ytcfg\\.set\\s*\\(\\s*(\\{.+?\\})\\s*\\)\\s*;", Pattern.DOTALL);
     private static final Duration TIMEOUT = Duration.ofSeconds(20);
 
@@ -59,25 +56,25 @@ final class EmbeddedPlayer {
                 .header("Accept-Language", "en-US,en;q=0.9")
                 .GET());
 
-        JsonNode config = ytcfg(page);
+        Json config = ytcfg(page);
         String playerId = playerFor(page);
         if (config == null || playerId == null) throw new IOException("the embed page carried no player config");
 
-        ObjectNode context = config.path("INNERTUBE_CONTEXT").deepCopy();
-        context.set("thirdParty", MAPPER.createObjectNode().put("embedUrl", HOST_PAGE));
-        JsonNode client = context.path("client");
+        Json context = config.path("INNERTUBE_CONTEXT").deepCopy();
+        context.set("thirdParty", Json.object().put("embedUrl", HOST_PAGE));
+        Json client = context.path("client");
 
-        ObjectNode playback = MAPPER.createObjectNode()
+        Json playback = Json.object()
                 .put("html5Preference", "HTML5_PREF_WANTS")
                 .put("signatureTimestamp", cipher.signatureTimestamp(playerId));
         String hostFlags = config.path("WEB_PLAYER_CONTEXT_CONFIGS")
                 .path("WEB_PLAYER_CONTEXT_CONFIG_ID_EMBEDDED_PLAYER").path("encryptedHostFlags").asText(null);
         if (hostFlags != null) playback.put("encryptedHostFlags", hostFlags);
 
-        ObjectNode body = MAPPER.createObjectNode();
+        Json body = Json.object();
         body.set("context", context);
         body.put("videoId", videoId).put("contentCheckOk", true).put("racyCheckOk", true);
-        body.set("playbackContext", MAPPER.createObjectNode().set("contentPlaybackContext", playback));
+        body.set("playbackContext", Json.object().set("contentPlaybackContext", playback));
 
         HttpRequest.Builder request = HttpRequest.newBuilder(
                         URI.create("https://www.youtube.com/youtubei/v1/player?prettyPrint=false"))
@@ -92,10 +89,10 @@ final class EmbeddedPlayer {
         String visitor = client.path("visitorData").asText(config.path("VISITOR_DATA").asText(""));
         if (!visitor.isBlank()) request.header("x-goog-visitor-id", visitor);
 
-        JsonNode root = MAPPER.readTree(send(request));
+        Json root = Json.parse(send(request));
 
         Map<Integer, String> ciphers = new HashMap<>();
-        for (JsonNode format : root.path("streamingData").path("adaptiveFormats")) {
+        for (Json format : root.path("streamingData").path("adaptiveFormats")) {
             String scrambled = format.path("signatureCipher").asText(null);
             if (scrambled != null) ciphers.put(format.path("itag").asInt(), scrambled);
         }
@@ -124,14 +121,15 @@ final class EmbeddedPlayer {
         }
     }
 
-    private static JsonNode ytcfg(String page) {
-        ObjectNode merged = MAPPER.createObjectNode();
+    private static Json ytcfg(String page) {
+        Json merged = Json.object();
         boolean found = false;
 
         Matcher sets = YTCFG.matcher(page);
         while (sets.find()) {
             try {
-                if (MAPPER.readTree(sets.group(1)) instanceof ObjectNode part) {
+                Json part = Json.parse(sets.group(1));
+                if (part.isObject()) {
                     merged.setAll(part);
                     found = true;
                 }

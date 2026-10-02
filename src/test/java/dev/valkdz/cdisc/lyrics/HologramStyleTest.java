@@ -1,6 +1,6 @@
 package dev.valkdz.cdisc.lyrics;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import dev.valkdz.cdisc.util.Json;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -11,7 +11,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class HologramStyleTest {
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private static HologramStyle sample() {
         return new HologramStyle(
@@ -38,7 +37,7 @@ class HologramStyleTest {
         HologramStyle original = sample();
 
         HologramStyle back = HologramStyle.fromJson(
-                MAPPER.readTree(original.toJsonString()), other());
+                Json.parse(original.toJsonString()), other());
 
         assertEquals(original.backgroundColor(), back.backgroundColor(), "backgroundColor");
         assertEquals(original.backgroundOpacity(), back.backgroundOpacity(), "backgroundOpacity");
@@ -64,7 +63,7 @@ class HologramStyleTest {
     @Test
     @DisplayName("the written form names every field, so nothing is only in equals")
     void writesEveryField() throws Exception {
-        var node = MAPPER.readTree(sample().toJsonString());
+        var node = Json.parse(sample().toJsonString());
 
         assertEquals(HologramStyle.class.getRecordComponents().length, node.size());
     }

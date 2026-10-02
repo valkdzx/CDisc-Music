@@ -5,7 +5,7 @@ import com.sedmelluq.discord.lavaplayer.container.MediaContainerDescriptor;
 import com.sedmelluq.discord.lavaplayer.player.AudioPlayerManager;
 import com.sedmelluq.discord.lavaplayer.source.http.HttpAudioSourceManager;
 import com.sedmelluq.discord.lavaplayer.source.http.HttpAudioTrack;
-import com.sedmelluq.discord.lavaplayer.tools.JsonBrowser;
+import dev.valkdz.cdisc.util.Json;
 import com.sedmelluq.discord.lavaplayer.tools.Units;
 import com.sedmelluq.discord.lavaplayer.track.AudioItem;
 import com.sedmelluq.discord.lavaplayer.track.AudioReference;
@@ -137,7 +137,7 @@ public class CustomYoutubeApiResolver {
                     List<Hit> hits = new ArrayList<>();
                     if (json == null) return hits;
 
-                    for (JsonBrowser found : json.get("results").values()) {
+                    for (Json found : json.get("results").values()) {
                         String videoId = found.get("id").text();
                         if (videoId == null) continue;
 
@@ -292,16 +292,16 @@ public class CustomYoutubeApiResolver {
         }
     }
 
-    private static Info parseInfo(String videoId, JsonBrowser json) {
-        JsonBrowser audio = json.get("audio");
+    private static Info parseInfo(String videoId, Json json) {
+        Json audio = json.get("audio");
         String contentType = audio.get("content_type").text();
         if (contentType == null) contentType = json.get("content_type").text();
 
-        JsonBrowser playability = json.get("playability");
+        Json playability = json.get("playability");
         String status = playability.get("status").text();
 
         Set<String> countries = new HashSet<>();
-        for (JsonBrowser country : json.get("available_countries").values()) {
+        for (Json country : json.get("available_countries").values()) {
             String code = country.text();
             if (code != null) countries.add(code.toUpperCase(Locale.ROOT));
         }
@@ -336,12 +336,12 @@ public class CustomYoutubeApiResolver {
         return getJson("/search?q=" + URLEncoder.encode(query, StandardCharsets.UTF_8) + "&limit=1")
                 .thenApply(search -> {
                     if (search == null) return null;
-                    List<JsonBrowser> results = search.get("results").values();
+                    List<Json> results = search.get("results").values();
                     return results.isEmpty() ? null : results.get(0).get("id").text();
                 });
     }
 
-    private CompletableFuture<JsonBrowser> getJson(String path) {
+    private CompletableFuture<Json> getJson(String path) {
         HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl + path))
                 .timeout(Duration.ofSeconds(6))
                 .GET()
@@ -351,7 +351,7 @@ public class CustomYoutubeApiResolver {
                 .thenApply(response -> {
                     if (response.statusCode() != 200) return null;
                     try {
-                        return JsonBrowser.parse(response.body());
+                        return Json.parse(response.body());
                     } catch (IOException e) {
                         throw new UncheckedIOException(e);
                     }

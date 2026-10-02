@@ -1,8 +1,6 @@
 package dev.valkdz.cdisc.gui;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import dev.valkdz.cdisc.util.Json;
 import dev.valkdz.cdisc.Main;
 
 import javax.crypto.Cipher;
@@ -34,7 +32,6 @@ public final class ScreenPreferences {
 
     private final Main plugin;
     private final File file;
-    private final ObjectMapper mapper = new ObjectMapper();
     private final SecureRandom random = new SecureRandom();
 
     public enum Screen {
@@ -93,11 +90,11 @@ public final class ScreenPreferences {
                 return;
             }
 
-            JsonNode root = mapper.readTree(json);
-            JsonNode all = root.path("screens");
+            Json root = Json.parse(new String(json, java.nio.charset.StandardCharsets.UTF_8));
+            Json all = root.path("screens");
             if (all.isObject()) {
-                for (Iterator<Map.Entry<String, JsonNode>> it = all.fields(); it.hasNext(); ) {
-                    Map.Entry<String, JsonNode> entry = it.next();
+                for (Iterator<Map.Entry<String, Json>> it = all.fields(); it.hasNext(); ) {
+                    Map.Entry<String, Json> entry = it.next();
                     try {
                         chosen.put(UUID.fromString(entry.getKey()), entry.getValue().asBoolean());
                     } catch (IllegalArgumentException ignored) {
@@ -106,10 +103,10 @@ public final class ScreenPreferences {
                 }
             }
 
-            JsonNode last = root.path("last");
+            Json last = root.path("last");
             if (last.isObject()) {
-                for (Iterator<Map.Entry<String, JsonNode>> it = last.fields(); it.hasNext(); ) {
-                    Map.Entry<String, JsonNode> entry = it.next();
+                for (Iterator<Map.Entry<String, Json>> it = last.fields(); it.hasNext(); ) {
+                    Map.Entry<String, Json> entry = it.next();
                     try {
                         lastScreens.put(UUID.fromString(entry.getKey()), Screen.valueOf(entry.getValue().asText()));
                     } catch (IllegalArgumentException ignored) {
@@ -133,12 +130,12 @@ public final class ScreenPreferences {
 
     public void saveNow() {
         synchronized (saveLock) {
-            ObjectNode root = mapper.createObjectNode();
-            ObjectNode all = root.putObject("screens");
+            Json root = Json.object();
+            Json all = root.putObject("screens");
             for (Map.Entry<UUID, Boolean> entry : chosen.entrySet()) {
                 all.put(entry.getKey().toString(), entry.getValue());
             }
-            ObjectNode last = root.putObject("last");
+            Json last = root.putObject("last");
             for (Map.Entry<UUID, Screen> entry : lastScreens.entrySet()) {
                 last.put(entry.getKey().toString(), entry.getValue().name());
             }
@@ -150,7 +147,7 @@ public final class ScreenPreferences {
                     return;
                 }
 
-                byte[] sealed = encrypt(mapper.writeValueAsBytes(root));
+                byte[] sealed = encrypt(root.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
 
                 // Written beside the real file and moved into place, so a crash halfway
                 // through leaves the previous choices rather than half of the new ones.

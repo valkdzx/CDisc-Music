@@ -3,7 +3,7 @@ package dev.valkdz.cdisc.audio.soundcloud;
 import com.sedmelluq.discord.lavaplayer.player.AudioPlayerManager;
 import com.sedmelluq.discord.lavaplayer.source.AudioSourceManager;
 import com.sedmelluq.discord.lavaplayer.tools.FriendlyException;
-import com.sedmelluq.discord.lavaplayer.tools.JsonBrowser;
+import dev.valkdz.cdisc.util.Json;
 import com.sedmelluq.discord.lavaplayer.tools.io.HttpClientTools;
 import com.sedmelluq.discord.lavaplayer.tools.io.HttpInterface;
 import com.sedmelluq.discord.lavaplayer.tools.io.HttpInterfaceManager;
@@ -55,13 +55,13 @@ public final class SoundCloudProxySourceManager implements AudioSourceManager {
     }
 
     Resolved resolve(String url) {
-        JsonBrowser json;
+        Json json;
         int status;
         try (HttpInterface http = interfaces.getInterface();
              CloseableHttpResponse response = http.execute(new HttpGet(
                      endpoint + "?url=" + URLEncoder.encode(url, StandardCharsets.UTF_8)))) {
             status = response.getStatusLine().getStatusCode();
-            json = JsonBrowser.parse(EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8));
+            json = Json.parse(EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8));
         } catch (IOException e) {
             throw new FriendlyException("The SoundCloud proxy could not be reached",
                     FriendlyException.Severity.SUSPICIOUS, e);
@@ -78,7 +78,7 @@ public final class SoundCloudProxySourceManager implements AudioSourceManager {
                     + (error == null ? "HTTP " + status : error), FriendlyException.Severity.SUSPICIOUS, null);
         }
 
-        JsonBrowser stream = json.get("stream");
+        Json stream = json.get("stream");
         if (!"progressive".equals(stream.get("protocol").text())) {
             throw new FriendlyException("The SoundCloud proxy offered no progressive stream",
                     FriendlyException.Severity.SUSPICIOUS, null);
@@ -89,7 +89,7 @@ public final class SoundCloudProxySourceManager implements AudioSourceManager {
         AudioTrackInfo info = new AudioTrackInfo(
                 json.get("title").safeText(),
                 json.get("artist").isNull() ? json.get("user").get("username").safeText() : json.get("artist").text(),
-                Math.round(json.get("duration").as(Double.class) * 1000),
+                Math.round(json.get("duration").asDouble(0) * 1000),
                 canonical, false, canonical,
                 json.get("artwork").text(), json.get("isrc").text());
         return new Resolved(info, stream.get("url").text(), stream.get("mime_type").text());

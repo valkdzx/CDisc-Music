@@ -1,8 +1,6 @@
 package dev.valkdz.cdisc.audio.sabr;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import dev.valkdz.cdisc.util.Json;
 
 import java.io.IOException;
 import java.net.URI;
@@ -22,7 +20,6 @@ public final class InnerTubePlayer {
     private static final String PLAYER_URL = "https://www.youtube.com/youtubei/v1/player";
     private static final Duration TIMEOUT = Duration.ofSeconds(20);
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final HttpClient http;
     private final ClientIdentity identity;
@@ -143,11 +140,11 @@ public final class InnerTubePlayer {
         if (response.statusCode() != 200) {
             throw new IOException("Player endpoint answered " + response.statusCode());
         }
-        return parse(MAPPER.readTree(response.body()));
+        return parse(Json.parse(response.body()));
     }
 
     private String body(String videoId) {
-        ObjectNode client = MAPPER.createObjectNode()
+        Json client = Json.object()
                 .put("clientName", identity.name())
                 .put("clientVersion", identity.version())
                 .put("osName", identity.osName())
@@ -163,32 +160,32 @@ public final class InnerTubePlayer {
             client.put("visitorData", identity.visitorData());
         }
 
-        ObjectNode request = MAPPER.createObjectNode();
-        request.set("context", MAPPER.createObjectNode().set("client", client));
+        Json request = Json.object();
+        request.set("context", Json.object().set("client", client));
         request.put("videoId", videoId);
 
         request.put("contentCheckOk", true);
         request.put("racyCheckOk", true);
 
         if (identity.signatureTimestamp() > 0) {
-            ObjectNode playback = MAPPER.createObjectNode()
+            Json playback = Json.object()
                     .put("html5Preference", "HTML5_PREF_WANTS")
                     .put("signatureTimestamp", identity.signatureTimestamp());
             request.set("playbackContext",
-                    MAPPER.createObjectNode().set("contentPlaybackContext", playback));
+                    Json.object().set("contentPlaybackContext", playback));
         }
 
         if (notBlank(identity.poToken())) {
             request.set("serviceIntegrityDimensions",
-                    MAPPER.createObjectNode().put("poToken", identity.poToken()));
+                    Json.object().put("poToken", identity.poToken()));
         }
         return request.toString();
     }
 
-    static PlayerResponse parse(JsonNode root) {
-        JsonNode playability = root.path("playabilityStatus");
-        JsonNode streaming = root.path("streamingData");
-        JsonNode details = root.path("videoDetails");
+    static PlayerResponse parse(Json root) {
+        Json playability = root.path("playabilityStatus");
+        Json streaming = root.path("streamingData");
+        Json details = root.path("videoDetails");
 
         String encodedConfig = root.path("playerConfig")
                 .path("mediaCommonConfig")
@@ -206,7 +203,7 @@ public final class InnerTubePlayer {
 
         List<AudioFormat> audio = new ArrayList<>();
         List<AudioFormat> video = new ArrayList<>();
-        for (JsonNode format : streaming.path("adaptiveFormats")) {
+        for (Json format : streaming.path("adaptiveFormats")) {
             String mimeType = format.path("mimeType").asText("");
             boolean isAudio = mimeType.startsWith("audio/");
             if (!isAudio && !mimeType.startsWith("video/")) continue;
@@ -239,20 +236,20 @@ public final class InnerTubePlayer {
     }
 
     // A dubbed video lists every language, and a DRC copy of each, beside the original.
-    private static boolean isMainTrack(JsonNode format) {
+    private static boolean isMainTrack(Json format) {
         if (format.path("isDrc").asBoolean(false)) return false;
-        JsonNode track = format.path("audioTrack");
+        Json track = format.path("audioTrack");
         return track.isMissingNode() || track.path("audioIsDefault").asBoolean(false);
     }
 
-    private static String textOf(JsonNode node) {
+    private static String textOf(Json node) {
         if (node.isMissingNode()) return null;
 
         String simple = node.path("simpleText").asText(null);
         if (notBlank(simple)) return simple;
 
         StringBuilder joined = new StringBuilder();
-        for (JsonNode run : node.path("runs")) {
+        for (Json run : node.path("runs")) {
             joined.append(run.path("text").asText(""));
         }
         return joined.length() == 0 ? null : joined.toString();

@@ -1,7 +1,6 @@
 package dev.valkdz.cdisc.lyrics;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import dev.valkdz.cdisc.util.Json;
 import dev.valkdz.cdisc.Main;
 
 import java.io.File;
@@ -49,12 +48,12 @@ public final class HologramPresets {
         if (!file.isFile()) return;
 
         try {
-            JsonNode root = HologramStyle.mapper().readTree(file);
+            Json root = Json.parse(Files.readString(file.toPath(), java.nio.charset.StandardCharsets.UTF_8));
             HologramStyle base = HologramStyle.fromConfig(plugin.cdiscConfig());
 
-            Iterator<Map.Entry<String, JsonNode>> fields = root.path("presets").fields();
+            Iterator<Map.Entry<String, Json>> fields = root.path("presets").fields();
             while (fields.hasNext()) {
-                Map.Entry<String, JsonNode> entry = fields.next();
+                Map.Entry<String, Json> entry = fields.next();
                 try {
                     presets.put(UUID.fromString(entry.getKey()),
                             HologramStyle.fromJson(entry.getValue(), base));
@@ -63,17 +62,17 @@ public final class HologramPresets {
                 }
             }
 
-            Iterator<Map.Entry<String, JsonNode>> named = root.path("server").fields();
+            Iterator<Map.Entry<String, Json>> named = root.path("server").fields();
             while (named.hasNext()) {
-                Map.Entry<String, JsonNode> entry = named.next();
+                Map.Entry<String, Json> entry = named.next();
                 if (validName(entry.getKey())) {
                     server.put(entry.getKey(), HologramStyle.fromJson(entry.getValue(), base));
                 }
             }
 
-            Iterator<Map.Entry<String, JsonNode>> given = root.path("assigned").fields();
+            Iterator<Map.Entry<String, Json>> given = root.path("assigned").fields();
             while (given.hasNext()) {
-                Map.Entry<String, JsonNode> entry = given.next();
+                Map.Entry<String, Json> entry = given.next();
                 String preset = entry.getValue().path("preset").asText("");
                 if (!server.containsKey(preset)) continue;
                 try {
@@ -84,7 +83,7 @@ public final class HologramPresets {
                 }
             }
 
-            JsonNode everyone = root.path("default");
+            Json everyone = root.path("default");
             String preset = everyone.path("preset").asText("");
             if (server.containsKey(preset)) {
                 fallback = new Assignment(preset, everyone.path("forced").asBoolean(false));
@@ -234,24 +233,24 @@ public final class HologramPresets {
 
     public void saveNow() {
         synchronized (saveLock) {
-            ObjectNode root = HologramStyle.mapper().createObjectNode();
-            ObjectNode all = root.putObject("presets");
+            Json root = Json.object();
+            Json all = root.putObject("presets");
             for (Map.Entry<UUID, HologramStyle> entry : presets.entrySet()) {
                 all.set(entry.getKey().toString(), entry.getValue().toJson());
             }
-            ObjectNode named = root.putObject("server");
+            Json named = root.putObject("server");
             for (Map.Entry<String, HologramStyle> entry : server.entrySet()) {
                 named.set(entry.getKey(), entry.getValue().toJson());
             }
-            ObjectNode given = root.putObject("assigned");
+            Json given = root.putObject("assigned");
             for (Map.Entry<UUID, Assignment> entry : assigned.entrySet()) {
-                ObjectNode one = given.putObject(entry.getKey().toString());
+                Json one = given.putObject(entry.getKey().toString());
                 one.put("preset", entry.getValue().preset());
                 one.put("forced", entry.getValue().forced());
             }
             Assignment everyone = fallback;
             if (everyone != null) {
-                ObjectNode one = root.putObject("default");
+                Json one = root.putObject("default");
                 one.put("preset", everyone.preset());
                 one.put("forced", everyone.forced());
             }
@@ -265,9 +264,7 @@ public final class HologramPresets {
 
                 Path target = file.toPath();
                 Path temp = target.resolveSibling(FILE_NAME + ".tmp");
-                Files.write(temp, HologramStyle.mapper()
-                        .writerWithDefaultPrettyPrinter()
-                        .writeValueAsString(root)
+                Files.write(temp, root.toPrettyString()
                         .getBytes(StandardCharsets.UTF_8));
                 Files.move(temp, target, StandardCopyOption.REPLACE_EXISTING);
             } catch (IOException e) {

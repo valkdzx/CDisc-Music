@@ -1,8 +1,6 @@
 package dev.valkdz.cdisc.audio.sabr;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import dev.valkdz.cdisc.util.Json;
 
 import java.io.IOException;
 import java.net.URI;
@@ -18,7 +16,6 @@ import java.util.concurrent.CompletionException;
 public final class YouTubeSearch {
 
     private static final String SEARCH_URL = "https://www.youtube.com/youtubei/v1/search";
-    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     public record Result(String videoId, String title, String channel, long durationSeconds) {
 
@@ -54,7 +51,7 @@ public final class YouTubeSearch {
     }
 
     private HttpRequest request(String query, String visitorData) {
-        ObjectNode client = MAPPER.createObjectNode()
+        Json client = Json.object()
                 .put("clientName", "WEB")
                 .put("clientVersion", clientVersion)
                 .put("hl", "en")
@@ -64,8 +61,8 @@ public final class YouTubeSearch {
             client.put("visitorData", visitorData);
         }
 
-        ObjectNode body = MAPPER.createObjectNode();
-        body.set("context", MAPPER.createObjectNode().set("client", client));
+        Json body = Json.object();
+        body.set("context", Json.object().set("client", client));
         body.put("query", query);
 
         HttpRequest.Builder request = HttpRequest.newBuilder(URI.create(SEARCH_URL))
@@ -87,34 +84,34 @@ public final class YouTubeSearch {
         }
 
         List<Result> results = new ArrayList<>();
-        collect(MAPPER.readTree(response.body()), results, limit);
+        collect(Json.parse(response.body()), results, limit);
         return results;
     }
 
-    private static void collect(JsonNode node, List<Result> into, int limit) {
+    private static void collect(Json node, List<Result> into, int limit) {
         if (into.size() >= limit) return;
 
         if (node.isObject()) {
-            JsonNode video = node.get("videoRenderer");
-            if (video == null) video = node.get("compactVideoRenderer");
-            if (video != null && video.hasNonNull("videoId")) {
+            Json video = node.get("videoRenderer");
+            if (video.isMissing()) video = node.get("compactVideoRenderer");
+            if (!video.get("videoId").isNull()) {
                 Result result = read(video);
                 if (result != null) into.add(result);
                 if (into.size() >= limit) return;
             }
-            for (JsonNode child : node) {
+            for (Json child : node) {
                 collect(child, into, limit);
                 if (into.size() >= limit) return;
             }
         } else if (node.isArray()) {
-            for (JsonNode child : node) {
+            for (Json child : node) {
                 collect(child, into, limit);
                 if (into.size() >= limit) return;
             }
         }
     }
 
-    private static Result read(JsonNode video) {
+    private static Result read(Json video) {
         String videoId = video.path("videoId").asText(null);
         if (videoId == null || videoId.isBlank()) return null;
 
@@ -124,8 +121,8 @@ public final class YouTubeSearch {
                 seconds(video.path("lengthText").path("simpleText").asText(null)));
     }
 
-    private static String firstRun(JsonNode node) {
-        JsonNode runs = node.path("runs");
+    private static String firstRun(Json node) {
+        Json runs = node.path("runs");
         if (runs.isArray() && !runs.isEmpty()) return runs.get(0).path("text").asText(null);
         return node.path("simpleText").asText(null);
     }

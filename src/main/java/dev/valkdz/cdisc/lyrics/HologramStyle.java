@@ -1,8 +1,6 @@
 package dev.valkdz.cdisc.lyrics;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import dev.valkdz.cdisc.util.Json;
 import dev.valkdz.cdisc.util.Config;
 
 public record HologramStyle(
@@ -28,7 +26,6 @@ public record HologramStyle(
 
     public static final int BRIGHTNESS_WORLD = -1;
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     public static HologramStyle fromConfig(Config config) {
         return new HologramStyle(
@@ -197,8 +194,8 @@ public record HologramStyle(
                 linesBefore, linesAfter, shadow, seeThrough, fadeTicks, slide, value);
     }
 
-    public ObjectNode toJson() {
-        ObjectNode node = MAPPER.createObjectNode();
+    public Json toJson() {
+        Json node = Json.object();
         node.put("background-color", backgroundColor);
         node.put("background-opacity", backgroundOpacity);
         node.put("brightness", brightness);
@@ -225,7 +222,7 @@ public record HologramStyle(
         return toJson().toString();
     }
 
-    public static HologramStyle fromJson(JsonNode node, HologramStyle fallback) {
+    public static HologramStyle fromJson(Json node, HologramStyle fallback) {
         if (node == null || !node.isObject()) return fallback;
 
         return new HologramStyle(
@@ -253,15 +250,12 @@ public record HologramStyle(
     public static HologramStyle fromJsonString(String json, HologramStyle fallback) {
         if (json == null || json.isBlank()) return fallback;
         try {
-            return fromJson(MAPPER.readTree(json), fallback);
+            return fromJson(Json.parse(json), fallback);
         } catch (Exception e) {
             return fallback;
         }
     }
 
-    static ObjectMapper mapper() {
-        return MAPPER;
-    }
 
     private static String safe(String value) {
         return value == null ? "" : value;
