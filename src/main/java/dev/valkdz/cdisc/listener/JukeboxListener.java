@@ -178,10 +178,13 @@ public class JukeboxListener implements Listener {
         Block block = jukebox.getBlock();
         customDiscBlocks.add(BlockKey.of(block));
 
+        // Started here like a disc put in by hand: the record-start packet only goes out
+        // with a player in range, and another plugin may swallow it.
         Tasks.region(plugin, block, () -> {
             if (block.getType() == Material.JUKEBOX
                     && block.getState() instanceof Jukebox after
                     && ItemUtils.isCdiscDisc(after.getRecord())) {
+                startFromRecord(block);
                 return;
             }
             customDiscBlocks.remove(BlockKey.of(block));
