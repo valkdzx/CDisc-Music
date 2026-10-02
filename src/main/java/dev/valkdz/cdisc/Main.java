@@ -1,7 +1,7 @@
 package dev.valkdz.cdisc;
 
 import de.tr7zw.changeme.nbtapi.NBT;
-import dev.valkdz.cdisc.audio.LavaPlayerManager;
+import dev.valkdz.cdisc.audio.PlaybackManager;
 import dev.valkdz.cdisc.command.CDiscCommand;
 import dev.valkdz.cdisc.gui.PlayerGuiListener;
 import dev.valkdz.cdisc.gui.PlayerActions;
@@ -27,7 +27,7 @@ public final class Main extends JavaPlugin {
     private static Main instance;
     public static Main getInstance() { return instance; }
 
-    private LavaPlayerManager audioPlayerManager;
+    private PlaybackManager audioPlayerManager;
     private MessageManager messageManager;
     private Config config;
     private TrackProgressDisplay trackProgressDisplay;
@@ -91,7 +91,7 @@ public final class Main extends JavaPlugin {
         regionGuard = new dev.valkdz.cdisc.region.RegionGuard(this);
 
 
-        // Must exist before LavaPlayerManager starts a session: playback asks it
+        // Must exist before PlaybackManager starts a session: playback asks it
         // whether the jukebox has speakers paired to it.
         speakerGroupManager = new dev.valkdz.cdisc.speaker.SpeakerGroupManager(this);
 
@@ -104,7 +104,7 @@ public final class Main extends JavaPlugin {
         localDownloader = new dev.valkdz.cdisc.audio.LocalDownloader(this);
         trackDownloader = new dev.valkdz.cdisc.audio.TrackDownloader(this);
 
-        audioPlayerManager = new LavaPlayerManager(this);
+        audioPlayerManager = new PlaybackManager(this);
 
         audioPlayerManager.startQueuePersistence();
 
@@ -323,7 +323,7 @@ public final class Main extends JavaPlugin {
         audioPlayerManager.setVoiceBackend(voiceBackendManager.getBackend(), distance);
     }
 
-    public LavaPlayerManager getAudioPlayerManager() { return audioPlayerManager; }
+    public PlaybackManager getAudioPlayerManager() { return audioPlayerManager; }
     public MessageManager getMessageManager() { return messageManager; }
     public Config cdiscConfig() { return config; }
     public dev.valkdz.cdisc.permission.PermissionsConfig getPermissions() { return permissions; }

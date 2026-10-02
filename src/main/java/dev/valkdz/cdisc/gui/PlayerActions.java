@@ -1,7 +1,7 @@
 package dev.valkdz.cdisc.gui;
 
 import dev.valkdz.cdisc.Main;
-import dev.valkdz.cdisc.audio.LavaPlayerManager;
+import dev.valkdz.cdisc.audio.PlaybackManager;
 import dev.valkdz.cdisc.audio.queue.DiscQueue;
 import dev.valkdz.cdisc.audio.queue.RepeatMode;
 import dev.valkdz.cdisc.lyrics.LyricsMode;
@@ -21,7 +21,7 @@ public final class PlayerActions {
         this.plugin = plugin;
     }
 
-    private LavaPlayerManager audio() {
+    private PlaybackManager audio() {
         return plugin.getAudioPlayerManager();
     }
 
@@ -30,7 +30,7 @@ public final class PlayerActions {
     }
 
     public void startFromIdle(Block block, int direction) {
-        LavaPlayerManager apm = audio();
+        PlaybackManager apm = audio();
         DiscQueue queue = apm.getQueue(block);
 
         if (queue != null && !queue.isEmpty()) {

@@ -442,7 +442,7 @@ public final class LocalMusicLibrary {
     }
 
     // The walked Path still holds the name's real bytes; its String form may not.
-    // Lavaplayer opens files by String, so such a file is reached through an ASCII link.
+    // Tracks are opened by their path's String, so such a file is reached through an ASCII link.
     private synchronized File openable(Path actual, String real) {
         File direct = actual.toFile();
         if (direct.isFile()) return direct;

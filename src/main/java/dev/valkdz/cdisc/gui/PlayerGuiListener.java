@@ -1,7 +1,7 @@
 package dev.valkdz.cdisc.gui;
 
 import dev.valkdz.cdisc.Main;
-import dev.valkdz.cdisc.audio.LavaPlayerManager;
+import dev.valkdz.cdisc.audio.PlaybackManager;
 import dev.valkdz.cdisc.permission.Action;
 import dev.valkdz.cdisc.util.TimeUtils;
 import org.bukkit.block.Block;
@@ -31,7 +31,7 @@ public class PlayerGuiListener implements Listener {
         if (e.getClickedInventory() == null || e.getClickedInventory() != e.getView().getTopInventory()) return;
         if (!(e.getWhoClicked() instanceof Player player)) return;
 
-        LavaPlayerManager apm = plugin.getAudioPlayerManager();
+        PlaybackManager apm = plugin.getAudioPlayerManager();
         Block block = holder.getBlock();
 
         boolean playing = apm.hasActiveSession(block);
@@ -288,7 +288,7 @@ public class PlayerGuiListener implements Listener {
             return;
         }
 
-        LavaPlayerManager apm = plugin.getAudioPlayerManager();
+        PlaybackManager apm = plugin.getAudioPlayerManager();
         if (apm.isLive(block)) {
             player.sendMessage(plugin.getMessageManager().get(player, "gui.seek.live_blocked"));
             return;

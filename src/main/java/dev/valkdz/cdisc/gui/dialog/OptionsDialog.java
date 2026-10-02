@@ -1,7 +1,7 @@
 package dev.valkdz.cdisc.gui.dialog;
 
 import dev.valkdz.cdisc.Main;
-import dev.valkdz.cdisc.audio.LavaPlayerManager;
+import dev.valkdz.cdisc.audio.PlaybackManager;
 import dev.valkdz.cdisc.gui.PlayerActions;
 import dev.valkdz.cdisc.lyrics.LyricsMode;
 import dev.valkdz.cdisc.lyrics.LyricsPrefs;
@@ -44,8 +44,8 @@ final class OptionsDialog {
     }
 
     static void open(Main plugin, Player player, Block block) {
-        LavaPlayerManager apm = plugin.getAudioPlayerManager();
-        LavaPlayerManager.PlaybackInfo info = apm.getPlaybackInfo(block);
+        PlaybackManager apm = plugin.getAudioPlayerManager();
+        PlaybackManager.PlaybackInfo info = apm.getPlaybackInfo(block);
         SpeakerSettings speaker = SpeakerSettings.of(block);
 
         Shown shown = new Shown(

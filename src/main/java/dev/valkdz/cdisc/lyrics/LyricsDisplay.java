@@ -1,7 +1,7 @@
 package dev.valkdz.cdisc.lyrics;
 
 import dev.valkdz.cdisc.Main;
-import dev.valkdz.cdisc.audio.LavaPlayerManager;
+import dev.valkdz.cdisc.audio.PlaybackManager;
 import dev.valkdz.cdisc.lyrics.chat.ChatFeed;
 import dev.valkdz.cdisc.util.Config;
 import dev.valkdz.cdisc.util.DisplayCompat;
@@ -193,7 +193,7 @@ public final class LyricsDisplay {
     private static final int ANSWER_POLL_LIMIT = 24;
 
     public void announce(Player player, Block block) {
-        LavaPlayerManager.PlaybackInfo info = plugin.getAudioPlayerManager().getPlaybackInfo(block);
+        PlaybackManager.PlaybackInfo info = plugin.getAudioPlayerManager().getPlaybackInfo(block);
         if (info == null) {
             say(player, "§7", "gui.lyrics.status_idle");
             return;
@@ -256,7 +256,7 @@ public final class LyricsDisplay {
                 return;
             }
 
-            LavaPlayerManager.PlaybackInfo now =
+            PlaybackManager.PlaybackInfo now =
                     plugin.getAudioPlayerManager().getPlaybackInfo(block);
             if (now == null || !query.cacheKey().equals(
                     LyricsQuery.of(now.author(), now.title(), now.duration()).cacheKey())) {
@@ -383,7 +383,7 @@ public final class LyricsDisplay {
             return;
         }
 
-        LavaPlayerManager apm = plugin.getAudioPlayerManager();
+        PlaybackManager apm = plugin.getAudioPlayerManager();
         Set<Block> active = apm.activeBlocks();
 
         if (!states.isEmpty()) {
@@ -435,11 +435,11 @@ public final class LyricsDisplay {
         }
     }
 
-    private void update(Block block, LavaPlayerManager apm, Config config,
+    private void update(Block block, PlaybackManager apm, Config config,
                         HologramStyle defaults) {
         Hologram state = states.computeIfAbsent(block, b -> new Hologram());
 
-        LavaPlayerManager.PlaybackInfo info = apm.getPlaybackInfo(block);
+        PlaybackManager.PlaybackInfo info = apm.getPlaybackInfo(block);
 
         if (info == null || (plugin.getPortableJukeboxManager() != null
                 && plugin.getPortableJukeboxManager().isCarried(block))) {
@@ -484,12 +484,12 @@ public final class LyricsDisplay {
         else render(block, state, info, config);
     }
 
-    private SyncedLyrics lookup(LavaPlayerManager.PlaybackInfo info) {
+    private SyncedLyrics lookup(PlaybackManager.PlaybackInfo info) {
         LyricsService.Result result = service.lookup(info);
         return result.isFound() ? result.lyrics() : null;
     }
 
-    private void render(Block block, Hologram state, LavaPlayerManager.PlaybackInfo info,
+    private void render(Block block, Hologram state, PlaybackManager.PlaybackInfo info,
                         Config config) {
         long position = info.position();
         SyncedLyrics found = state.lyrics;
@@ -529,7 +529,7 @@ public final class LyricsDisplay {
         }
     }
 
-    private void renderChat(Block block, Hologram state, LavaPlayerManager.PlaybackInfo info,
+    private void renderChat(Block block, Hologram state, PlaybackManager.PlaybackInfo info,
                             ChatFeed.Snapshot chat, Config config) {
         int index = chat.index();
 

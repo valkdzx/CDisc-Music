@@ -1,7 +1,7 @@
 package dev.valkdz.cdisc.horn;
 
 import dev.valkdz.cdisc.Main;
-import dev.valkdz.cdisc.audio.LavaPlayerManager;
+import dev.valkdz.cdisc.audio.PlaybackManager;
 import dev.valkdz.cdisc.util.ItemUtils;
 import dev.valkdz.cdisc.util.Tasks;
 import dev.valkdz.cdisc.voice.VoiceSession;
@@ -135,7 +135,7 @@ public final class HornPlayer implements Listener {
         HornClips.Clip clip = clips.get(ItemUtils.readDiscData(item), clipMs);
         if (clip.failed()) return;
 
-        LavaPlayerManager apm = plugin.getAudioPlayerManager();
+        PlaybackManager apm = plugin.getAudioPlayerManager();
         SoundAnchor anchor = apm.getAnchorManager().createAt(player.getLocation());
         VoiceSession voice = apm.createFollowingSession(anchor.entity(),
                 (float) plugin.cdiscConfig().getGoatHornDistance());

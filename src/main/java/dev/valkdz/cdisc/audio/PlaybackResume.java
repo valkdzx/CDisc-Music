@@ -146,7 +146,7 @@ public final class PlaybackResume implements Listener {
         if (world == null) return;
 
         Block block = world.getBlockAt(entry.x(), entry.y(), entry.z());
-        LavaPlayerManager apm = plugin.getAudioPlayerManager();
+        PlaybackManager apm = plugin.getAudioPlayerManager();
 
         apm.setRepeatMode(block, entry.repeat());
         apm.setShuffle(block, entry.shuffle());
@@ -179,12 +179,12 @@ public final class PlaybackResume implements Listener {
             return;
         }
 
-        LavaPlayerManager apm = plugin.getAudioPlayerManager();
+        PlaybackManager apm = plugin.getAudioPlayerManager();
         YamlConfiguration cfg = new YamlConfiguration();
 
         Map<Block, Long> positions = new LinkedHashMap<>();
         for (Block block : apm.activeBlocks()) {
-            LavaPlayerManager.PlaybackInfo info = apm.getPlaybackInfo(block);
+            PlaybackManager.PlaybackInfo info = apm.getPlaybackInfo(block);
             if (info == null) continue;
 
             if (info.paused()) continue;

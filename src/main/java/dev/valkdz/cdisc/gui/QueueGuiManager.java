@@ -1,7 +1,7 @@
 package dev.valkdz.cdisc.gui;
 
 import dev.valkdz.cdisc.Main;
-import dev.valkdz.cdisc.audio.LavaPlayerManager;
+import dev.valkdz.cdisc.audio.PlaybackManager;
 import dev.valkdz.cdisc.audio.queue.DiscQueue;
 import dev.valkdz.cdisc.audio.queue.PlayedPolicy;
 import dev.valkdz.cdisc.permission.Action;
@@ -66,7 +66,7 @@ public class QueueGuiManager {
         if (!plugin.getPermissions().allows(player, Action.QUEUE_OPEN)) return;
         if (!plugin.getRegionGuard().require(player, block)) return;
 
-        LavaPlayerManager apm = plugin.getAudioPlayerManager();
+        PlaybackManager apm = plugin.getAudioPlayerManager();
 
         if (!apm.hasActiveSession(block)
                 && apm.getQueue(block) == null
@@ -123,7 +123,7 @@ public class QueueGuiManager {
     // moved on meanwhile (dropped, ejected, advanced), and a whole-GUI copy resurrects discs.
     public void persist(Inventory inventory, Block block) {
         if (!(inventory.getHolder() instanceof QueueGuiHolder holder)) return;
-        LavaPlayerManager apm = plugin.getAudioPlayerManager();
+        PlaybackManager apm = plugin.getAudioPlayerManager();
         DiscQueue queue = apm.getQueue(block);
         if (queue == null) return;
 
@@ -198,7 +198,7 @@ public class QueueGuiManager {
     public void openPlayConfirm(Player player, Block block, int queueIndex) {
         if (!plugin.getPermissions().allows(player, Action.QUEUE_PLAY)) return;
 
-        LavaPlayerManager apm = plugin.getAudioPlayerManager();
+        PlaybackManager apm = plugin.getAudioPlayerManager();
 
         DiscQueue queue = apm.getQueue(block);
         if (queue == null) return;

@@ -107,10 +107,6 @@ public class AudioSession {
             return;
         }
 
-        Staged waiting = staged.get();
-        // lavaplayer stops a player nobody polls for a minute; paused, this reads no frame.
-        if (waiting != null) waiting.next().provide();
-
         if (player.isPaused()) {
             // A paused player reads no frame, so a seek made meanwhile can only land on resume.
             if (seekTarget >= 0) seekSince = System.currentTimeMillis();
@@ -156,8 +152,8 @@ public class AudioSession {
         }
     }
 
-    // Until the first frame from the new place arrives, lavaplayer reports the last frame it
-    // played, so the bar, the lyrics and a second seek would all start from the old place.
+    // Until the first frame from the new place arrives, the frames already read report the old
+    // place, so the bar, the lyrics and a second seek would all start from there.
     public void seeking(AudioTrack track, long target) {
         seekSince = System.currentTimeMillis();
         seekTrack = track;

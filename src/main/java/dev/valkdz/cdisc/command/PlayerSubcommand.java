@@ -1,7 +1,7 @@
 package dev.valkdz.cdisc.command;
 
 import dev.valkdz.cdisc.Main;
-import dev.valkdz.cdisc.audio.LavaPlayerManager;
+import dev.valkdz.cdisc.audio.PlaybackManager;
 import dev.valkdz.cdisc.audio.queue.RepeatMode;
 import dev.valkdz.cdisc.permission.Action;
 import dev.valkdz.cdisc.portable.PortableJukeboxManager;
@@ -36,7 +36,7 @@ public final class PlayerSubcommand {
         }
         if (!plugin.getRegionGuard().require(player, block)) return;
 
-        LavaPlayerManager apm = plugin.getAudioPlayerManager();
+        PlaybackManager apm = plugin.getAudioPlayerManager();
         String sub = args.length < 2 ? "info" : args[1].toLowerCase(Locale.ROOT);
 
         boolean needsPlayback = !sub.equals("gui");
@@ -129,7 +129,7 @@ public final class PlayerSubcommand {
         };
     }
 
-    private void upNext(Player player, LavaPlayerManager apm, Block block) {
+    private void upNext(Player player, PlaybackManager apm, Block block) {
         if (apm.isShuffle(block)) {
             player.sendMessage("§7" + plugin.getMessageManager()
                     .get(player, "command.player.up_next_shuffle"));
@@ -159,7 +159,7 @@ public final class PlayerSubcommand {
                 .track(player, "command.player.up_next", 0, author, data.title()));
     }
 
-    private void seek(Player player, LavaPlayerManager apm, Block block, String[] args) {
+    private void seek(Player player, PlaybackManager apm, Block block, String[] args) {
         if (args.length < 3) {
             msg(player, "§c", "command.player.seek_usage");
             return;
@@ -189,12 +189,12 @@ public final class PlayerSubcommand {
             apm.seekTo(block, target);
         }
 
-        LavaPlayerManager.PlaybackInfo info = apm.getPlaybackInfo(block);
+        PlaybackManager.PlaybackInfo info = apm.getPlaybackInfo(block);
         String at = info == null ? raw : TimeUtils.format(info.position());
         player.sendMessage("§a" + plugin.getMessageManager().get(player, "gui.seek.success", at));
     }
 
-    private void repeat(Player player, LavaPlayerManager apm, Block block, String[] args) {
+    private void repeat(Player player, PlaybackManager apm, Block block, String[] args) {
         RepeatMode mode;
         if (args.length < 3) {
             mode = apm.cycleRepeat(block);
@@ -216,8 +216,8 @@ public final class PlayerSubcommand {
         player.sendMessage("§a" + plugin.getMessageManager().get(player, "command.player.repeat_set", name));
     }
 
-    private void info(Player player, LavaPlayerManager apm, Block block) {
-        LavaPlayerManager.PlaybackInfo info = apm.getPlaybackInfo(block);
+    private void info(Player player, PlaybackManager apm, Block block) {
+        PlaybackManager.PlaybackInfo info = apm.getPlaybackInfo(block);
         if (info == null) {
             msg(player, "§c", "command.player.not_playing");
             return;

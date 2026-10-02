@@ -4,7 +4,7 @@ import de.tr7zw.changeme.nbtapi.NBT;
 import de.tr7zw.changeme.nbtapi.iface.ReadWriteNBT;
 import de.tr7zw.changeme.nbtapi.iface.ReadableNBT;
 import dev.valkdz.cdisc.Main;
-import dev.valkdz.cdisc.audio.LavaPlayerManager;
+import dev.valkdz.cdisc.audio.PlaybackManager;
 import dev.valkdz.cdisc.audio.queue.DiscQueue;
 import dev.valkdz.cdisc.util.DiscStorage;
 import dev.valkdz.cdisc.util.Tasks;
@@ -137,7 +137,7 @@ public final class PortableJukeboxManager {
         if (plugin.getSpeakerGroupManager().groupAt(block) != null) return false;
         if (!plugin.getRegionGuard().require(player, block)) return false;
 
-        LavaPlayerManager apm = plugin.getAudioPlayerManager();
+        PlaybackManager apm = plugin.getAudioPlayerManager();
         SoundAnchor anchor = apm.getAnchor(block);
         if (anchor == null || !anchor.isAlive()) return false;
 
@@ -165,7 +165,7 @@ public final class PortableJukeboxManager {
     }
 
     private void followIntoWorld(Carry carry, Player carrier) {
-        LavaPlayerManager apm = plugin.getAudioPlayerManager();
+        PlaybackManager apm = plugin.getAudioPlayerManager();
 
         apm.rebindAnchor(carry.origin(), audioPointFor(carrier));
 
@@ -268,7 +268,7 @@ public final class PortableJukeboxManager {
         if (held.isEmpty()) carries.remove(carry.carrier());
         handleSlots.remove(carry.id());
 
-        LavaPlayerManager apm = plugin.getAudioPlayerManager();
+        PlaybackManager apm = plugin.getAudioPlayerManager();
         Block origin = carry.origin();
 
         List<ItemStack> discs = apm.drainQueue(origin);

@@ -1,7 +1,7 @@
 package dev.valkdz.cdisc.gui.dialog;
 
 import dev.valkdz.cdisc.Main;
-import dev.valkdz.cdisc.audio.LavaPlayerManager;
+import dev.valkdz.cdisc.audio.PlaybackManager;
 import dev.valkdz.cdisc.audio.queue.RepeatMode;
 import dev.valkdz.cdisc.gui.PlayerActions;
 import dev.valkdz.cdisc.permission.Action;
@@ -78,7 +78,7 @@ final class PlayerDialog {
     }
 
     private static boolean draw(Main plugin, Player player, Block block) {
-        LavaPlayerManager apm = plugin.getAudioPlayerManager();
+        PlaybackManager apm = plugin.getAudioPlayerManager();
 
         if (!plugin.getPlayerGuiManager().canOpen(apm, block)) {
             audience(player).closeDialog();
@@ -87,7 +87,7 @@ final class PlayerDialog {
             return false;
         }
 
-        LavaPlayerManager.PlaybackInfo info = apm.getPlaybackInfo(block);
+        PlaybackManager.PlaybackInfo info = apm.getPlaybackInfo(block);
 
         DialogBase base = DialogBase.builder(title(plugin, player, info))
 
@@ -117,14 +117,14 @@ final class PlayerDialog {
     }
 
     private static Component title(Main plugin, Player player,
-                                   LavaPlayerManager.PlaybackInfo info) {
+                                   PlaybackManager.PlaybackInfo info) {
         if (info == null) return text(plugin, player, "gui.title");
         if (info.author() == null || info.author().isBlank()) return legacy("§f§l" + info.title());
         return legacy("§f§l" + info.title() + " §r§7— " + info.author());
     }
 
     private static List<DialogBody> body(Main plugin, Player player, Block block,
-                                         LavaPlayerManager.PlaybackInfo info) {
+                                         PlaybackManager.PlaybackInfo info) {
         List<DialogBody> lines = new ArrayList<>();
 
         if (info == null) {
@@ -138,7 +138,7 @@ final class PlayerDialog {
     }
 
     private static String progress(Main plugin, Player player,
-                                   LavaPlayerManager.PlaybackInfo info) {
+                                   PlaybackManager.PlaybackInfo info) {
         if (info.live()) return plugin.getMessageManager().get(player, "gui.title_live");
 
         String position = TimeUtils.formatCompact(info.position());
@@ -153,7 +153,7 @@ final class PlayerDialog {
     }
 
     private static String state(Main plugin, Player player, Block block) {
-        LavaPlayerManager apm = plugin.getAudioPlayerManager();
+        PlaybackManager apm = plugin.getAudioPlayerManager();
         SpeakerSettings speaker = SpeakerSettings.of(block);
 
         return plugin.getMessageManager().get(player, "gui.dialog.state",
@@ -165,9 +165,9 @@ final class PlayerDialog {
     }
 
     private static List<ActionButton> buttons(Main plugin, Player player, Block block,
-                                              LavaPlayerManager.PlaybackInfo info) {
+                                              PlaybackManager.PlaybackInfo info) {
         PlayerActions actions = plugin.getPlayerActions();
-        LavaPlayerManager apm = plugin.getAudioPlayerManager();
+        PlaybackManager apm = plugin.getAudioPlayerManager();
         List<ActionButton> buttons = new ArrayList<>();
 
         boolean playing = info != null;

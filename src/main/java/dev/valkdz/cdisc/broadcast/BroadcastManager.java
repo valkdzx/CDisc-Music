@@ -3,7 +3,7 @@ package dev.valkdz.cdisc.broadcast;
 import dev.valkdz.cdisc.Main;
 import dev.valkdz.cdisc.api.event.PlaybackStopEvent;
 import dev.valkdz.cdisc.api.event.TrackStartEvent;
-import dev.valkdz.cdisc.audio.LavaPlayerManager;
+import dev.valkdz.cdisc.audio.PlaybackManager;
 import dev.valkdz.cdisc.audio.queue.DiscQueue;
 import dev.valkdz.cdisc.permission.Perms;
 import dev.valkdz.cdisc.speaker.SpeakerSettings;
@@ -128,7 +128,7 @@ public final class BroadcastManager implements Listener, MicrophoneSink {
                 : plugin.getVoiceBackendManager().getBackend();
     }
 
-    private LavaPlayerManager audio() {
+    private PlaybackManager audio() {
         return plugin.getAudioPlayerManager();
     }
 
@@ -687,7 +687,7 @@ public final class BroadcastManager implements Listener, MicrophoneSink {
     private void resumeMissed() {
         for (Block jukebox : audio().activeBlocks()) {
             if (stations.containsKey(jukebox)) continue;
-            LavaPlayerManager.PlaybackInfo info = audio().getPlaybackInfo(jukebox);
+            PlaybackManager.PlaybackInfo info = audio().getPlaybackInfo(jukebox);
             if (info == null || !BroadcastTrack.isAddress(info.uri())) continue;
             Tasks.region(plugin, jukebox, () -> activate(jukebox, info.title()));
         }
@@ -732,7 +732,7 @@ public final class BroadcastManager implements Listener, MicrophoneSink {
     }
 
     private void rebuildOutputs(BroadcastStation station, boolean force) {
-        List<LavaPlayerManager.AudibleAnchor> anchors = audio().audibleAnchors(station.jukebox());
+        List<PlaybackManager.AudibleAnchor> anchors = audio().audibleAnchors(station.jukebox());
         List<UUID> ids = anchors.stream().map(anchor -> anchor.entity().getUniqueId()).toList();
         if (!force && ids.equals(station.anchorIds())) return;
 
@@ -744,12 +744,12 @@ public final class BroadcastManager implements Listener, MicrophoneSink {
         buildOutputs(station, mic, audio().audibleAnchors(station.jukebox()));
     }
 
-    private void buildOutputs(BroadcastStation station, Microphone mic, List<LavaPlayerManager.AudibleAnchor> anchors) {
+    private void buildOutputs(BroadcastStation station, Microphone mic, List<PlaybackManager.AudibleAnchor> anchors) {
         VoiceBackend backend = output();
         List<Microphone.Output> fresh = new ArrayList<>();
         if (backend != null && isLive(station, mic)) {
             float distance = audio().effectiveDistance(station.jukebox());
-            for (LavaPlayerManager.AudibleAnchor anchor : anchors) {
+            for (PlaybackManager.AudibleAnchor anchor : anchors) {
                 VoiceSession session = backend.createSyncedEntitySession(anchor.entity(), distance);
                 if (session == null) continue;
                 SpeakerSettings settings = SpeakerSettings.of(anchor.block());

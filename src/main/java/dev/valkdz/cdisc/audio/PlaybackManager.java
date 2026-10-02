@@ -50,12 +50,12 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
-public class LavaPlayerManager {
+public class PlaybackManager {
     private final Main plugin;
     private final TrackLoader trackLoader;
     private final NowPlayingBroadcaster broadcaster;
 
-    // Track-end callbacks read both of these on a LavaPlayer thread while the main thread writes them.
+    // Track-end callbacks read both of these on a track thread while the main thread writes them.
     private final Map<Block, List<AudioSession>> sessions = new ConcurrentHashMap<>();
     private final Map<Block, Integer> generation = new ConcurrentHashMap<>();
 
@@ -86,7 +86,7 @@ public class LavaPlayerManager {
 
     private static final long CROSSFADE_PRELOAD_MS = 10_000L;
 
-    public LavaPlayerManager(Main plugin) {
+    public PlaybackManager(Main plugin) {
         this.plugin = plugin;
         this.trackLoader = new TrackLoader(plugin);
         this.broadcaster = new NowPlayingBroadcaster(plugin);
@@ -915,7 +915,7 @@ public class LavaPlayerManager {
                 player.addListener(trackEvents(ref, gen, session, resolved));
 
                 broadcaster.broadcast(ref.get(), audibleOrigin(ref.get()), track, discTitle, discAuthor,
-                        (int) effectiveDistance(ref.get()), LavaPlayerManager.this::hasActiveSession);
+                        (int) effectiveDistance(ref.get()), PlaybackManager.this::hasActiveSession);
                 announce(ref.get(), track, discTitle, discAuthor, TrackStartEvent.Cause.DISC);
             }
 
@@ -1125,7 +1125,7 @@ public class LavaPlayerManager {
                 track.getInfo().isStream, source, cause));
     }
 
-    // Load callbacks arrive on a LavaPlayer thread, and both halves spawn and remove
+    // Load callbacks arrive on a loader thread, and both halves spawn and remove
     // entities, which the server refuses off the main thread.
     private void fallBack(BlockRef ref, int gen, String fallbackQuery, String discTitle, String discAuthor) {
         Tasks.region(plugin, ref.get(), () -> {
@@ -1438,7 +1438,7 @@ public class LavaPlayerManager {
                 player.playTrack(track);
                 player.setVolume(volumeFor(track));
                 broadcaster.broadcast(here(ref, block), audibleOrigin(here(ref, block)), track, title, author,
-                        (int) effectiveDistance(here(ref, block)), LavaPlayerManager.this::hasActiveSession);
+                        (int) effectiveDistance(here(ref, block)), PlaybackManager.this::hasActiveSession);
                 Tasks.region(plugin, here(ref, block), () -> refreshQueueGuis(here(ref, block)));
                 announce(here(ref, block), track, title, author, TrackStartEvent.Cause.QUEUE);
             }

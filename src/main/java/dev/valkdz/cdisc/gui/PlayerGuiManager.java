@@ -1,7 +1,7 @@
 package dev.valkdz.cdisc.gui;
 
 import dev.valkdz.cdisc.Main;
-import dev.valkdz.cdisc.audio.LavaPlayerManager;
+import dev.valkdz.cdisc.audio.PlaybackManager;
 import dev.valkdz.cdisc.audio.queue.DiscQueue;
 import dev.valkdz.cdisc.audio.queue.RepeatMode;
 import dev.valkdz.cdisc.lyrics.LyricsMode;
@@ -99,7 +99,7 @@ public class PlayerGuiManager {
 
         for (Map.Entry<Block, Set<Player>> entry : openViewers.entrySet()) {
             Block block = entry.getKey();
-            LavaPlayerManager.PlaybackInfo info = plugin.getAudioPlayerManager().getPlaybackInfo(block);
+            PlaybackManager.PlaybackInfo info = plugin.getAudioPlayerManager().getPlaybackInfo(block);
             if (info == null) continue;
 
             String progress_position = TimeUtils.formatCompact(info.position());
@@ -127,7 +127,7 @@ public class PlayerGuiManager {
     }
 
     private void refreshLyricsItem(Player player, Inventory inventory, Block block,
-                                   LavaPlayerManager.PlaybackInfo info) {
+                                   PlaybackManager.PlaybackInfo info) {
         if (!plugin.cdiscConfig().isLyricsEnabled()) return;
 
         ItemStack item = buildLyricsItem(player, block, info);
@@ -146,7 +146,7 @@ public class PlayerGuiManager {
         if (!plugin.getPermissions().allows(player, Action.PLAYER_GUI)) return;
         if (!plugin.getRegionGuard().require(player, block)) return;
 
-        LavaPlayerManager apm = plugin.getAudioPlayerManager();
+        PlaybackManager apm = plugin.getAudioPlayerManager();
         if (!canOpen(apm, block)) {
 
             player.sendMessage("§c" + plugin.getMessageManager()
@@ -174,7 +174,7 @@ public class PlayerGuiManager {
         if (!plugin.getPermissions().allows(player, Action.PLAYER_GUI)) return;
         if (!plugin.getRegionGuard().require(player, block)) return;
 
-        LavaPlayerManager apm = plugin.getAudioPlayerManager();
+        PlaybackManager apm = plugin.getAudioPlayerManager();
         if (!canOpen(apm, block) || plugin.getJukeboxViewers().heldByOther(block, player)) {
             open(player, block);
             return;
@@ -222,7 +222,7 @@ public class PlayerGuiManager {
         openViewers.computeIfAbsent(block, b -> ConcurrentHashMap.newKeySet()).add(player);
     }
 
-    public boolean canOpen(LavaPlayerManager apm, Block block) {
+    public boolean canOpen(PlaybackManager apm, Block block) {
         if (apm.hasActiveSession(block)) return true;
         if (apm.getQueue(block) != null) return true;
 
@@ -269,7 +269,7 @@ public class PlayerGuiManager {
     }
 
     private void refreshLocal(Player player, Inventory inventory, Block block,
-                              LavaPlayerManager.PlaybackInfo info) {
+                              PlaybackManager.PlaybackInfo info) {
         ItemStack filler = fillerPane();
         for (int slot = 0; slot < inventory.getSize(); slot++) {
             inventory.setItem(slot, filler);
@@ -310,8 +310,8 @@ public class PlayerGuiManager {
     }
 
     private void refresh(Player player, Inventory inventory, Block block) {
-        LavaPlayerManager apm = plugin.getAudioPlayerManager();
-        LavaPlayerManager.PlaybackInfo info = apm.getPlaybackInfo(block);
+        PlaybackManager apm = plugin.getAudioPlayerManager();
+        PlaybackManager.PlaybackInfo info = apm.getPlaybackInfo(block);
 
         if (inventory.getHolder() instanceof PlayerGuiHolder holder) {
             if (holder.isLocal()) {
@@ -580,7 +580,7 @@ public class PlayerGuiManager {
                 meta == null || meta.getLore() == null ? "" : String.join("\n", meta.getLore()));
     }
 
-    private ItemStack buildLyricsItem(Player player, Block block, LavaPlayerManager.PlaybackInfo info) {
+    private ItemStack buildLyricsItem(Player player, Block block, PlaybackManager.PlaybackInfo info) {
         if (!plugin.cdiscConfig().isLyricsEnabled()) return null;
 
         LyricsMode current = LyricsPrefs.mode(player);
@@ -607,7 +607,7 @@ public class PlayerGuiManager {
         return item;
     }
 
-    private List<String> lyricsLore(Player player, LavaPlayerManager.PlaybackInfo info) {
+    private List<String> lyricsLore(Player player, PlaybackManager.PlaybackInfo info) {
         if (!plugin.cdiscConfig().isLyricsInGui()) return List.of();
 
         if (info == null) return List.of();
@@ -788,7 +788,7 @@ public class PlayerGuiManager {
         int maxLevel = BeaconUtils.maxRangeLevel(tier);
         if (maxLevel < 1) return null;
 
-        LavaPlayerManager apm = plugin.getAudioPlayerManager();
+        PlaybackManager apm = plugin.getAudioPlayerManager();
         int level = apm.getBeaconRangeLevel(block);
         if (level > maxLevel) {
             apm.setBeaconRangeLevel(block, maxLevel);
@@ -832,7 +832,7 @@ public class PlayerGuiManager {
         awaitingSeekChat.remove(player.getUniqueId());
     }
 
-    private ItemStack buildInfoItem(Player player, LavaPlayerManager.PlaybackInfo info) {
+    private ItemStack buildInfoItem(Player player, PlaybackManager.PlaybackInfo info) {
         ItemStack item = HeadUtils.createHead(GuiHeads.INFO);
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return item;
@@ -861,7 +861,7 @@ public class PlayerGuiManager {
         return item;
     }
 
-    private ItemStack buildPauseItem(Player player, LavaPlayerManager.PlaybackInfo info) {
+    private ItemStack buildPauseItem(Player player, PlaybackManager.PlaybackInfo info) {
 
         boolean stopped = info == null || info.paused();
 
@@ -876,7 +876,7 @@ public class PlayerGuiManager {
     }
 
     private ItemStack buildRepeatItem(Player player, Block block,
-                                      LavaPlayerManager.PlaybackInfo info) {
+                                      PlaybackManager.PlaybackInfo info) {
 
         RepeatMode mode = info != null ? info.repeatMode()
                 : plugin.getAudioPlayerManager().getRepeatMode(block);

@@ -1,7 +1,7 @@
 package dev.valkdz.cdisc.lyrics;
 
 import dev.valkdz.cdisc.Main;
-import dev.valkdz.cdisc.audio.LavaPlayerManager;
+import dev.valkdz.cdisc.audio.PlaybackManager;
 import dev.valkdz.cdisc.portable.PortableJukeboxManager;
 import dev.valkdz.cdisc.util.Config;
 import dev.valkdz.cdisc.util.DisplayCompat;
@@ -228,8 +228,8 @@ public final class CarriedLyrics {
         PortableJukeboxManager.Carry carry = portable.carryOf(player);
         Block origin = carry.origin();
 
-        LavaPlayerManager apm = plugin.getAudioPlayerManager();
-        LavaPlayerManager.PlaybackInfo info = apm.getPlaybackInfo(origin);
+        PlaybackManager apm = plugin.getAudioPlayerManager();
+        PlaybackManager.PlaybackInfo info = apm.getPlaybackInfo(origin);
         if (info == null || info.live()) {
             hide(player);
             return;
@@ -269,7 +269,7 @@ public final class CarriedLyrics {
     }
 
     private void writeSidebar(Player player, Shown state, List<String> lines,
-                              LavaPlayerManager.PlaybackInfo info) {
+                              PlaybackManager.PlaybackInfo info) {
         if (state.board == null) {
             state.board = Bukkit.getScoreboardManager().getNewScoreboard();
             state.objective = state.board.registerNewObjective(

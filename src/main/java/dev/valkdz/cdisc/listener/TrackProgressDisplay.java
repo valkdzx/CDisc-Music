@@ -1,7 +1,7 @@
 package dev.valkdz.cdisc.listener;
 
 import dev.valkdz.cdisc.Main;
-import dev.valkdz.cdisc.audio.LavaPlayerManager;
+import dev.valkdz.cdisc.audio.PlaybackManager;
 import dev.valkdz.cdisc.util.ItemUtils;
 import dev.valkdz.cdisc.util.PlayerPrefs;
 import dev.valkdz.cdisc.util.SneakMode;
@@ -137,7 +137,7 @@ public class TrackProgressDisplay implements Listener {
         pickUpHeldSneaks();
         if (watching.isEmpty()) return;
 
-        LavaPlayerManager apm = plugin.getAudioPlayerManager();
+        PlaybackManager apm = plugin.getAudioPlayerManager();
 
         for (UUID id : Set.copyOf(watching)) {
             Player player = plugin.getServer().getPlayer(id);
@@ -151,7 +151,7 @@ public class TrackProgressDisplay implements Listener {
         }
     }
 
-    private void follow(LavaPlayerManager apm, UUID id, Player player) {
+    private void follow(PlaybackManager apm, UUID id, Player player) {
         if (sneakHeld.contains(id) && !player.isSneaking()) {
             stopWatching(player);
             return;
@@ -170,7 +170,7 @@ public class TrackProgressDisplay implements Listener {
             return;
         }
 
-        LavaPlayerManager.PlaybackInfo info = apm.getPlaybackInfo(block);
+        PlaybackManager.PlaybackInfo info = apm.getPlaybackInfo(block);
         if (info == null) {
 
             if (!apm.hasActiveSession(block)) {
@@ -201,7 +201,7 @@ public class TrackProgressDisplay implements Listener {
         return ItemUtils.isCdiscDisc(jukebox.getRecord());
     }
 
-    private void updateBossBar(Player player, LavaPlayerManager.PlaybackInfo info) {
+    private void updateBossBar(Player player, PlaybackManager.PlaybackInfo info) {
         UUID id = player.getUniqueId();
 
         String title;

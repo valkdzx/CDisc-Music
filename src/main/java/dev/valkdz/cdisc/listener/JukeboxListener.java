@@ -4,7 +4,7 @@ import de.tr7zw.changeme.nbtapi.NBT;
 import de.tr7zw.changeme.nbtapi.iface.ReadWriteNBT;
 import dev.valkdz.cdisc.Main;
 import dev.valkdz.cdisc.audio.AudioSession;
-import dev.valkdz.cdisc.audio.LavaPlayerManager;
+import dev.valkdz.cdisc.audio.PlaybackManager;
 import dev.valkdz.cdisc.net.WorldEventPacketInterceptor;
 import dev.valkdz.cdisc.region.RegionGuard;
 import dev.valkdz.cdisc.util.ItemUtils;
@@ -150,7 +150,7 @@ public class JukeboxListener implements Listener {
         Block block = e.getClickedBlock();
         if (block == null || block.getType() != Material.JUKEBOX) return;
 
-        LavaPlayerManager apm = plugin.getAudioPlayerManager();
+        PlaybackManager apm = plugin.getAudioPlayerManager();
         if (apm.hasActiveSession(block)) return;
 
         e.setCancelled(true);
@@ -234,7 +234,7 @@ public class JukeboxListener implements Listener {
         if (!(block.getState() instanceof Jukebox jukebox)) return;
         if (!ItemUtils.isCdiscDisc(jukebox.getRecord())) return;
 
-        LavaPlayerManager apm = plugin.getAudioPlayerManager();
+        PlaybackManager apm = plugin.getAudioPlayerManager();
         if (!apm.getSessions(block).isEmpty()) return;
 
         if (!jukebox.hasRecord()) {
@@ -287,7 +287,7 @@ public class JukeboxListener implements Listener {
 
                 if (!hasRecord) {
                     customDiscBlocks.remove(key);
-                    LavaPlayerManager apm = plugin.getAudioPlayerManager();
+                    PlaybackManager apm = plugin.getAudioPlayerManager();
                     apm.stopPlaying(jukebox.getBlock(), apm.getGeneration(jukebox.getBlock()));
                     return;
                 }
@@ -338,7 +338,7 @@ public class JukeboxListener implements Listener {
     public void onBreak(BlockBreakEvent e) {
         if (e.getBlock().getType() == Material.JUKEBOX) {
             clearJukeboxNBT(e.getBlock());
-            LavaPlayerManager apm = plugin.getAudioPlayerManager();
+            PlaybackManager apm = plugin.getAudioPlayerManager();
             apm.stopPlaying(e.getBlock(), apm.getGeneration(e.getBlock()));
             if (packQueueIntoDroppedJukebox(e.getBlock(), e.getPlayer())) {
 
@@ -352,14 +352,14 @@ public class JukeboxListener implements Listener {
     public void onBurn(BlockBurnEvent e) {
         if (e.getBlock().getType() != Material.JUKEBOX) return;
         clearJukeboxNBT(e.getBlock());
-        LavaPlayerManager apm = plugin.getAudioPlayerManager();
+        PlaybackManager apm = plugin.getAudioPlayerManager();
         apm.stopPlaying(e.getBlock(), apm.getGeneration(e.getBlock()));
         packQueueIntoDroppedJukebox(e.getBlock(), null);
         customDiscBlocks.remove(BlockKey.of(e.getBlock()));
     }
 
     private boolean packQueueIntoDroppedJukebox(Block block, Player breaker) {
-        LavaPlayerManager apm = plugin.getAudioPlayerManager();
+        PlaybackManager apm = plugin.getAudioPlayerManager();
         DiscQueue queue = apm.getQueue(block);
         // Before the drain, whose PDC write restarts a CDisc record's vanilla song. Only a CDisc
         // record has its copy in the queue; a vanilla one must still fall out of the jukebox.
@@ -469,7 +469,7 @@ public class JukeboxListener implements Listener {
     // whole, so its music keeps playing.
     private boolean holdsCdisc(Block block) {
         if (block.getType() != Material.JUKEBOX) return false;
-        LavaPlayerManager apm = plugin.getAudioPlayerManager();
+        PlaybackManager apm = plugin.getAudioPlayerManager();
         if (apm.hasActiveSession(block) || apm.getQueue(block) != null) return true;
         return block.getState() instanceof Jukebox jukebox && ItemUtils.isCdiscDisc(jukebox.getRecord());
     }

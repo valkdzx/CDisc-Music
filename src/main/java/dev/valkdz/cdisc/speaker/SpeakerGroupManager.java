@@ -124,7 +124,7 @@ public final class SpeakerGroupManager {
     }
 
     private boolean busy(Block speaker) {
-        dev.valkdz.cdisc.audio.LavaPlayerManager audio = plugin.getAudioPlayerManager();
+        dev.valkdz.cdisc.audio.PlaybackManager audio = plugin.getAudioPlayerManager();
         if (audio.hasActiveSession(speaker)) return true;
         dev.valkdz.cdisc.audio.queue.DiscQueue queue = audio.getQueue(speaker);
         if (queue != null && !queue.isEmpty()) return true;

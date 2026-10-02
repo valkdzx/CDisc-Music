@@ -1,7 +1,7 @@
 package dev.valkdz.cdisc.gui;
 
 import dev.valkdz.cdisc.Main;
-import dev.valkdz.cdisc.audio.LavaPlayerManager;
+import dev.valkdz.cdisc.audio.PlaybackManager;
 import dev.valkdz.cdisc.audio.queue.DiscQueue;
 import dev.valkdz.cdisc.permission.Action;
 import dev.valkdz.cdisc.util.ItemUtils;
@@ -34,7 +34,7 @@ public class QueueGuiListener implements Listener {
         if (!(e.getInventory().getHolder() instanceof QueueGuiHolder holder)) return;
         if (!(e.getWhoClicked() instanceof Player player)) return;
 
-        LavaPlayerManager apm = plugin.getAudioPlayerManager();
+        PlaybackManager apm = plugin.getAudioPlayerManager();
         Block block = holder.getBlock();
 
         boolean alive = apm.hasActiveSession(block) || apm.getQueue(block) != null;
@@ -228,7 +228,7 @@ public class QueueGuiListener implements Listener {
 
         int raw = e.getRawSlot();
         Block block = confirm.getBlock();
-        LavaPlayerManager apm = plugin.getAudioPlayerManager();
+        PlaybackManager apm = plugin.getAudioPlayerManager();
 
         if (raw == QueueGuiManager.CONFIRM_SLOT_YES) {
 
