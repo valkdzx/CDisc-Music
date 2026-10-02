@@ -940,6 +940,15 @@ public class TrackLoader {
         return videoId == null ? null : backendForAgeGate().proxyStreamUrlFor(videoId);
     }
 
+    // SoundCloud serves a subscription-only track as a 30-second clip under the full track's
+    // length, so it stops at 0:30 and a seek past that fails to decode.
+    public static boolean isPreviewOnly(AudioTrack track) {
+        if (track == null || track.getSourceManager() == null) return false;
+        String identifier = track.getInfo().identifier;
+        return "soundcloud".equals(track.getSourceManager().getSourceName())
+                && identifier != null && identifier.contains("/preview/");
+    }
+
     public static boolean isSearch(String resolved) {
         int colon = resolved.indexOf(':');
         return colon > 0 && resolved.substring(0, colon).endsWith("search");

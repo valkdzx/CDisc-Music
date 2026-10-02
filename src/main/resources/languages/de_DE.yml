@@ -108,6 +108,7 @@ lavaplayer:
     age_substituted: "YouTube verlangt für diesen Track ein Konto — stattdessen läuft ein anderer Upload gleicher Länge."
     error: "Fehler beim Laden: %s"
     invalid_query: "Da gibt es nichts zu suchen. Versuch local:<Datei> für die Musik des Servers, sc:<Wörter> für SoundCloud, yt:<Wörter> für YouTube, oder füg einen Link ein."
+    preview_only: "SoundCloud gibt diesen Track nur als 30-Sekunden-Vorschau frei, deshalb kann er nicht auf eine Schallplatte."
 local:
   disabled: "Der Musikordner des Servers ist abgeschaltet."
   empty: "Der Musikordner des Servers ist leer — daraus lässt sich noch nichts spielen."

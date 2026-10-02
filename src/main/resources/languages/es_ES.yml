@@ -108,6 +108,7 @@ lavaplayer:
     age_substituted: "YouTube pide una cuenta para esta pista: en su lugar suena otra subida de la misma duración."
     error: "Error al cargar: %s"
     invalid_query: "Ahí no hay nada que buscar. Prueba local:<archivo> para la música del servidor, sc:<palabras> para SoundCloud, yt:<palabras> para YouTube, o pega un enlace."
+    preview_only: "SoundCloud solo deja escuchar esta pista como un avance de 30 segundos, así que no se puede grabar en un disco."
 local:
   disabled: "La carpeta de música del servidor está desactivada."
   empty: "La carpeta de música del servidor está vacía — todavía no hay nada que reproducir."

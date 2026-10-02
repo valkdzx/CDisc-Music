@@ -25,6 +25,7 @@
 - YouTube: on a server whose address YouTube distrusts, tracks start sooner. After three direct reads in a row fail for the server's address (the bot check, or no answer), the backend is asked first for ten minutes instead of after another failed attempt each time.
 - Seeking a YouTube track played through the backend works again. The audio was asked for in a way YouTube slows to a crawl, so a seek could take ten seconds or never land, and playback itself could fall behind.
 - Seeking no longer jumps back. While the new place loaded, the time in the boss bar, the player screen and the lyrics showed the old place again, the old audio kept playing, and a second seek counted from there. The time now stays on the new place, and the old audio stops at once.
+- SoundCloud tracks that SoundCloud only plays as a 30-second preview are left out of search results and refused as links, with a message saying why. They used to become discs that showed the full length, stopped at 0:30 and ended when seeked past it. A goat horn still takes them, since its clip fits in the preview.
 
 ## 2.1.1-fix2
 

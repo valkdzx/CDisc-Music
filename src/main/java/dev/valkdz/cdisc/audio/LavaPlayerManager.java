@@ -590,7 +590,7 @@ public class LavaPlayerManager {
                            CompletableFuture<List<CustomYoutubeApiResolver.Hit>> alsoAsked,
                            AudioLoadResultHandler handler) {
 
-        Offer offer = offerable(player, local, limit);
+        Offer offer = offerable(player, item, local, limit);
 
         List<SearchResults.Entry> shown = new ArrayList<>(offer.tracks().stream()
                 .map(found -> new SearchResults.Entry(
@@ -637,13 +637,15 @@ public class LavaPlayerManager {
     private record Offer(List<AudioTrack> tracks, String refusal) {
     }
 
-    private Offer offerable(Player player, List<AudioTrack> results, int limit) {
+    private Offer offerable(Player player, ItemStack item, List<AudioTrack> results, int limit) {
         List<AudioTrack> allowed = new ArrayList<>();
         String refusal = null;
+        boolean horn = GoatHorns.isHorn(item);
 
         for (AudioTrack found : results) {
-            String why = plugin.getPermissions().trackRejection(
-                    player, found.getInfo().isStream, found.getInfo().length);
+            String why = !horn && TrackLoader.isPreviewOnly(found) ? "lavaplayer.track.preview_only"
+                    : plugin.getPermissions().trackRejection(
+                            player, found.getInfo().isStream, found.getInfo().length);
             if (why == null) {
                 allowed.add(found);
                 if (allowed.size() >= limit) break;
@@ -695,6 +697,13 @@ public class LavaPlayerManager {
                 Tasks.entity(plugin, player, () -> player.sendMessage("§c" + refusal));
                 return;
             }
+        }
+
+        // A horn keeps at most a few seconds, which the preview covers.
+        if (!GoatHorns.isHorn(item) && TrackLoader.isPreviewOnly(track)) {
+            Tasks.entity(plugin, player, () -> player.sendMessage("§c" + plugin.getMessageManager()
+                    .get(player, "lavaplayer.track.preview_only")));
+            return;
         }
 
         String rejection = LocalMusicLibrary.isLocalQuery(query) || GoatHorns.isHorn(item) ? null
