@@ -156,7 +156,7 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
                 p.sendMessage("§a" + message(p, "cdisc.cleared"));
             }
             case "convert" -> {
-                if (allowed(p, Action.DISC_CREATE)) convert(p);
+                if (allowed(p, Action.DISC_CONVERT)) convert(p);
             }
             case "playlist" -> {
                 if (!allowed(p, Action.DISC_PLAYLIST)) return;
@@ -549,7 +549,11 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
         }
 
         if (args[0].equalsIgnoreCase("disc") && args.length == 2) {
-            return Stream.of("clear", "convert", "playlist")
+            return Stream.of(
+                            entry("clear", Action.DISC_CLEAR, sender),
+                            entry("convert", Action.DISC_CONVERT, sender),
+                            entry("playlist", Action.DISC_PLAYLIST, sender))
+                    .filter(java.util.Objects::nonNull)
                     .filter(s -> s.startsWith(args[1].toLowerCase(Locale.ROOT)))
                     .toList();
         }
