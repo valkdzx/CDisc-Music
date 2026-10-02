@@ -1,6 +1,6 @@
 package dev.valkdz.cdisc.horn;
 
-import com.sedmelluq.discord.lavaplayer.track.AudioTrackInfo;
+import dev.valkdz.cdisc.audio.player.AudioTrackInfo;
 import dev.valkdz.cdisc.Main;
 import dev.valkdz.cdisc.util.ItemUtils;
 import dev.valkdz.cdisc.util.TimeUtils;

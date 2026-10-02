@@ -1,20 +1,19 @@
 package dev.valkdz.cdisc.audio;
 
-import com.sedmelluq.discord.lavaplayer.container.MediaContainerDetection;
-import com.sedmelluq.discord.lavaplayer.player.AudioLoadResultHandler;
-import com.sedmelluq.discord.lavaplayer.player.AudioPlayer;
-import com.sedmelluq.discord.lavaplayer.player.event.AudioEventAdapter;
-import com.sedmelluq.discord.lavaplayer.tools.FriendlyException;
-import com.sedmelluq.discord.lavaplayer.track.AudioPlaylist;
-import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
-import com.sedmelluq.discord.lavaplayer.track.AudioTrackEndReason;
-import dev.lavalink.youtube.YoutubeAudioSourceManager;
 import dev.valkdz.cdisc.Main;
 import dev.valkdz.cdisc.api.NowPlaying;
 import dev.valkdz.cdisc.api.event.PlaybackStopEvent;
 import dev.valkdz.cdisc.api.event.TrackStartEvent;
 import dev.valkdz.cdisc.audio.engine.NowPlayingBroadcaster;
 import dev.valkdz.cdisc.audio.engine.TrackLoader;
+import dev.valkdz.cdisc.audio.player.AudioEventAdapter;
+import dev.valkdz.cdisc.audio.player.AudioLoadResultHandler;
+import dev.valkdz.cdisc.audio.player.AudioPlayer;
+import dev.valkdz.cdisc.audio.player.AudioPlaylist;
+import dev.valkdz.cdisc.audio.player.AudioTrack;
+import dev.valkdz.cdisc.audio.player.AudioTrackEndReason;
+import dev.valkdz.cdisc.audio.player.AudioTrackInfo;
+import dev.valkdz.cdisc.audio.player.LoadException;
 import dev.valkdz.cdisc.audio.queue.DiscQueue;
 import dev.valkdz.cdisc.audio.queue.QueueStore;
 import dev.valkdz.cdisc.audio.queue.RepeatMode;
@@ -335,8 +334,6 @@ public class LavaPlayerManager {
     public void setVoiceBackend(VoiceBackend backend, float distance) {
         this.voiceBackend = backend;
         this.distance = distance;
-
-        trackLoader.setPcmOutput(backend != null && backend.wantsPcm());
     }
 
     public VoiceSession createFollowingSession(org.bukkit.entity.Entity anchor, float distance) {
@@ -472,7 +469,7 @@ public class LavaPlayerManager {
                     done();
                 }
 
-                @Override public void loadFailed(FriendlyException e) {
+                @Override public void loadFailed(LoadException e) {
                     done();
                 }
 
@@ -510,7 +507,7 @@ public class LavaPlayerManager {
                 });
             }
 
-            @Override public void loadFailed(FriendlyException e) {
+            @Override public void loadFailed(LoadException e) {
                 Tasks.entity(plugin, player, () ->
                         player.sendMessage("§c" + plugin.getMessageManager()
                                 .get(player, "lavaplayer.track.error", String.valueOf(e.getMessage()))));
@@ -577,7 +574,7 @@ public class LavaPlayerManager {
                 offerBoth(player, item, query, limit, List.of(), alsoAsked, this);
             }
 
-            @Override public void loadFailed(FriendlyException e) {
+            @Override public void loadFailed(LoadException e) {
                 Tasks.entity(plugin, player, () ->
                         player.sendMessage("§c" + plugin.getMessageManager()
                                 .get(player, "lavaplayer.track.error", String.valueOf(e.getMessage()))));
@@ -684,8 +681,8 @@ public class LavaPlayerManager {
 
     private static boolean usable(String tag) {
         return tag != null && !tag.isBlank()
-                && !tag.equals(MediaContainerDetection.UNKNOWN_TITLE)
-                && !tag.equals(MediaContainerDetection.UNKNOWN_ARTIST);
+                && !tag.equals(AudioTrackInfo.UNKNOWN_TITLE)
+                && !tag.equals(AudioTrackInfo.UNKNOWN_ARTIST);
     }
 
     private void writeToDisc(Player player, ItemStack item, AudioTrack track,
@@ -930,7 +927,7 @@ public class LavaPlayerManager {
                 fallBack(ref, gen, fallbackQuery, discTitle, discAuthor);
             }
 
-            @Override public void loadFailed(FriendlyException e) {
+            @Override public void loadFailed(LoadException e) {
                 plugin.getLogger().log(java.util.logging.Level.WARNING,
                         "Loading a disc's track failed, trying its fallback", e);
                 fallBack(ref, gen, fallbackQuery, discTitle, discAuthor);
@@ -985,7 +982,7 @@ public class LavaPlayerManager {
             }
 
             @Override
-            public void onTrackException(AudioPlayer p, AudioTrack t, com.sedmelluq.discord.lavaplayer.tools.FriendlyException e) {
+            public void onTrackException(AudioPlayer p, AudioTrack t, LoadException e) {
 
                 boolean willRetry = trackLoader.hasNextSource(t, resolved);
 
@@ -993,14 +990,6 @@ public class LavaPlayerManager {
                 Bukkit.getLogger().warning("[CDisc] Playback failed for \""
                         + t.getInfo().title + "\" (" + t.getInfo().uri + ", via "
                         + t.getSourceManager().getSourceName() + "): " + reason);
-
-                if (TrackLoader.isSabrFailure(e)) {
-                    Bukkit.getLogger().warning("[CDisc] YouTube answered with SABR "
-                            + "only: every format is there, none of them carries a "
-                            + "direct link, and it all goes through "
-                            + "serverAbrStreamingUrl, which youtube-source cannot play. "
-                            + "Neither the tokens nor this server's address are at fault.");
-                }
 
                 if (!willRetry) {
                     Throwable cause = e.getCause() != null ? e.getCause() : e;
@@ -1026,7 +1015,7 @@ public class LavaPlayerManager {
     }
 
     private long crossfadeMs() {
-        return trackLoader.isPcmOutput() ? plugin.cdiscConfig().getCrossfadeSeconds() * 1000L : 0L;
+        return plugin.cdiscConfig().getCrossfadeSeconds() * 1000L;
     }
 
     private void prepareCrossfade(Block block, int gen, AudioSession session, long fadeMs) {
@@ -1089,7 +1078,7 @@ public class LavaPlayerManager {
                 incoming.destroy();
             }
 
-            @Override public void loadFailed(FriendlyException e) {
+            @Override public void loadFailed(LoadException e) {
                 incoming.destroy();
             }
         });
@@ -1466,7 +1455,7 @@ public class LavaPlayerManager {
                 }
             }
 
-            @Override public void loadFailed(FriendlyException e) {
+            @Override public void loadFailed(LoadException e) {
                 if (fallback != null) {
                     loadInto(here(ref, block), player, fallback, null, title, author, null, gen);
                 } else {
@@ -1831,9 +1820,5 @@ public class LavaPlayerManager {
 
     public void reload() {
         trackLoader.reloadSources();
-    }
-
-    public YoutubeAudioSourceManager getYoutubeSourceManager() {
-        return trackLoader.getYoutubeSourceManager();
     }
 }

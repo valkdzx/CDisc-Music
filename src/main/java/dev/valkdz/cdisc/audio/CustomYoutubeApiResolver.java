@@ -1,16 +1,10 @@
 package dev.valkdz.cdisc.audio;
 
-import com.sedmelluq.discord.lavaplayer.container.MediaContainer;
-import com.sedmelluq.discord.lavaplayer.container.MediaContainerDescriptor;
-import com.sedmelluq.discord.lavaplayer.player.AudioPlayerManager;
-import com.sedmelluq.discord.lavaplayer.source.http.HttpAudioSourceManager;
-import com.sedmelluq.discord.lavaplayer.source.http.HttpAudioTrack;
+import dev.valkdz.cdisc.audio.player.AudioSourceManager;
+import dev.valkdz.cdisc.audio.player.AudioTrack;
+import dev.valkdz.cdisc.audio.player.AudioTrackInfo;
+import dev.valkdz.cdisc.audio.player.HttpAudioTrack;
 import dev.valkdz.cdisc.util.Json;
-import com.sedmelluq.discord.lavaplayer.tools.Units;
-import com.sedmelluq.discord.lavaplayer.track.AudioItem;
-import com.sedmelluq.discord.lavaplayer.track.AudioReference;
-import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
-import com.sedmelluq.discord.lavaplayer.track.AudioTrackInfo;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -38,6 +32,7 @@ import java.util.regex.Pattern;
 public class CustomYoutubeApiResolver {
 
     private static final Logger LOGGER = Logger.getLogger("CDisc");
+    private static final AudioSourceManager SOURCE = AudioSourceManager.named("http");
 
     private static final Pattern VIDEO_ID_IN_URL = Pattern.compile(
             "(?:v=|youtu\\.be/|/embed/|/shorts/)([A-Za-z0-9_-]{11})");
@@ -45,7 +40,6 @@ public class CustomYoutubeApiResolver {
     private static final Pattern OWN_STREAM_ID = Pattern.compile("/audio/([A-Za-z0-9_-]{11})");
 
     private final String baseUrl;
-    private final HttpAudioSourceManager httpProbe;
     private final HttpClient http;
     private final HttpClient noRedirects;
     private final boolean proxy;
@@ -66,14 +60,8 @@ public class CustomYoutubeApiResolver {
         return t;
     });
 
-    public CustomYoutubeApiResolver(String baseUrl, HttpAudioSourceManager httpProbe) {
-        this(baseUrl, httpProbe, false);
-    }
-
-    public CustomYoutubeApiResolver(String baseUrl, HttpAudioSourceManager httpProbe, boolean proxy) {
+    public CustomYoutubeApiResolver(String baseUrl, boolean proxy) {
         this.baseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
-        this.httpProbe = httpProbe;
-        httpProbe.configureBuilder(dev.valkdz.cdisc.util.NetProxy::apply);
         this.proxy = proxy;
         this.http = dev.valkdz.cdisc.util.NetProxy.apply(HttpClient.newBuilder())
                 .connectTimeout(Duration.ofSeconds(4))
@@ -99,10 +87,6 @@ public class CustomYoutubeApiResolver {
 
     public String getBaseUrl() {
         return baseUrl;
-    }
-
-    public HttpAudioSourceManager getHttpSourceManager() {
-        return httpProbe;
     }
 
     public void shutdown() {
@@ -170,17 +154,16 @@ public class CustomYoutubeApiResolver {
                 });
     }
 
-    public AudioTrack resolve(AudioPlayerManager playerManager, String identifier) {
+    public AudioTrack resolve(String identifier) {
         try {
-            return resolveAsync(playerManager, identifier).join();
+            return resolveAsync(identifier).join();
         } catch (Exception e) {
             LOGGER.log(Level.WARNING, "[CDisc] custom-api resolve failed for " + identifier, e);
             return null;
         }
     }
 
-    public CompletableFuture<AudioTrack> resolveAsync(AudioPlayerManager playerManager,
-                                                      String identifier) {
+    public CompletableFuture<AudioTrack> resolveAsync(String identifier) {
         return videoIdAsync(identifier).thenCompose(videoId -> {
             if (videoId == null) return CompletableFuture.completedFuture(null);
 
@@ -188,35 +171,22 @@ public class CustomYoutubeApiResolver {
             CompletableFuture<String> location = locationAsync(streamUrlFor(videoId));
 
             return info.thenCombineAsync(location,
-                    (read, target) -> trackFor(playerManager, videoId, read, target), ioExecutor);
+                    (read, target) -> trackFor(videoId, read, target), ioExecutor);
         });
     }
 
-    public AudioTrack trackFor(AudioPlayerManager playerManager, String videoId, Info info) {
-        return trackFor(playerManager, videoId, info, locationAsync(streamUrlFor(videoId)).join());
+    public AudioTrack trackFor(String videoId, Info info) {
+        return trackFor(videoId, info, locationAsync(streamUrlFor(videoId)).join());
     }
 
-    public AudioTrack trackFor(AudioPlayerManager playerManager, String videoId, Info info,
-                               String location) {
+    public AudioTrack trackFor(String videoId, Info info, String location) {
         String streamUrl = location != null ? location : streamUrlFor(videoId);
-        MediaContainerDescriptor container = containerOf(info == null ? null : info.contentType());
-
-        if (container == null || location == null) {
-            HttpAudioTrack probed = probeHttpTrack(playerManager, streamUrlFor(videoId));
-            if (probed == null) return null;
-            container = probed.getContainerTrackFactory();
-            streamUrl = probed.getInfo().identifier;
-        }
-
-        AudioTrackInfo built = trackInfo(videoId, streamUrl, info);
-        long length = dev.valkdz.cdisc.audio.backend.RangedHttpAudioTrack.contentLengthOf(streamUrl);
-        return length > 0
-                ? new dev.valkdz.cdisc.audio.backend.RangedHttpAudioTrack(built, container, httpProbe, length)
-                : new HttpAudioTrack(built, container, httpProbe);
+        return new HttpAudioTrack(trackInfo(videoId, streamUrl, info), SOURCE, streamUrl,
+                info == null ? null : info.contentType());
     }
 
-    // The stream URL 302s to googlevideo and lavaplayer refuses redirects while playing,
-    // so the target has to be known before the track is built.
+    // The stream URL 302s to googlevideo, whose address carries the length that bounded range
+    // reads need, so the target has to be known before the track is built.
     private CompletableFuture<String> locationAsync(String streamUrl) {
         if (proxy) return CompletableFuture.completedFuture(streamUrl);
 
@@ -235,7 +205,7 @@ public class CustomYoutubeApiResolver {
     private AudioTrackInfo trackInfo(String videoId, String streamUrl, Info info) {
         boolean live = info != null && info.live();
         long length = info == null || info.lengthMs() <= 0 || live
-                ? Units.DURATION_MS_UNKNOWN : info.lengthMs();
+                ? AudioTrackInfo.UNKNOWN_LENGTH : info.lengthMs();
 
         return new AudioTrackInfo(
                 info != null && info.title() != null ? info.title() : "Unknown",
@@ -247,49 +217,6 @@ public class CustomYoutubeApiResolver {
                         ? info.watchUrl() : "https://www.youtube.com/watch?v=" + videoId,
                 info == null ? null : info.artworkUrl(),
                 null);
-    }
-
-    private static MediaContainerDescriptor containerOf(String contentType) {
-        if (contentType == null || contentType.isBlank()) return null;
-
-        String type = contentType.toLowerCase(Locale.ROOT);
-        int semicolon = type.indexOf(';');
-        if (semicolon > 0) type = type.substring(0, semicolon).trim();
-
-        MediaContainer container = switch (type) {
-            case "audio/webm", "video/webm", "audio/x-matroska", "video/x-matroska" -> MediaContainer.MKV;
-            case "audio/mp4", "video/mp4", "audio/m4a", "audio/x-m4a" -> MediaContainer.MP4;
-            case "audio/mpeg", "audio/mp3" -> MediaContainer.MP3;
-            case "audio/ogg", "application/ogg" -> MediaContainer.OGG;
-            case "audio/wav", "audio/x-wav", "audio/wave" -> MediaContainer.WAV;
-            case "audio/flac", "audio/x-flac" -> MediaContainer.FLAC;
-            case "audio/aac", "audio/aacp" -> MediaContainer.ADTS;
-            default -> null;
-        };
-
-        return container == null ? null : new MediaContainerDescriptor(container.probe, null);
-    }
-
-    private HttpAudioTrack probeHttpTrack(AudioPlayerManager playerManager, String streamUrl) {
-        try {
-            AudioItem probed = httpProbe.loadItem(playerManager, new AudioReference(streamUrl, null));
-
-            if (probed instanceof AudioReference ref && ref.identifier != null) {
-                probed = httpProbe.loadItem(playerManager, new AudioReference(ref.identifier, null));
-            }
-
-            if (!(probed instanceof HttpAudioTrack httpTrack)) {
-                LOGGER.warning("[CDisc] custom-api stream probe for " + streamUrl
-                        + " did not resolve to a playable HTTP track (got: "
-                        + (probed == null ? "null" : probed.getClass().getName()) + ")");
-                return null;
-            }
-
-            return httpTrack;
-        } catch (Exception e) {
-            LOGGER.log(Level.WARNING, "[CDisc] custom-api stream probe failed for " + streamUrl, e);
-            return null;
-        }
     }
 
     private static Info parseInfo(String videoId, Json json) {

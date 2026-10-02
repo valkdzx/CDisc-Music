@@ -1,11 +1,11 @@
 package dev.valkdz.cdisc.horn;
 
-import com.sedmelluq.discord.lavaplayer.player.AudioLoadResultHandler;
-import com.sedmelluq.discord.lavaplayer.player.AudioPlayer;
-import com.sedmelluq.discord.lavaplayer.tools.FriendlyException;
-import com.sedmelluq.discord.lavaplayer.track.AudioPlaylist;
-import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
-import com.sedmelluq.discord.lavaplayer.track.playback.AudioFrame;
+import dev.valkdz.cdisc.audio.player.AudioLoadResultHandler;
+import dev.valkdz.cdisc.audio.player.AudioPlayer;
+import dev.valkdz.cdisc.audio.player.LoadException;
+import dev.valkdz.cdisc.audio.player.AudioPlaylist;
+import dev.valkdz.cdisc.audio.player.AudioTrack;
+import dev.valkdz.cdisc.audio.player.AudioFrame;
 import dev.valkdz.cdisc.Main;
 import dev.valkdz.cdisc.audio.engine.TrackLoader;
 import dev.valkdz.cdisc.util.ItemUtils;
@@ -74,7 +74,7 @@ final class HornClips {
         TrackLoader loader = plugin.getAudioPlayerManager().getTrackLoader();
         int volume = plugin.cdiscConfig().getVolume();
         String key = String.join("\n", data.query(), String.valueOf(data.fallback()),
-                String.valueOf(data.fetch()), String.valueOf(loader.isPcmOutput()),
+                String.valueOf(data.fetch()),
                 String.valueOf(volume), String.valueOf(clipMs));
 
         Clip clip;
@@ -117,7 +117,7 @@ final class HornClips {
                 retryOrFail();
             }
 
-            @Override public void loadFailed(FriendlyException e) {
+            @Override public void loadFailed(LoadException e) {
                 retryOrFail();
             }
 

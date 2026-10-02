@@ -85,35 +85,17 @@ vk-music:
 
 ### YouTube
 youtube:
-  # Asked in order; the first to return a stream wins. They do not fail the same way,
-  # so this is the setting to try first when YouTube stops playing.
-  #
-  #   android-vr    no po-token; can't serve "made for kids" videos
-  #   tv            no po-token; formats often DRM'd without cookies
-  #   web-embedded  no po-token; only videos that allow embedding
-  #   web           needs a po-token, serves almost anything
-  #   mweb          needs a po-token for the stream itself
-  #   music         YouTube Music
-  #   android, android-music, ios
-  #
-  # ios answers 400 to everything at present and is the first worth removing.
-  clients: [android-vr, ios, music, web, tv, web-embedded, mweb]
-
-  # Off because these loggers dump the JSON of every rejected format. On, they are the
-  # only thing separating "needs a token", "needs a login" and "undecodable format".
-  log-client-failures: false
-
   # Where operators are pointed when YouTube fails and nothing here gets past it.
   # Blank names the page without linking to it. A Russian client is sent to the Russian page.
   setup-guide-url: 'https://wiki.2281273.xyz/#/youtube'
 
   # Fetch through the backend API instead of asking YouTube from here. THE FIRST THING
   # TO TRY WHEN YOUTUBE STOPS PLAYING: it asks from its own address and mints its own
-  # token, so nothing else here needs configuring. Order: the direct read first, then this;
-  # youtube-source never plays a track, it only lists searches and playlists. A video YouTube
-  # does not offer in this server's country skips the direct read and comes straight here.
-  # After three direct reads in a row fail for this server's address (YouTube's bot check,
-  # no answer), it goes first for ten minutes. Age-restricted tracks use it even when off.
+  # token, so nothing else here needs configuring. Order: the direct read first, then this.
+  # A video YouTube does not offer in this server's country skips the direct read and comes
+  # straight here. After three direct reads in a row fail for this server's address
+  # (YouTube's bot check, no answer), it goes first for ten minutes. Age-restricted tracks
+  # use it even when off.
   # Switched on once at startup if it was off; set it back to false and it stays false.
   fallback-api: true
 

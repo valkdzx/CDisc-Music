@@ -1,6 +1,6 @@
 package dev.valkdz.cdisc.gui;
 
-import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
+import dev.valkdz.cdisc.audio.player.AudioTrack;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;

@@ -1,16 +1,18 @@
 package dev.valkdz.cdisc.broadcast;
 
-import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
-import com.sedmelluq.discord.lavaplayer.track.AudioTrackInfo;
-import com.sedmelluq.discord.lavaplayer.track.BaseAudioTrack;
-import com.sedmelluq.discord.lavaplayer.track.playback.LocalAudioTrackExecutor;
+import dev.valkdz.cdisc.audio.player.AudioSourceManager;
+import dev.valkdz.cdisc.audio.player.AudioTrack;
+import dev.valkdz.cdisc.audio.player.AudioTrackInfo;
+import dev.valkdz.cdisc.audio.player.Playback;
 
 import java.util.Locale;
 
-public final class BroadcastTrack extends BaseAudioTrack {
+public final class BroadcastTrack extends AudioTrack {
 
     public static final String PREFIX = "broadcast:";
     public static final int MAX_NAME = 32;
+
+    private static final AudioSourceManager SOURCE = AudioSourceManager.named("broadcast");
 
     public BroadcastTrack(String address, String title, String author) {
         this(new AudioTrackInfo(title != null ? title : nameOf(address), author != null ? author : "",
@@ -34,15 +36,18 @@ public final class BroadcastTrack extends BaseAudioTrack {
     // The voices go out through microphone sources of their own; this track only keeps
     // the jukebox's session alive and reads as a live stream everywhere else.
     @Override
-    public void process(LocalAudioTrackExecutor executor) throws Exception {
-        executor.executeProcessingLoop(() -> {
-            while (true) Thread.sleep(1000L);
-        }, null);
+    public void process(Playback playback) throws Exception {
+        playback.idle();
     }
 
     @Override
     public boolean isSeekable() {
         return false;
+    }
+
+    @Override
+    public AudioSourceManager getSourceManager() {
+        return SOURCE;
     }
 
     @Override

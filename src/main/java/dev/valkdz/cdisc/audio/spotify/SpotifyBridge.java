@@ -26,6 +26,7 @@ public final class SpotifyBridge {
 
     private static final String TOKEN_URL = "https://accounts.spotify.com/api/token";
     private static final String TRACK_URL = "https://api.spotify.com/v1/tracks/";
+    private static final String SEARCH_URL = "https://api.spotify.com/v1/search?q=";
 
     private static final Pattern TRACK_IN_TEXT = Pattern.compile("track[/:]([A-Za-z0-9]{22})");
     private static final Pattern BARE_TRACK = Pattern.compile("[A-Za-z0-9]{22}");
@@ -293,6 +294,30 @@ public final class SpotifyBridge {
         Throwable cause = e.getCause();
         return cause instanceof IOException io ? io
                 : new IOException("YouTube search failed: " + cause, cause);
+    }
+
+    public boolean canSearch() {
+        return hasCredentials();
+    }
+
+    public List<Entry> search(String query, int limit) throws IOException, InterruptedException {
+        HttpResponse<String> response = http.send(
+                HttpRequest.newBuilder(URI.create(SEARCH_URL + URLEncoder.encode(query, StandardCharsets.UTF_8)
+                                + "&type=track&limit=" + Math.max(1, Math.min(50, limit))))
+                        .header("Authorization", "Bearer " + appToken())
+                        .timeout(Duration.ofSeconds(15))
+                        .GET().build(),
+                HttpResponse.BodyHandlers.ofString());
+        if (response.statusCode() != 200) throw new IOException("Spotify search answered " + response.statusCode());
+
+        List<Entry> entries = new java.util.ArrayList<>();
+        for (Json track : Json.parse(response.body()).path("tracks").path("items")) {
+            String id = track.path("id").asText("");
+            if (id.isBlank()) continue;
+            Wanted wanted = wantedOf(track);
+            entries.add(new Entry(id, wanted.title(), wanted.artist(), wanted.durationMs()));
+        }
+        return entries;
     }
 
     private Json spotifyTrack(String trackId) throws IOException, InterruptedException {

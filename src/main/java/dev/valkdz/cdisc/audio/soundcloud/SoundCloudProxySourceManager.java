@@ -1,24 +1,15 @@
 package dev.valkdz.cdisc.audio.soundcloud;
 
-import com.sedmelluq.discord.lavaplayer.player.AudioPlayerManager;
-import com.sedmelluq.discord.lavaplayer.source.AudioSourceManager;
-import com.sedmelluq.discord.lavaplayer.tools.FriendlyException;
+import dev.valkdz.cdisc.audio.player.AudioItem;
+import dev.valkdz.cdisc.audio.player.AudioSourceManager;
+import dev.valkdz.cdisc.audio.player.AudioTrackInfo;
+import dev.valkdz.cdisc.audio.player.Http;
+import dev.valkdz.cdisc.audio.player.LoadException;
 import dev.valkdz.cdisc.util.Json;
-import com.sedmelluq.discord.lavaplayer.tools.io.HttpClientTools;
-import com.sedmelluq.discord.lavaplayer.tools.io.HttpInterface;
-import com.sedmelluq.discord.lavaplayer.tools.io.HttpInterfaceManager;
-import com.sedmelluq.discord.lavaplayer.track.AudioItem;
-import com.sedmelluq.discord.lavaplayer.track.AudioReference;
-import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
-import com.sedmelluq.discord.lavaplayer.track.AudioTrackInfo;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.util.EntityUtils;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 import java.net.URLEncoder;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -29,11 +20,9 @@ public final class SoundCloudProxySourceManager implements AudioSourceManager {
             "^https?://(?:www\\.|m\\.)?soundcloud\\.com/(.+)$", Pattern.CASE_INSENSITIVE);
 
     private final String endpoint;
-    private final HttpInterfaceManager interfaces = HttpClientTools.createDefaultThreadLocalManager();
 
     public SoundCloudProxySourceManager(String endpoint) {
         this.endpoint = endpoint;
-        interfaces.configureBuilder(dev.valkdz.cdisc.util.NetProxy::apply);
     }
 
     record Resolved(AudioTrackInfo info, String streamUrl, String mimeType) {
@@ -45,8 +34,8 @@ public final class SoundCloudProxySourceManager implements AudioSourceManager {
     }
 
     @Override
-    public AudioItem loadItem(AudioPlayerManager manager, AudioReference reference) {
-        Matcher matcher = TRACK_URL.matcher(reference.identifier);
+    public AudioItem loadItem(String identifier) {
+        Matcher matcher = TRACK_URL.matcher(identifier);
         if (!matcher.matches()) return null;
 
         Resolved resolved = resolve("https://soundcloud.com/" + matcher.group(1));
@@ -57,31 +46,26 @@ public final class SoundCloudProxySourceManager implements AudioSourceManager {
     Resolved resolve(String url) {
         Json json;
         int status;
-        try (HttpInterface http = interfaces.getInterface();
-             CloseableHttpResponse response = http.execute(new HttpGet(
-                     endpoint + "?url=" + URLEncoder.encode(url, StandardCharsets.UTF_8)))) {
-            status = response.getStatusLine().getStatusCode();
-            json = Json.parse(EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8));
+        try {
+            HttpResponse<byte[]> response = Http.get(endpoint + "?url=" + URLEncoder.encode(url, StandardCharsets.UTF_8));
+            status = response.statusCode();
+            json = Json.parse(new String(response.body(), StandardCharsets.UTF_8));
         } catch (IOException e) {
-            throw new FriendlyException("The SoundCloud proxy could not be reached",
-                    FriendlyException.Severity.SUSPICIOUS, e);
+            throw new LoadException("The SoundCloud proxy could not be reached", e);
         }
 
         String code = json.get("code").text();
         if ("not_a_track".equals(code)) return null;
-        if ("not_found".equals(code)) {
-            throw new FriendlyException("No such SoundCloud track", FriendlyException.Severity.COMMON, null);
-        }
+        if ("not_found".equals(code)) throw new LoadException("No such SoundCloud track");
         if (status != 200 || json.get("stream").isNull()) {
             String error = json.get("error").text();
-            throw new FriendlyException("The SoundCloud proxy refused this track: "
-                    + (error == null ? "HTTP " + status : error), FriendlyException.Severity.SUSPICIOUS, null);
+            throw new LoadException("The SoundCloud proxy refused this track: "
+                    + (error == null ? "HTTP " + status : error));
         }
 
         Json stream = json.get("stream");
         if (!"progressive".equals(stream.get("protocol").text())) {
-            throw new FriendlyException("The SoundCloud proxy offered no progressive stream",
-                    FriendlyException.Severity.SUSPICIOUS, null);
+            throw new LoadException("The SoundCloud proxy offered no progressive stream");
         }
 
         String canonical = json.get("url").text();
@@ -93,31 +77,5 @@ public final class SoundCloudProxySourceManager implements AudioSourceManager {
                 canonical, false, canonical,
                 json.get("artwork").text(), json.get("isrc").text());
         return new Resolved(info, stream.get("url").text(), stream.get("mime_type").text());
-    }
-
-    HttpInterfaceManager interfaces() {
-        return interfaces;
-    }
-
-    @Override
-    public boolean isTrackEncodable(AudioTrack track) {
-        return true;
-    }
-
-    @Override
-    public void encodeTrack(AudioTrack track, DataOutput output) {
-    }
-
-    @Override
-    public AudioTrack decodeTrack(AudioTrackInfo trackInfo, DataInput input) {
-        return new SoundCloudProxyTrack(trackInfo, this, null, null);
-    }
-
-    @Override
-    public void shutdown() {
-        try {
-            interfaces.close();
-        } catch (IOException ignored) {
-        }
     }
 }

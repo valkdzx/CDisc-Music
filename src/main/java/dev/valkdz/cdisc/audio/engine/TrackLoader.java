@@ -1,35 +1,29 @@
 package dev.valkdz.cdisc.audio.engine;
 
-import com.github.topi314.lavasearch.SearchManager;
-import com.github.topi314.lavasrc.mirror.DefaultMirroringAudioTrackResolver;
-import com.github.topi314.lavasrc.spotify.SpotifySourceManager;
-import com.github.topi314.lavasrc.vkmusic.VkMusicSourceManager;
-import com.github.topi314.lavasrc.yandexmusic.YandexMusicSourceManager;
-import com.sedmelluq.discord.lavaplayer.format.StandardAudioDataFormats;
-import com.sedmelluq.discord.lavaplayer.player.*;
-import com.sedmelluq.discord.lavaplayer.player.event.AudioEventAdapter;
-import com.sedmelluq.discord.lavaplayer.source.AudioSourceManagers;
-import com.sedmelluq.discord.lavaplayer.source.http.HttpAudioSourceManager;
-import com.sedmelluq.discord.lavaplayer.source.http.HttpAudioTrack;
-import com.sedmelluq.discord.lavaplayer.source.soundcloud.SoundCloudAudioSourceManager;
-import com.sedmelluq.discord.lavaplayer.tools.FriendlyException;
-import com.sedmelluq.discord.lavaplayer.track.AudioItem;
-import com.sedmelluq.discord.lavaplayer.track.AudioPlaylist;
-import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
-import dev.lavalink.youtube.YoutubeAudioSourceManager;
-import dev.lavalink.youtube.YoutubeSource;
-import dev.lavalink.youtube.YoutubeSourceOptions;
-import dev.lavalink.youtube.clients.*;
-import dev.lavalink.youtube.clients.skeleton.Client;
 import dev.valkdz.cdisc.Main;
 import dev.valkdz.cdisc.audio.CustomYoutubeApiResolver;
 import dev.valkdz.cdisc.audio.LocalMusicLibrary;
 import dev.valkdz.cdisc.audio.backend.BackendMusicSourceManager;
+import dev.valkdz.cdisc.audio.backend.VkMusicSourceManager;
+import dev.valkdz.cdisc.audio.backend.YandexMusicSourceManager;
+import dev.valkdz.cdisc.audio.player.AudioEventAdapter;
+import dev.valkdz.cdisc.audio.player.AudioItem;
+import dev.valkdz.cdisc.audio.player.AudioLoadResultHandler;
+import dev.valkdz.cdisc.audio.player.AudioPlayer;
+import dev.valkdz.cdisc.audio.player.AudioPlaylist;
+import dev.valkdz.cdisc.audio.player.AudioSourceManager;
+import dev.valkdz.cdisc.audio.player.AudioTrack;
+import dev.valkdz.cdisc.audio.player.AudioTrackInfo;
+import dev.valkdz.cdisc.audio.player.HttpAudioTrack;
+import dev.valkdz.cdisc.audio.player.LoadException;
+import dev.valkdz.cdisc.audio.soundcloud.SoundCloudSourceManager;
+import dev.valkdz.cdisc.audio.spotify.SpotifySourceManager;
 import dev.valkdz.cdisc.util.Config;
 import org.bukkit.Bukkit;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -47,16 +41,12 @@ public class TrackLoader {
             "^https?://(?:www\\.|go\\.|m\\.)?twitch\\.tv/([A-Za-z0-9_]{2,25})/?(?:\\?.*)?$");
 
     private final Main plugin;
-    private final AudioPlayerManager lavaPlayer;
-    private final SearchManager searchManager = new SearchManager();
-
-    private static final String SABR_MARKER = "No supported audio streams available";
+    private final List<AudioSourceManager> sources = new CopyOnWriteArrayList<>();
 
     private static final String WEB_USER_AGENT =
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
             + "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
 
-    private YoutubeAudioSourceManager youtubeManager;
     private CustomYoutubeApiResolver customApiResolver;
     private dev.valkdz.cdisc.audio.sabr.SabrResolver sabrResolver;
     private dev.valkdz.cdisc.audio.spotify.SpotifyBridge spotifyBridge;
@@ -311,7 +301,7 @@ public class TrackLoader {
 
         return new dev.valkdz.cdisc.util.ItemUtils.Hint(
                 contentTypeOf(track),
-                length == com.sedmelluq.discord.lavaplayer.tools.Units.DURATION_MS_UNKNOWN ? 0 : length,
+                length == AudioTrackInfo.UNKNOWN_LENGTH ? 0 : length,
                 track.getInfo().isStream,
                 readDirectly(track) ? Boolean.TRUE : (known == null ? null : known.allowedHere()),
                 System.currentTimeMillis(),
@@ -341,7 +331,7 @@ public class TrackLoader {
             return "audio/mp4";
         }
         if (track instanceof HttpAudioTrack http) {
-            return mimeOfProbe(http.getContainerTrackFactory().probe.getName());
+            return bareType(http.mimeType());
         }
         return null;
     }
@@ -352,59 +342,28 @@ public class TrackLoader {
         return parameters < 0 ? mimeType.trim() : mimeType.substring(0, parameters).trim();
     }
 
-    private static String mimeOfProbe(String probe) {
-        return switch (probe == null ? "" : probe) {
-            case "matroska/webm" -> "audio/webm";
-            case "mp4" -> "audio/mp4";
-            case "mp3" -> "audio/mpeg";
-            case "ogg" -> "audio/ogg";
-            case "wav" -> "audio/wav";
-            case "flac" -> "audio/flac";
-            case "adts" -> "audio/aac";
-            default -> null;
-        };
-    }
-
     public TrackLoader(Main plugin) {
         this.plugin = plugin;
-        this.lavaPlayer = new DefaultAudioPlayerManager();
-
-        this.lavaPlayer.setFrameBufferDuration(30000);
-        // With ghosting the old place keeps playing out of that buffer until the new one loads.
-        this.lavaPlayer.setUseSeekGhosting(false);
-        this.lavaPlayer.setHttpBuilderConfigurator(dev.valkdz.cdisc.util.NetProxy::apply);
         registerSources();
     }
 
     private void registerSources() {
         Config config = plugin.cdiscConfig();
+        sources.clear();
 
         if (config.isYoutubeEnabled()) {
-            YoutubeSourceOptions options = new YoutubeSourceOptions();
             String rcUrl = config.getRemoteCipherServerUrl();
             String rcPass = config.getRemoteCipherServerPassword();
-            if (!rcUrl.isEmpty()) {
-                options.setRemoteCipher(rcUrl, rcPass, "CDisc Music Plugin");
-            }
-
-            Web web = new Web();
-            installPoToken(config);
-
-            youtubeManager = new YoutubeAudioSourceManager(options, buildClients(config, web));
-
-            lavaPlayer.registerSourceManager(youtubeManager);
 
             boolean customApi = config.getYoutubeCustomApi();
             boolean useProxy = config.isYoutubeProxyEnabled();
-            customApiResolver = customApi
-                    ? new CustomYoutubeApiResolver("https://2281273.xyz/", new HttpAudioSourceManager(), useProxy)
-                    : null;
+            customApiResolver = customApi ? new CustomYoutubeApiResolver(BACKEND_BASE, useProxy) : null;
             if (customApiResolver != null) {
                 customApiResolver.setObserver(info -> remember(info.videoId(), info));
             }
 
             sabrResolver = new dev.valkdz.cdisc.audio.sabr.SabrResolver(
-                    this::sabrIdentity, rcUrl, config.isYoutubeSabrEnabled());
+                    this::sabrIdentity, rcUrl, rcPass, config.isYoutubeSabrEnabled());
             sabrResolver.warmUp();
 
             java.net.http.HttpClient bridgeHttp = dev.valkdz.cdisc.util.NetProxy.apply(java.net.http.HttpClient.newBuilder())
@@ -421,169 +380,72 @@ public class TrackLoader {
                     config::getPoTokenBackendUrl,
                     config::getPoTokenBackendPassword,
                     () -> sabrResolver == null ? null : sabrResolver.visitorDataOrNull());
+
+            sources.add(new dev.valkdz.cdisc.audio.sabr.YouTubeSourceManager(youtubeSearch,
+                    new dev.valkdz.cdisc.audio.sabr.YouTubePlaylist(config.getYoutubeWebClientVersion()),
+                    () -> sabrResolver == null ? null : sabrResolver.visitorDataOrNull(),
+                    info -> youtubeNow(info.uri, info.title, info.author)));
         }
 
         if (config.isTiktokEnabled()) {
-            lavaPlayer.registerSourceManager(new dev.valkdz.cdisc.audio.tiktok.TikTokSourceManager());
+            sources.add(new dev.valkdz.cdisc.audio.tiktok.TikTokSourceManager());
         }
 
         if (config.isSoundcloudEnabled()) {
             if (config.isSoundcloudProxyEnabled()) {
-                lavaPlayer.registerSourceManager(new dev.valkdz.cdisc.audio.soundcloud.SoundCloudProxySourceManager(
+                sources.add(new dev.valkdz.cdisc.audio.soundcloud.SoundCloudProxySourceManager(
                         config.getSoundcloudProxyUrl()));
             }
-            lavaPlayer.registerSourceManager(SoundCloudAudioSourceManager.createDefault());
+            sources.add(new SoundCloudSourceManager());
         }
 
-        if (config.isSpotifyEnabled()) {
-            String clientId = config.getSpotifyClientId();
-            String clientSecret = config.getSpotifyClientSecret();
-            if (!clientId.isEmpty() && !clientSecret.isEmpty()) {
-                SpotifySourceManager spotify = new SpotifySourceManager(
-                        clientId,
-                        clientSecret,
-                        "US",
-                        lavaPlayer,
-                        new DefaultMirroringAudioTrackResolver(null)
-                );
-                lavaPlayer.registerSourceManager(spotify);
-                searchManager.registerSearchManager(spotify);
-            }
+        if (config.isSpotifyEnabled() && spotifyBridge != null) {
+            sources.add(new SpotifySourceManager(spotifyBridge, info -> spotifyNow(info.identifier)));
         }
 
         if (config.isYandexMusicEnabled()) {
             String token = config.getYandexMusicAccessToken();
             registerBackendMusic(BackendMusicSourceManager.Service.YANDEX,
                     config.getYandexMusicBackendUrl(), !token.isEmpty());
-            if (!token.isEmpty()) {
-                YandexMusicSourceManager ym = new YandexMusicSourceManager(token);
-                lavaPlayer.registerSourceManager(ym);
-                searchManager.registerSearchManager(ym);
-            }
+            if (!token.isEmpty()) sources.add(new YandexMusicSourceManager(token));
         }
 
         if (config.isVkMusicEnabled()) {
             String token = config.getVkMusicUserToken();
             registerBackendMusic(BackendMusicSourceManager.Service.VK,
                     config.getVkMusicBackendUrl(), !token.isEmpty());
-            if (!token.isEmpty()) {
-                VkMusicSourceManager vk = new VkMusicSourceManager(token);
-                lavaPlayer.registerSourceManager(vk);
-                searchManager.registerSearchManager(vk);
-            }
+            if (!token.isEmpty()) sources.add(new VkMusicSourceManager(token));
         }
 
         if (config.isTwitchEnabled()) {
-            lavaPlayer.registerSourceManager(new dev.valkdz.cdisc.audio.twitch.TwitchSourceManager());
+            sources.add(new dev.valkdz.cdisc.audio.twitch.TwitchSourceManager());
         }
 
         if (config.isHttpEnabled()) {
-            lavaPlayer.registerSourceManager(new ScopedHttpAudioSourceManager());
+            sources.add(new ScopedHttpAudioSourceManager());
         } else if (config.isDiscordEnabled()) {
-            lavaPlayer.registerSourceManager(
-                    new ScopedHttpAudioSourceManager(dev.valkdz.cdisc.audio.DiscordSource.URL_PREFIXES));
+            sources.add(new ScopedHttpAudioSourceManager(dev.valkdz.cdisc.audio.DiscordSource.URL_PREFIXES));
         }
 
         if (config.isLocalEnabled()) {
-            AudioSourceManagers.registerLocalSource(lavaPlayer);
+            sources.add(new LocalFileSourceManager());
         }
     }
 
-    // Must be registered before the lavasrc source of the same service: lavaplayer asks
-    // in order, and lavasrc only sees what this one declines.
+    // Must be registered before the token source of the same service: sources are asked
+    // in order, and the token source only sees what this one declines.
     private void registerBackendMusic(BackendMusicSourceManager.Service service, String url,
                                       boolean hasToken) {
         if (url.isEmpty()) return;
-        lavaPlayer.registerSourceManager(
-                new BackendMusicSourceManager(service, url, hasToken, plugin.getLogger()));
-    }
-
-    private Client[] buildClients(Config config, Web web) {
-        List<Client> clients = new ArrayList<>();
-
-        for (String name : config.getYoutubeClients()) {
-            Client client = switch (name) {
-                case "android" -> new Android();
-                case "android-music" -> new AndroidMusic();
-                case "android-vr" -> new AndroidVr();
-                case "ios" -> new Ios();
-                case "music" -> new Music();
-                case "mweb" -> new MWeb();
-                case "tv" -> new Tv();
-
-                case "web" -> web;
-                case "web-embedded" -> new WebEmbedded();
-                default -> null;
-            };
-
-            if (client == null) {
-                plugin.getLogger().warning("Unknown YouTube client in sources.yml: '"
-                        + name + "' — skipped.");
-                continue;
-            }
-            clients.add(client);
-        }
-
-        if (clients.isEmpty()) {
-            plugin.getLogger().warning(
-                    "No usable YouTube clients configured; falling back to the defaults.");
-            return new Client[]{new AndroidVr(), new Ios(), new Music(), web,
-                    new Tv(), new WebEmbedded(), new MWeb()};
-        }
-        return clients.toArray(new Client[0]);
-    }
-
-    private void installPoToken(Config config) {
-        String poToken = config.getPOtoken();
-        String visitorData = config.getVisitorData();
-
-        if (poToken.isEmpty() && visitorData.isEmpty()) {
-
-            YoutubeSource.setPoTokenAndVisitorData(null, null);
-            return;
-        }
-
-        if (poToken.isEmpty()) {
-
-            plugin.getLogger().info(
-                    "visitor-data set with no po-token: the visitor identity is what "
-                    + "YouTube attests, and it carries playback on its own.");
-            YoutubeSource.setPoTokenAndVisitorData(null, visitorData);
-            return;
-        }
-
-        if (visitorData.isEmpty()) {
-            plugin.getLogger().info(
-                    "po-token set with no visitor-data: it will ride on the playback "
-                    + "URL only, and the player request keeps youtube-source's own "
-                    + "visitor id.");
-            YoutubeSource.setPoTokenAndVisitorData(poToken, null);
-            return;
-        }
-
-        YoutubeSource.setPoTokenAndVisitorData(poToken, visitorData);
+        sources.add(new BackendMusicSourceManager(service, url, hasToken, plugin.getLogger()));
     }
 
     public void reloadSources() {
         registerSources();
     }
 
-    public void setPcmOutput(boolean pcm) {
-        lavaPlayer.getConfiguration().setOutputFormat(pcm
-                ? StandardAudioDataFormats.DISCORD_PCM_S16_LE
-                : StandardAudioDataFormats.DISCORD_OPUS);
-    }
-
-    public boolean isPcmOutput() {
-        return lavaPlayer.getConfiguration().getOutputFormat() == StandardAudioDataFormats.DISCORD_PCM_S16_LE;
-    }
-
     public AudioPlayer createPlayer() {
-        return lavaPlayer.createPlayer();
-    }
-
-    public YoutubeAudioSourceManager getYoutubeSourceManager() {
-        return youtubeManager;
+        return new AudioPlayer();
     }
 
     public boolean hasCustomApi() {
@@ -598,7 +460,38 @@ public class TrackLoader {
             loadSmart(resolved, handler);
             return;
         }
-        lavaPlayer.loadItem(resolved, handler);
+        loadFromSources(resolved, handler);
+    }
+
+    private void loadFromSources(String identifier, AudioLoadResultHandler handler) {
+        resolveExecutor.submit(() -> {
+            AudioItem item = null;
+            try {
+                for (AudioSourceManager source : sources) {
+                    item = source.loadItem(identifier);
+                    if (item != null) break;
+                }
+            } catch (LoadException e) {
+                handler.loadFailed(e);
+                return;
+            } catch (RuntimeException e) {
+                handler.loadFailed(new LoadException("Something broke while loading this track: " + e, e));
+                return;
+            }
+            invokeHandler(item, handler);
+        });
+    }
+
+    private AudioTrack youtubeNow(String url, String title, String author) {
+        AudioTrack direct = attemptDirect(url, title, author, false).track();
+        if (direct != null) return direct;
+        CustomYoutubeApiResolver api = customApiResolver;
+        return api == null ? null : api.resolve(url);
+    }
+
+    private AudioTrack spotifyNow(String trackId) throws Exception {
+        dev.valkdz.cdisc.audio.spotify.SpotifyBridge.Match match = spotifyBridge.resolve(trackId);
+        return youtubeNow(match.youtubeUrl(), match.title(), match.artist());
     }
 
     private boolean interceptSpotifyCollection(String resolved, AudioLoadResultHandler handler) {
@@ -611,14 +504,15 @@ public class TrackLoader {
                 var read = spotifyBridge.readCollection(collection);
                 List<AudioTrack> tracks = new ArrayList<>();
                 for (var entry : read.entries()) {
-                    tracks.add(new dev.valkdz.cdisc.audio.spotify.SpotifyEntryTrack(entry));
+                    tracks.add(new dev.valkdz.cdisc.audio.spotify.SpotifyEntryTrack(entry,
+                            info -> spotifyNow(info.identifier)));
                 }
-                handler.playlistLoaded(new com.sedmelluq.discord.lavaplayer.track.BasicAudioPlaylist(read.name(), tracks, null, false));
+                handler.playlistLoaded(new AudioPlaylist(read.name(), tracks, null, false));
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             } catch (Exception e) {
-                handler.loadFailed(new FriendlyException("Could not read the Spotify "
-                        + collection + ": " + e.getMessage(), FriendlyException.Severity.COMMON, e));
+                handler.loadFailed(new LoadException("Could not read the Spotify "
+                        + collection + ": " + e.getMessage(), e));
             }
         });
         return true;
@@ -671,7 +565,7 @@ public class TrackLoader {
         if (interceptSpotify(resolved, handler)) return;
 
         if (!isYoutubeIdentifier(resolved)) {
-            lavaPlayer.loadItem(resolved, handler);
+            loadFromSources(resolved, handler);
             return;
         }
 
@@ -757,7 +651,7 @@ public class TrackLoader {
             Bukkit.getLogger().warning("[CDisc] Could not match this Spotify track to a "
                     + "YouTube video (" + e.getMessage() + "); falling back to the "
                     + "registered sources.");
-            lavaPlayer.loadItem(original, handler);
+            loadFromSources(original, handler);
         }
     }
 
@@ -771,7 +665,7 @@ public class TrackLoader {
             AudioTrack backend = null;
             if (customApiResolver != null && !backendAlreadyTried) {
                 try {
-                    backend = customApiResolver.resolve(lavaPlayer, resolved);
+                    backend = customApiResolver.resolve(resolved);
                 } catch (Exception e) {
                     backend = null;
                 }
@@ -829,11 +723,11 @@ public class TrackLoader {
 
     public CompletableFuture<Boolean> probePlayability(AudioTrack track) {
         CompletableFuture<Boolean> result = new CompletableFuture<>();
-        AudioPlayer probePlayer = lavaPlayer.createPlayer();
+        AudioPlayer probePlayer = new AudioPlayer();
 
         probePlayer.addListener(new AudioEventAdapter() {
             @Override
-            public void onTrackException(AudioPlayer p, AudioTrack t, FriendlyException exception) {
+            public void onTrackException(AudioPlayer p, AudioTrack t, LoadException exception) {
                 result.complete(false);
             }
         });
@@ -856,7 +750,7 @@ public class TrackLoader {
     }
 
     public AudioTrack resolveViaBackend(String resolved) {
-        return customApiResolver == null ? null : customApiResolver.resolve(lavaPlayer, resolved);
+        return customApiResolver == null ? null : customApiResolver.resolve(resolved);
     }
 
     public boolean hasNextSource(AudioTrack failed, String resolved) {
@@ -872,7 +766,7 @@ public class TrackLoader {
             AudioTrack track = null;
             try {
                 CustomYoutubeApiResolver api = customApiResolver;
-                if (api != null) track = api.resolve(lavaPlayer, url);
+                if (api != null) track = api.resolve(url);
             } catch (Exception e) {
                 Bukkit.getLogger().warning("[CDisc] The backend had no replacement: " + e.getMessage());
             }
@@ -934,22 +828,6 @@ public class TrackLoader {
         return identifier.startsWith("ytsearch:")
                 || identifier.contains("youtube.com")
                 || identifier.contains("youtu.be");
-    }
-
-    public static boolean isSabrFailure(Throwable error) {
-        return mentionsSabr(error, java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>()));
-    }
-
-    private static boolean mentionsSabr(Throwable error, java.util.Set<Throwable> seen) {
-        if (error == null || !seen.add(error)) return false;
-
-        String message = error.getMessage();
-        if (message != null && message.contains(SABR_MARKER)) return true;
-
-        for (Throwable suppressed : error.getSuppressed()) {
-            if (mentionsSabr(suppressed, seen)) return true;
-        }
-        return mentionsSabr(error.getCause(), seen);
     }
 
     public boolean hasAlternative() {
@@ -1062,8 +940,7 @@ public class TrackLoader {
         synchronized (this) {
             if (ageGateApi == null) {
                 ageGateApi = new CustomYoutubeApiResolver(
-                        BACKEND_BASE, new HttpAudioSourceManager(),
-                        plugin.cdiscConfig().isYoutubeProxyEnabled());
+                        BACKEND_BASE, plugin.cdiscConfig().isYoutubeProxyEnabled());
             }
             return ageGateApi;
         }
@@ -1075,7 +952,7 @@ public class TrackLoader {
         resolveExecutor.submit(() -> {
             AudioTrack track = null;
             try {
-                track = backend.resolve(lavaPlayer, resolved);
+                track = backend.resolve(resolved);
             } catch (Exception e) {
                 Bukkit.getLogger().warning("[CDisc] The backend could not serve the "
                         + "age-restricted track: " + e.getMessage());
@@ -1192,6 +1069,7 @@ public class TrackLoader {
 
     public void shutdown() {
         resolveExecutor.shutdownNow();
+        sources.forEach(AudioSourceManager::shutdown);
         if (customApiResolver != null) customApiResolver.shutdown();
 
         CustomYoutubeApiResolver aged = ageGateApi;

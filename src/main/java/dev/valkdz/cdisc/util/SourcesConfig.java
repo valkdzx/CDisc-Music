@@ -9,7 +9,6 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -130,22 +129,6 @@ public final class SourcesConfig {
     private String blankable(String path) {
         String url = cfg.getString(path);
         return url == null ? "" : url.trim();
-    }
-
-    public List<String> youtubeClients() {
-        List<String> configured = cfg.getStringList("youtube.clients");
-        List<String> names = new ArrayList<>();
-
-        for (String entry : configured) {
-            if (entry == null) continue;
-            String clean = entry.trim().toLowerCase(Locale.ROOT);
-            if (!clean.isEmpty()) names.add(clean);
-        }
-        return names;
-    }
-
-    public boolean youtubeLogClientFailures() {
-        return cfg.getBoolean("youtube.log-client-failures", false);
     }
 
     public String youtubeSetupGuideUrl() {

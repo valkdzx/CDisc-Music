@@ -1,22 +1,13 @@
 package dev.valkdz.cdisc.audio.sabr;
 
-import com.sedmelluq.discord.lavaplayer.container.MediaContainerDescriptor;
-import com.sedmelluq.discord.lavaplayer.container.MediaContainerDetection;
-import com.sedmelluq.discord.lavaplayer.container.MediaContainerDetectionResult;
-import com.sedmelluq.discord.lavaplayer.container.MediaContainerHints;
-import com.sedmelluq.discord.lavaplayer.container.MediaContainerRegistry;
-import com.sedmelluq.discord.lavaplayer.source.AudioSourceManager;
-import com.sedmelluq.discord.lavaplayer.tools.FriendlyException;
-import com.sedmelluq.discord.lavaplayer.track.AudioReference;
-import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
-import com.sedmelluq.discord.lavaplayer.track.AudioTrackInfo;
-import com.sedmelluq.discord.lavaplayer.track.DelegatedAudioTrack;
-import com.sedmelluq.discord.lavaplayer.track.InternalAudioTrack;
-import com.sedmelluq.discord.lavaplayer.track.playback.LocalAudioTrackExecutor;
+import dev.valkdz.cdisc.audio.player.AudioSourceManager;
+import dev.valkdz.cdisc.audio.player.AudioTrack;
+import dev.valkdz.cdisc.audio.player.AudioTrackInfo;
+import dev.valkdz.cdisc.audio.player.Playback;
 
 import java.util.function.Supplier;
 
-public final class SabrAudioTrack extends DelegatedAudioTrack {
+public final class SabrAudioTrack extends AudioTrack {
 
     private final AudioSourceManager sourceManager;
     private final Supplier<SabrSeekableInputStream> streamOpener;
@@ -31,13 +22,9 @@ public final class SabrAudioTrack extends DelegatedAudioTrack {
     }
 
     @Override
-    public void process(LocalAudioTrackExecutor executor) throws Exception {
+    public void process(Playback playback) throws Exception {
         try (SabrSeekableInputStream stream = streamOpener.get()) {
-            MediaContainerDescriptor container = detect(stream);
-
-            stream.seek(0);
-
-            processDelegate((InternalAudioTrack) container.createTrack(trackInfo, stream), executor);
+            playback.decode(stream, mimeType);
 
             String truncation = stream.truncation();
             if (truncation != null) {
@@ -48,31 +35,6 @@ public final class SabrAudioTrack extends DelegatedAudioTrack {
                 dev.valkdz.cdisc.youtube.PoTokenService.reportNotAttested();
             }
         }
-    }
-
-    private MediaContainerDescriptor detect(SabrSeekableInputStream stream) {
-        MediaContainerDetectionResult result = new MediaContainerDetection(
-                MediaContainerRegistry.DEFAULT_REGISTRY,
-                new AudioReference(trackInfo.identifier, trackInfo.title),
-                stream,
-                MediaContainerHints.from(baseMimeType(), null)).detectContainer();
-
-        if (!result.isContainerDetected()) {
-            throw new FriendlyException("The SABR stream is in no format we recognise",
-                    FriendlyException.Severity.SUSPICIOUS, null);
-        }
-        if (!result.isSupportedFile()) {
-            throw new FriendlyException("The SABR stream is in a format we cannot play: "
-                    + result.getUnsupportedReason(), FriendlyException.Severity.COMMON, null);
-        }
-        return result.getContainerDescriptor();
-    }
-
-    private String baseMimeType() {
-        if (mimeType == null) return null;
-
-        int parameters = mimeType.indexOf(';');
-        return parameters < 0 ? mimeType.trim() : mimeType.substring(0, parameters).trim();
     }
 
     public SabrSeekableInputStream openStream() {

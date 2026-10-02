@@ -1,6 +1,5 @@
 package dev.valkdz.cdisc.youtube;
 
-import dev.lavalink.youtube.clients.Web;
 import dev.valkdz.cdisc.Main;
 import dev.valkdz.cdisc.util.Tasks;
 
@@ -221,9 +220,6 @@ public final class PoTokenService {
         if (gen != generation || !plugin.isEnabled()) return;
 
         install(poToken, visitorData);
-
-        plugin.cdiscConfig().tokens().setYoutubePoToken(poToken == null ? "" : poToken);
-        plugin.cdiscConfig().tokens().setYoutubeVisitorData(visitorData);
         plugin.cdiscConfig().tokens().save();
 
         long ttl = expiresInSeconds > 0 ? expiresInSeconds : RENEWAL_TTL_SECONDS;
@@ -244,9 +240,8 @@ public final class PoTokenService {
     }
 
     private void install(String poToken, String visitorData) {
-        Web.setPoTokenAndVisitorData(
-                poToken == null || poToken.isBlank() ? null : poToken,
-                visitorData == null || visitorData.isBlank() ? null : visitorData);
+        plugin.cdiscConfig().tokens().setYoutubePoToken(poToken == null ? "" : poToken);
+        plugin.cdiscConfig().tokens().setYoutubeVisitorData(visitorData == null ? "" : visitorData);
     }
 
     private static String describe(Exception e) {

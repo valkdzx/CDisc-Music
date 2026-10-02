@@ -1,26 +1,17 @@
 package dev.valkdz.cdisc.audio.backend;
 
-import com.sedmelluq.discord.lavaplayer.player.AudioPlayerManager;
-import com.sedmelluq.discord.lavaplayer.source.AudioSourceManager;
-import com.sedmelluq.discord.lavaplayer.tools.FriendlyException;
+import dev.valkdz.cdisc.audio.player.AudioItem;
+import dev.valkdz.cdisc.audio.player.AudioPlaylist;
+import dev.valkdz.cdisc.audio.player.AudioSourceManager;
+import dev.valkdz.cdisc.audio.player.AudioTrack;
+import dev.valkdz.cdisc.audio.player.AudioTrackInfo;
+import dev.valkdz.cdisc.audio.player.Http;
+import dev.valkdz.cdisc.audio.player.LoadException;
 import dev.valkdz.cdisc.util.Json;
-import com.sedmelluq.discord.lavaplayer.tools.Units;
-import com.sedmelluq.discord.lavaplayer.tools.io.HttpClientTools;
-import com.sedmelluq.discord.lavaplayer.tools.io.HttpInterface;
-import com.sedmelluq.discord.lavaplayer.tools.io.HttpInterfaceManager;
-import com.sedmelluq.discord.lavaplayer.track.AudioItem;
-import com.sedmelluq.discord.lavaplayer.track.AudioReference;
-import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
-import com.sedmelluq.discord.lavaplayer.track.AudioTrackInfo;
-import com.sedmelluq.discord.lavaplayer.track.BasicAudioPlaylist;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.util.EntityUtils;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 import java.net.URLEncoder;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -63,14 +54,12 @@ public final class BackendMusicSourceManager implements AudioSourceManager {
     private final String endpoint;
     private final boolean fallback;
     private final Logger logger;
-    private final HttpInterfaceManager interfaces = HttpClientTools.createDefaultThreadLocalManager();
 
     public BackendMusicSourceManager(Service service, String endpoint, boolean fallback, Logger logger) {
         this.service = service;
         this.endpoint = endpoint.endsWith("/") ? endpoint.substring(0, endpoint.length() - 1) : endpoint;
         this.fallback = fallback;
         this.logger = logger;
-        interfaces.configureBuilder(dev.valkdz.cdisc.util.NetProxy::apply);
     }
 
     @Override
@@ -79,8 +68,7 @@ public final class BackendMusicSourceManager implements AudioSourceManager {
     }
 
     @Override
-    public AudioItem loadItem(AudioPlayerManager manager, AudioReference reference) {
-        String identifier = reference.identifier;
+    public AudioItem loadItem(String identifier) {
         if (identifier.startsWith(service.searchPrefix)) {
             return search(identifier.substring(service.searchPrefix.length()).trim());
         }
@@ -88,14 +76,14 @@ public final class BackendMusicSourceManager implements AudioSourceManager {
     }
 
     private AudioItem search(String query) {
-        if (query.isEmpty()) return AudioReference.NO_TRACK;
+        if (query.isEmpty()) return AudioItem.NONE;
 
         Json json = ask("/search?q=" + encode(query) + "&limit=" + SEARCH_LIMIT, true);
         if (json == null) return null;
 
         List<AudioTrack> tracks = tracksOf(json.get("results"));
-        return tracks.isEmpty() ? AudioReference.NO_TRACK
-                : new BasicAudioPlaylist("Search results for: " + query, tracks, null, true);
+        return tracks.isEmpty() ? AudioItem.NONE
+                : new AudioPlaylist("Search results for: " + query, tracks, null, true);
     }
 
     private AudioItem link(String url) {
@@ -104,9 +92,9 @@ public final class BackendMusicSourceManager implements AudioSourceManager {
 
         if (!json.get("tracks").isNull()) {
             List<AudioTrack> tracks = tracksOf(json.get("tracks"));
-            if (tracks.isEmpty()) return AudioReference.NO_TRACK;
+            if (tracks.isEmpty()) return AudioItem.NONE;
             String name = json.get("name").text();
-            return new BasicAudioPlaylist(name == null ? service.label : name, tracks, null, false);
+            return new AudioPlaylist(name == null ? service.label : name, tracks, null, false);
         }
 
         Stream stream = streamOf(json);
@@ -116,10 +104,7 @@ public final class BackendMusicSourceManager implements AudioSourceManager {
 
     Stream resolve(String url) {
         Json json = ask("?url=" + encode(url), false);
-        if (json == null) {
-            throw new FriendlyException(service.label + " does not recognise this link",
-                    FriendlyException.Severity.COMMON, null);
-        }
+        if (json == null) throw new LoadException(service.label + " does not recognise this link");
 
         Stream stream = streamOf(json);
         if (stream == null) throw refused(json, 200);
@@ -155,9 +140,9 @@ public final class BackendMusicSourceManager implements AudioSourceManager {
 
         String seconds = json.get("duration").text();
         try {
-            return seconds == null ? Units.DURATION_MS_UNKNOWN : Math.round(Double.parseDouble(seconds) * 1000);
+            return seconds == null ? AudioTrackInfo.UNKNOWN_LENGTH : Math.round(Double.parseDouble(seconds) * 1000);
         } catch (NumberFormatException e) {
-            return Units.DURATION_MS_UNKNOWN;
+            return AudioTrackInfo.UNKNOWN_LENGTH;
         }
     }
 
@@ -171,10 +156,10 @@ public final class BackendMusicSourceManager implements AudioSourceManager {
     private Json ask(String path, boolean mayFallBack) {
         int status;
         Json json = null;
-        try (HttpInterface http = interfaces.getInterface();
-             CloseableHttpResponse response = http.execute(new HttpGet(endpoint + path))) {
-            status = response.getStatusLine().getStatusCode();
-            String body = EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8);
+        try {
+            HttpResponse<byte[]> response = Http.get(endpoint + path);
+            status = response.statusCode();
+            String body = new String(response.body(), StandardCharsets.UTF_8);
             if (body.trim().startsWith("{")) json = Json.parse(body);
         } catch (IOException e) {
             return unanswered(mayFallBack, "could not be reached (" + e.getMessage() + ")", e);
@@ -191,49 +176,19 @@ public final class BackendMusicSourceManager implements AudioSourceManager {
             logger.warning("The " + service.label + " backend " + what + "; trying the token instead.");
             return null;
         }
-        throw new FriendlyException("The " + service.label + " backend " + what,
-                FriendlyException.Severity.SUSPICIOUS, cause);
+        throw new LoadException("The " + service.label + " backend " + what, cause);
     }
 
-    private FriendlyException refused(Json json, int status) {
+    private LoadException refused(Json json, int status) {
         String code = json.get("code").text();
-        if ("not_found".equals(code)) {
-            return new FriendlyException("No such " + service.label + " track",
-                    FriendlyException.Severity.COMMON, null);
-        }
+        if ("not_found".equals(code)) return new LoadException("No such " + service.label + " track");
 
         String error = json.get("error").text();
-        return new FriendlyException("The " + service.label + " backend refused this track: "
-                + (error == null ? "HTTP " + status : error), FriendlyException.Severity.COMMON, null);
+        return new LoadException("The " + service.label + " backend refused this track: "
+                + (error == null ? "HTTP " + status : error));
     }
 
     private static String encode(String value) {
         return URLEncoder.encode(value, StandardCharsets.UTF_8);
-    }
-
-    HttpInterfaceManager interfaces() {
-        return interfaces;
-    }
-
-    @Override
-    public boolean isTrackEncodable(AudioTrack track) {
-        return true;
-    }
-
-    @Override
-    public void encodeTrack(AudioTrack track, DataOutput output) {
-    }
-
-    @Override
-    public AudioTrack decodeTrack(AudioTrackInfo trackInfo, DataInput input) {
-        return new BackendMusicTrack(trackInfo, this, null);
-    }
-
-    @Override
-    public void shutdown() {
-        try {
-            interfaces.close();
-        } catch (IOException ignored) {
-        }
     }
 }

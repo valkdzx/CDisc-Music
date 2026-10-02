@@ -9,4 +9,18 @@ public interface AudioSourceManager {
 
     default void shutdown() {
     }
+
+    static AudioSourceManager named(String name) {
+        return new AudioSourceManager() {
+            @Override
+            public String getSourceName() {
+                return name;
+            }
+
+            @Override
+            public AudioItem loadItem(String identifier) {
+                return null;
+            }
+        };
+    }
 }

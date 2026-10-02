@@ -1,20 +1,16 @@
 package dev.valkdz.cdisc.audio.sabr;
 
-import com.sedmelluq.discord.lavaplayer.tools.io.SeekableInputStream;
-import com.sedmelluq.discord.lavaplayer.track.info.AudioTrackInfoProvider;
+import dev.valkdz.cdisc.audio.media.MediaInput;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Collections;
-import java.util.List;
 import java.util.function.Supplier;
 
-public final class SabrSeekableInputStream extends SeekableInputStream {
-
-    private static final long MAX_SKIP_DISTANCE = 16L * 1024 * 1024;
+public final class SabrSeekableInputStream extends MediaInput {
 
     private static final int REWIND_WINDOW = 256 * 1024;
 
+    private final long contentLength;
     private final Supplier<? extends InputStream> opener;
 
     private InputStream delegate;
@@ -26,7 +22,7 @@ public final class SabrSeekableInputStream extends SeekableInputStream {
     private int rewindCursor = -1;
 
     public SabrSeekableInputStream(long contentLength, Supplier<? extends InputStream> opener) {
-        super(contentLength, MAX_SKIP_DISTANCE);
+        this.contentLength = contentLength;
         this.opener = opener;
     }
 
@@ -36,17 +32,22 @@ public final class SabrSeekableInputStream extends SeekableInputStream {
     }
 
     @Override
-    public long getPosition() {
+    public long position() {
         return position;
     }
 
     @Override
-    public boolean canSeekHard() {
+    public long length() {
+        return contentLength;
+    }
+
+    @Override
+    public boolean canSeek() {
         return true;
     }
 
     @Override
-    protected void seekHard(long target) throws IOException {
+    public void seek(long target) throws IOException {
         if (target < position) {
             if (canRewindTo(target)) {
                 rewindCursor = (int) target;
@@ -72,24 +73,6 @@ public final class SabrSeekableInputStream extends SeekableInputStream {
 
     private boolean replaying() {
         return rewindCursor >= 0 && rewindCursor < rewindHeld;
-    }
-
-    @Override
-    public int read() throws IOException {
-        if (replaying()) {
-            int value = rewind[rewindCursor++] & 0xFF;
-            position++;
-            if (rewindCursor >= rewindHeld) rewindCursor = -1;
-            return value;
-        }
-
-        rewindCursor = -1;
-        int value = delegate().read();
-        if (value >= 0) {
-            capture((byte) value);
-            position++;
-        }
-        return value;
     }
 
     @Override
@@ -121,40 +104,6 @@ public final class SabrSeekableInputStream extends SeekableInputStream {
         int room = Math.min(length, REWIND_WINDOW - rewindHeld);
         System.arraycopy(source, offset, rewind, rewindHeld, room);
         rewindHeld += room;
-    }
-
-    private void capture(byte value) {
-        if (position != rewindHeld || rewindHeld >= REWIND_WINDOW) return;
-
-        if (rewind == null) rewind = new byte[REWIND_WINDOW];
-        rewind[rewindHeld++] = value;
-    }
-
-    @Override
-    public long skip(long count) throws IOException {
-
-        long skipped = 0;
-        byte[] scratch = new byte[8192];
-
-        while (skipped < count) {
-            int wanted = (int) Math.min(scratch.length, count - skipped);
-            int taken = read(scratch, 0, wanted);
-            if (taken < 0) break;
-            skipped += taken;
-        }
-        return skipped;
-    }
-
-    @Override
-    public int available() throws IOException {
-        if (replaying()) return rewindHeld - rewindCursor;
-        return delegate == null ? 0 : delegate.available();
-    }
-
-    @Override
-    public List<AudioTrackInfoProvider> getTrackInfoProviders() {
-
-        return Collections.emptyList();
     }
 
     public String truncation() {

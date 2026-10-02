@@ -140,12 +140,6 @@ final class Diagnostics {
                 out.add("  &7needs po-token and visitor-data in tokens.yml. Without");
                 out.add("  &7them this path is on but cannot be used.");
             }
-
-            out.add(line(State.READY, "clients",
-                    String.join(", ", config.getYoutubeClients())));
-            if (!config.isYoutubeClientFailureLogging()) {
-                out.add("  &7Set youtube.log-client-failures to see why each one fails.");
-            }
         }
 
         out.add("");

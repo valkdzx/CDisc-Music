@@ -1,6 +1,5 @@
 package dev.valkdz.cdisc;
 
-import com.sedmelluq.discord.lavaplayer.natives.ConnectorNativeLibLoader;
 import de.tr7zw.changeme.nbtapi.NBT;
 import dev.valkdz.cdisc.audio.LavaPlayerManager;
 import dev.valkdz.cdisc.command.CDiscCommand;
@@ -19,11 +18,6 @@ import dev.valkdz.cdisc.util.Config;
 import dev.valkdz.cdisc.util.MessageManager;
 import dev.valkdz.cdisc.util.Tasks;
 import dev.valkdz.cdisc.voice.VoiceBackendManager;
-import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.core.LoggerContext;
-import org.apache.logging.log4j.core.config.Configuration;
-import org.apache.logging.log4j.core.config.LoggerConfig;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.Objects;
@@ -96,7 +90,6 @@ public final class Main extends JavaPlugin {
         permissions = new dev.valkdz.cdisc.permission.PermissionsConfig(this);
         regionGuard = new dev.valkdz.cdisc.region.RegionGuard(this);
 
-        suppressNoisyYoutubeLogs();
 
         // Must exist before LavaPlayerManager starts a session: playback asks it
         // whether the jukebox has speakers paired to it.
@@ -125,14 +118,6 @@ public final class Main extends JavaPlugin {
 
         carriedLyrics = new dev.valkdz.cdisc.lyrics.CarriedLyrics(this, lyricsService);
         carriedLyrics.start();
-
-        try {
-            ConnectorNativeLibLoader.loadConnectorLibrary();
-            getLogger().info("Native audio libraries (libmpg123-0, connector) preloaded.");
-        } catch (Throwable t) {
-            getLogger().warning("Failed to preload native audio libraries: " + t.getMessage()
-                    + " — they will load lazily on first playback instead.");
-        }
 
         boolean nbtReady = NBT.preloadApi();
         if (!nbtReady) {
@@ -431,38 +416,4 @@ public final class Main extends JavaPlugin {
     }
 
     public void disablePlugin() { this.setEnabled(false); }
-
-    private void suppressNoisyYoutubeLogs() {
-
-        if (config.isYoutubeClientFailureLogging()) {
-            getLogger().info("YouTube client failures will be logged in full "
-                    + "(youtube.log-client-failures is on).");
-            return;
-        }
-
-        try {
-            LoggerContext ctx = (LoggerContext) LogManager.getContext(false);
-            Configuration config = ctx.getConfiguration();
-
-            String[] loggerNames = {
-                    "dev.lavalink.youtube.clients.skeleton.NonMusicClient",
-                    "dev.lavalink.youtube.clients.skeleton.StreamingNonMusicClient"
-            };
-
-            for (String name : loggerNames) {
-                LoggerConfig loggerConfig = config.getLoggerConfig(name);
-                if (!loggerConfig.getName().equals(name)) {
-
-                    loggerConfig = new LoggerConfig(name, Level.ERROR, true);
-                    config.addLogger(name, loggerConfig);
-                } else {
-                    loggerConfig.setLevel(Level.ERROR);
-                }
-            }
-
-            ctx.updateLoggers();
-        } catch (Exception e) {
-            getLogger().warning("Could not suppress verbose YouTube-source logging: " + e.getMessage());
-        }
-    }
 }

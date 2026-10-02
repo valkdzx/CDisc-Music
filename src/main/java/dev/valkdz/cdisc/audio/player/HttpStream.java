@@ -17,6 +17,7 @@ public final class HttpStream extends MediaInput {
     private final String[] headers;
     private final long chunkBytes;
     private final Callable<String> refresh;
+    private Http.Guard guard;
     private long length;
     private boolean ranged;
     private long position;
@@ -37,6 +38,11 @@ public final class HttpStream extends MediaInput {
         this.refresh = refresh;
         this.headers = headers;
         this.ranged = length > 0;
+    }
+
+    public HttpStream guard(Http.Guard guard) {
+        this.guard = guard;
+        return this;
     }
 
     public String contentType() throws IOException {
@@ -105,7 +111,7 @@ public final class HttpStream extends MediaInput {
 
     private void open() throws IOException {
         long end = chunkBytes > 0 && length > 0 ? Math.min(position + chunkBytes, length) - 1 : -1;
-        HttpResponse<InputStream> response = Http.open(url, position, end, headers);
+        HttpResponse<InputStream> response = Http.open(url, position, end, guard, headers);
         int status = response.statusCode();
         if ((status == 403 || status == 410) && refresh != null && refreshes < MAX_REFRESHES) {
             response.body().close();

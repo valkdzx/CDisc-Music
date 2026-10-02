@@ -1,18 +1,12 @@
 package dev.valkdz.cdisc.audio.tiktok;
 
-import com.sedmelluq.discord.lavaplayer.container.mp3.Mp3AudioTrack;
-import com.sedmelluq.discord.lavaplayer.container.mpeg.MpegAudioTrack;
-import com.sedmelluq.discord.lavaplayer.source.AudioSourceManager;
-import com.sedmelluq.discord.lavaplayer.tools.io.HttpInterface;
-import com.sedmelluq.discord.lavaplayer.tools.io.PersistentHttpStream;
-import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
-import com.sedmelluq.discord.lavaplayer.track.AudioTrackInfo;
-import com.sedmelluq.discord.lavaplayer.track.DelegatedAudioTrack;
-import com.sedmelluq.discord.lavaplayer.track.playback.LocalAudioTrackExecutor;
+import dev.valkdz.cdisc.audio.player.AudioSourceManager;
+import dev.valkdz.cdisc.audio.player.AudioTrack;
+import dev.valkdz.cdisc.audio.player.AudioTrackInfo;
+import dev.valkdz.cdisc.audio.player.HttpStream;
+import dev.valkdz.cdisc.audio.player.Playback;
 
-import java.net.URI;
-
-public final class TikTokAudioTrack extends DelegatedAudioTrack {
+public final class TikTokAudioTrack extends AudioTrack {
 
     private final TikTokSourceManager sourceManager;
 
@@ -23,16 +17,9 @@ public final class TikTokAudioTrack extends DelegatedAudioTrack {
 
     // Media addresses expire within a day, so a queued or restored track resolves afresh on every play.
     @Override
-    public void process(LocalAudioTrackExecutor executor) throws Exception {
-        try (HttpInterface http = sourceManager.getHttpInterface()) {
-            TikTokItem item = sourceManager.reader().read(http, trackInfo.identifier);
-
-            try (PersistentHttpStream stream = new PersistentHttpStream(http, URI.create(item.mediaUrl()), null)) {
-                processDelegate(item.isMp3()
-                        ? new Mp3AudioTrack(trackInfo, stream)
-                        : new MpegAudioTrack(trackInfo, stream), executor);
-            }
-        }
+    public void process(Playback playback) throws Exception {
+        TikTokItem item = sourceManager.reader().read(trackInfo.identifier);
+        playback.decode(new HttpStream(item.mediaUrl(), -1, "User-Agent", TikTokReader.USER_AGENT), item.mimeType());
     }
 
     @Override

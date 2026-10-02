@@ -1,12 +1,5 @@
 package dev.valkdz.cdisc.util;
 
-import org.apache.http.auth.AuthScope;
-import org.apache.http.auth.Credentials;
-import org.apache.http.auth.UsernamePasswordCredentials;
-import org.apache.http.client.CredentialsProvider;
-import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.http.impl.conn.SystemDefaultRoutePlanner;
-
 import java.io.IOException;
 import java.net.Authenticator;
 import java.net.InetSocketAddress;
@@ -50,25 +43,6 @@ public final class NetProxy {
             return r != null && r.user() != null && getRequestorType() == RequestorType.PROXY
                     ? new PasswordAuthentication(r.user(), r.password().toCharArray())
                     : null;
-        }
-    };
-
-    private static final CredentialsProvider CREDENTIALS = new CredentialsProvider() {
-        @Override
-        public void setCredentials(AuthScope scope, Credentials credentials) {
-        }
-
-        @Override
-        public Credentials getCredentials(AuthScope scope) {
-            Route r = route;
-            if (r == null || r.user() == null) return null;
-            boolean ours = (scope.getHost() == null || scope.getHost().equalsIgnoreCase(r.host()))
-                    && (scope.getPort() < 0 || scope.getPort() == r.port());
-            return ours ? new UsernamePasswordCredentials(r.user(), r.password()) : null;
-        }
-
-        @Override
-        public void clear() {
         }
     };
 
@@ -145,10 +119,5 @@ public final class NetProxy {
     // Installed on every client whether or not a proxy is set, so a reload can switch it without new clients.
     public static HttpClient.Builder apply(HttpClient.Builder builder) {
         return builder.proxy(SELECTOR).authenticator(AUTHENTICATOR);
-    }
-
-    public static void apply(HttpClientBuilder builder) {
-        builder.setRoutePlanner(new SystemDefaultRoutePlanner(SELECTOR));
-        builder.setDefaultCredentialsProvider(CREDENTIALS);
     }
 }

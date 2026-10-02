@@ -1,9 +1,9 @@
 package dev.valkdz.cdisc.gui;
 
-import com.sedmelluq.discord.lavaplayer.player.AudioLoadResultHandler;
-import com.sedmelluq.discord.lavaplayer.tools.FriendlyException;
-import com.sedmelluq.discord.lavaplayer.track.AudioPlaylist;
-import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
+import dev.valkdz.cdisc.audio.player.AudioLoadResultHandler;
+import dev.valkdz.cdisc.audio.player.LoadException;
+import dev.valkdz.cdisc.audio.player.AudioPlaylist;
+import dev.valkdz.cdisc.audio.player.AudioTrack;
 import dev.valkdz.cdisc.Main;
 import dev.valkdz.cdisc.util.Chat;
 import dev.valkdz.cdisc.util.ItemUtils;
@@ -112,7 +112,7 @@ public final class PlaylistGuiManager {
             }
 
             @Override
-            public void loadFailed(FriendlyException e) {
+            public void loadFailed(LoadException e) {
                 reply(player, "§c", "playlist.load_failed");
             }
         });

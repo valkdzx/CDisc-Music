@@ -10,7 +10,11 @@ final class MpegTsAudio {
     private MpegTsAudio() {
     }
 
-    static byte[] mp3Of(byte[] ts) throws IOException {
+    static boolean isTransportStream(byte[] data) {
+        return data.length >= PACKET && data[0] == 0x47 && (data.length < 2 * PACKET || data[PACKET] == 0x47);
+    }
+
+    static byte[] audioOf(byte[] ts) throws IOException {
         ByteArrayOutputStream out = new ByteArrayOutputStream(ts.length);
         int pmtPid = -1;
         int audioPid = -1;
@@ -69,7 +73,7 @@ final class MpegTsAudio {
         for (int at = table + 12 + infoLength; at + 5 <= sectionEnd; ) {
             int type = ts[at] & 0xFF;
             int pid = ((ts[at + 1] & 0x1F) << 8) | (ts[at + 2] & 0xFF);
-            if (type == 0x03 || type == 0x04) return new int[]{pid, type};
+            if (type == 0x03 || type == 0x04 || type == 0x0F) return new int[]{pid, type};
             if (other < 0) other = type;
             at += 5 + (((ts[at + 3] & 0x0F) << 8) | (ts[at + 4] & 0xFF));
         }

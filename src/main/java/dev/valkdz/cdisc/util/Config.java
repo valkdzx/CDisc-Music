@@ -9,9 +9,6 @@ import java.util.Set;
 
 public final class Config {
 
-    private static final List<String> DEFAULT_YOUTUBE_CLIENTS = List.of(
-            "android-vr", "ios", "music", "web", "tv", "web-embedded", "mweb");
-
     private final Main plugin;
     private final Tokens tokens;
     private final SourcesConfig sources;
@@ -146,15 +143,6 @@ public final class Config {
 
     public int getSearchMaxResults(String sourceId) {
         return sources.searchMaxResults(sourceId);
-    }
-
-    public List<String> getYoutubeClients() {
-        List<String> configured = sources.youtubeClients();
-        return configured.isEmpty() ? DEFAULT_YOUTUBE_CLIENTS : configured;
-    }
-
-    public boolean isYoutubeClientFailureLogging() {
-        return sources.youtubeLogClientFailures();
     }
 
     public String getYoutubeSetupGuideUrl() {

@@ -3,6 +3,8 @@ package dev.valkdz.cdisc.audio.player;
 public final class AudioTrackInfo {
 
     public static final long UNKNOWN_LENGTH = Long.MAX_VALUE;
+    public static final String UNKNOWN_TITLE = "Unknown title";
+    public static final String UNKNOWN_ARTIST = "Unknown artist";
 
     public final String title;
     public final String author;

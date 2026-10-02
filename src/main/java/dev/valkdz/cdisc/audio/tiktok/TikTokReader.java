@@ -1,14 +1,10 @@
 package dev.valkdz.cdisc.audio.tiktok;
 
+import dev.valkdz.cdisc.audio.player.Http;
 import dev.valkdz.cdisc.util.Json;
-import com.sedmelluq.discord.lavaplayer.tools.io.HttpClientTools;
-import com.sedmelluq.discord.lavaplayer.tools.io.HttpInterface;
-import org.apache.http.client.config.RequestConfig;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.util.EntityUtils;
 
 import java.io.IOException;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.Comparator;
 import java.util.regex.Matcher;
@@ -40,12 +36,12 @@ public final class TikTokReader {
         return ITEM_ID.matcher(s).find() || SHORT_LINK.matcher(s).find();
     }
 
-    public TikTokItem read(HttpInterface http, String input) throws IOException {
-        String id = idOf(http, input.trim());
+    public TikTokItem read(String input) throws IOException {
+        String id = idOf(input.trim());
 
         IOException apiFailure;
         try {
-            TikTokItem item = fromPlayerApi(http, id);
+            TikTokItem item = fromPlayerApi(id);
             if (item != null) return item;
             apiFailure = new IOException("player API returned no playable media");
         } catch (TikTokException e) {
@@ -55,14 +51,14 @@ public final class TikTokReader {
         }
 
         try {
-            return fromEmbed(http, id);
+            return fromEmbed(id);
         } catch (IOException e) {
             e.addSuppressed(apiFailure);
             throw e;
         }
     }
 
-    public String idOf(HttpInterface http, String input) throws IOException {
+    public String idOf(String input) throws IOException {
         Matcher bare = BARE_ID.matcher(input);
         if (bare.matches()) return bare.group(1);
 
@@ -71,31 +67,14 @@ public final class TikTokReader {
             Matcher m = ITEM_ID.matcher(location);
             if (m.find()) return m.group(1);
             if (!HOST.matcher(location).find()) break;
-            location = redirectOf(http, location);
+            // Short links answer 301/302; following them lands on the watch page, behind a WAF bot check.
+            location = Http.redirectOf(location, "User-Agent", USER_AGENT);
         }
         throw new TikTokException("Not a TikTok video link: " + input);
     }
 
-    // Short links answer 301/302; following them lands on the watch page, which sits behind a WAF bot check.
-    private String redirectOf(HttpInterface http, String url) throws IOException {
-        HttpGet get = new HttpGet(url);
-        get.setHeader("User-Agent", USER_AGENT);
-        get.setConfig(RequestConfig.copy(HttpClientTools.DEFAULT_REQUEST_CONFIG)
-                .setRedirectsEnabled(false).build());
-        try (CloseableHttpResponse response = http.execute(get)) {
-            EntityUtils.consumeQuietly(response.getEntity());
-            return HttpClientTools.getRedirectLocation(url, response);
-        }
-    }
-
-    private TikTokItem fromPlayerApi(HttpInterface http, String id) throws IOException {
-        HttpGet get = new HttpGet(PLAYER_API + id);
-        get.setHeader("User-Agent", USER_AGENT);
-        Json root;
-        try (CloseableHttpResponse response = http.execute(get)) {
-            HttpClientTools.assertSuccessWithContent(response, "TikTok player API");
-            root = Json.parse(EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8));
-        }
+    private TikTokItem fromPlayerApi(String id) throws IOException {
+        Json root = Json.parse(Http.text(PLAYER_API + id, "User-Agent", USER_AGENT));
 
         Json item = root.get("items").index(0);
         if (item.isNull()) {
@@ -133,17 +112,11 @@ public final class TikTokReader {
                 .orElse(null);
     }
 
-    private TikTokItem fromEmbed(HttpInterface http, String id) throws IOException {
+    private TikTokItem fromEmbed(String id) throws IOException {
         String route = "/embed/v2/" + id;
-        HttpGet get = new HttpGet("https://www.tiktok.com" + route);
-        get.setHeader("User-Agent", USER_AGENT);
-
-        String html;
-        int status;
-        try (CloseableHttpResponse response = http.execute(get)) {
-            status = response.getStatusLine().getStatusCode();
-            html = EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8);
-        }
+        HttpResponse<byte[]> response = Http.get("https://www.tiktok.com" + route, "User-Agent", USER_AGENT);
+        int status = response.statusCode();
+        String html = new String(response.body(), StandardCharsets.UTF_8);
 
         // A missing video answers 400 with the reason in the page state, so the status alone says too little.
         Matcher m = EMBED_STATE.matcher(html);

@@ -1,8 +1,8 @@
 package dev.valkdz.cdisc.audio;
 
-import com.sedmelluq.discord.lavaplayer.player.AudioPlayer;
-import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
-import com.sedmelluq.discord.lavaplayer.track.playback.AudioFrame;
+import dev.valkdz.cdisc.audio.player.AudioPlayer;
+import dev.valkdz.cdisc.audio.player.AudioTrack;
+import dev.valkdz.cdisc.audio.player.AudioFrame;
 import dev.valkdz.cdisc.voice.VoiceSession;
 
 import java.util.ArrayDeque;

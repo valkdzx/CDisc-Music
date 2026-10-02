@@ -1,22 +1,12 @@
 package dev.valkdz.cdisc.audio.sabr;
 
-import com.sedmelluq.discord.lavaplayer.source.AudioSourceManager;
-import com.sedmelluq.discord.lavaplayer.tools.Units;
-import com.sedmelluq.discord.lavaplayer.tools.io.HttpClientTools;
-import com.sedmelluq.discord.lavaplayer.tools.io.HttpInterface;
-import com.sedmelluq.discord.lavaplayer.tools.io.HttpInterfaceManager;
-import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
-import com.sedmelluq.discord.lavaplayer.track.AudioTrackInfo;
-import dev.lavalink.youtube.cipher.CipherManager;
-import dev.lavalink.youtube.cipher.LocalSignatureCipherManager;
-import dev.lavalink.youtube.cipher.RemoteCipherManager;
-import dev.lavalink.youtube.track.format.StreamFormat;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.entity.ContentType;
-import org.apache.http.util.EntityUtils;
+import dev.valkdz.cdisc.audio.player.AudioSourceManager;
+import dev.valkdz.cdisc.audio.player.AudioTrack;
+import dev.valkdz.cdisc.audio.player.AudioTrackInfo;
+import dev.valkdz.cdisc.audio.player.Http;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.net.http.HttpClient;
 import java.time.Duration;
@@ -24,7 +14,6 @@ import java.util.Comparator;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
@@ -74,7 +63,7 @@ public final class SabrResolver {
     private final EmbeddedPlayer embedded;
     private final Supplier<InnerTubePlayer.ClientIdentity> identity;
 
-    private final CipherManager cipher;
+    private final RemoteCipher remoteCipher;
 
     private static final long VISITOR_DATA_TTL_MS = 60 * 60 * 1000L;
     private static final long VISITOR_RENEW_AHEAD_MS = 5 * 60 * 1000L;
@@ -85,16 +74,12 @@ public final class SabrResolver {
     private long mintedVisitorDataUntil;
     private volatile String verifiedVisitor;
     private volatile String region;
-    private final HttpInterfaceManager cipherInterfaces = HttpClientTools.createDefaultThreadLocalManager();
 
     public SabrResolver(Supplier<InnerTubePlayer.ClientIdentity> identity, String remoteCipherUrl,
-                        boolean sabr) {
+                        String remoteCipherPassword, boolean sabr) {
         this.identity = identity;
         this.sabr = sabr;
-        cipherInterfaces.configureBuilder(dev.valkdz.cdisc.util.NetProxy::apply);
-        this.cipher = isBlank(remoteCipherUrl)
-                ? new LocalSignatureCipherManager()
-                : new RemoteCipherManager(remoteCipherUrl);
+        this.remoteCipher = isBlank(remoteCipherUrl) ? null : new RemoteCipher(remoteCipherUrl, remoteCipherPassword);
         this.http = dev.valkdz.cdisc.util.NetProxy.apply(HttpClient.newBuilder())
                 .connectTimeout(Duration.ofSeconds(10))
 
@@ -244,7 +229,7 @@ public final class SabrResolver {
                 long durationMs = response.durationMs() > 0 ? response.durationMs() : format.durationMs();
                 return new DirectAudioTrack(
                         trackInfo(videoId, response, discTitle, discAuthor, durationMs, namesWin),
-                        visionSource, cipherInterfaces, url, format.mimeType(), format.contentLength(),
+                        visionSource, url, format.mimeType(), format.contentLength(),
                         () -> freshVisionUrl(videoId, format.itag()));
             } catch (Exception e) {
                 return null;
@@ -288,7 +273,7 @@ public final class SabrResolver {
         long durationMs = response.durationMs() > 0 ? response.durationMs() : format.durationMs();
         return new DirectAudioTrack(
                 trackInfo(videoId, response, discTitle, discAuthor, durationMs, namesWin),
-                embeddedSource, cipherInterfaces, url, format.mimeType(), format.contentLength(),
+                embeddedSource, url, format.mimeType(), format.contentLength(),
                 () -> freshEmbeddedUrl(videoId, format.itag()));
     }
 
@@ -307,14 +292,10 @@ public final class SabrResolver {
         if (contentLength <= 0) return true;
 
         long from = contentLength / 2;
-        HttpGet request = new HttpGet(url);
-        request.setHeader("Range", "bytes=" + from + "-" + Math.min(contentLength - 1, from + 1023));
-
-        try (HttpInterface iface = cipherInterfaces.getInterface();
-             CloseableHttpResponse response = iface.execute(request)) {
-            EntityUtils.consumeQuietly(response.getEntity());
-            int status = response.getStatusLine().getStatusCode();
-            return status == 206 || status == 200;
+        try {
+            java.net.http.HttpResponse<InputStream> response = Http.open(url, from, Math.min(contentLength - 1, from + 1023));
+            response.body().close();
+            return response.statusCode() == 206 || response.statusCode() == 200;
         } catch (IOException e) {
             return true;
         }
@@ -340,7 +321,7 @@ public final class SabrResolver {
 
         return new LiveAudioTrack(
                 trackInfo(videoId, response, discTitle, discAuthor, 0, namesWin),
-                source, cipherInterfaces,
+                source,
                 () -> {
                     String first = known.getAndSet(null);
                     return first != null ? first : freshLiveUrl(videoId, who.get());
@@ -393,12 +374,6 @@ public final class SabrResolver {
                 .thenAccept(page -> accept(page, System.currentTimeMillis()))
                 .exceptionally(ignored -> null);
 
-        CompletableFuture.runAsync(() -> {
-            try (HttpInterface iface = cipherInterfaces.getInterface()) {
-                cipher.getPlayerScript(iface);
-            } catch (Exception ignored) {
-            }
-        });
     }
 
     public String visitorDataOrNull() {
@@ -417,7 +392,7 @@ public final class SabrResolver {
                         : pick(response.title(), discTitle, "Unknown title"),
                 namesWin ? pick(discAuthor, response.author(), "Unknown artist")
                         : pick(response.author(), discAuthor, "Unknown artist"),
-                response.live() ? Units.DURATION_MS_UNKNOWN : durationMs,
+                response.live() ? AudioTrackInfo.UNKNOWN_LENGTH : durationMs,
                 videoId,
                 response.live(),
                 "https://www.youtube.com/watch?v=" + videoId);
@@ -450,19 +425,17 @@ public final class SabrResolver {
         String n = queryParam(url, "n");
         if (n == null) return url;
 
+        String playerId = null;
         try {
-            return ownCipher.resolve(ownCipher.currentPlayerId(), url, null, null);
+            playerId = ownCipher.currentPlayerId();
+            return ownCipher.resolve(playerId, url, null, null);
         } catch (Exception ignored) {
         }
 
-        try (HttpInterface iface = cipherInterfaces.getInterface()) {
-            StreamFormat streamFormat = new StreamFormat(
-                    ContentType.parse(format.mimeType()),
-                    format.itag(), format.bitrate(), format.contentLength(), 2,
-                    url, n, null, null, true, false);
-
-            return cipher.resolveFormatUrl(iface, cipher.getPlayerScript(iface).url, streamFormat)
-                    .toString();
+        if (remoteCipher == null || playerId == null) return url;
+        try {
+            return remoteCipher.resolve(url, "https://www.youtube.com/s/player/" + playerId
+                    + "/player_ias.vflset/en_US/base.js", n);
         } catch (Exception e) {
             return url;
         }

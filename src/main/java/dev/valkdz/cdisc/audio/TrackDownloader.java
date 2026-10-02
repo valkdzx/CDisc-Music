@@ -1,10 +1,10 @@
 package dev.valkdz.cdisc.audio;
 
-import com.sedmelluq.discord.lavaplayer.player.AudioLoadResultHandler;
-import com.sedmelluq.discord.lavaplayer.tools.FriendlyException;
-import com.sedmelluq.discord.lavaplayer.track.AudioPlaylist;
-import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
-import com.sedmelluq.discord.lavaplayer.track.AudioTrackInfo;
+import dev.valkdz.cdisc.audio.player.AudioLoadResultHandler;
+import dev.valkdz.cdisc.audio.player.LoadException;
+import dev.valkdz.cdisc.audio.player.AudioPlaylist;
+import dev.valkdz.cdisc.audio.player.AudioTrack;
+import dev.valkdz.cdisc.audio.player.AudioTrackInfo;
 import dev.valkdz.cdisc.Main;
 import dev.valkdz.cdisc.audio.engine.TrackLoader;
 import dev.valkdz.cdisc.util.Tasks;
@@ -83,7 +83,7 @@ public final class TrackDownloader {
                 });
             }
 
-            @Override public void loadFailed(FriendlyException e) {
+            @Override public void loadFailed(LoadException e) {
                 onServerThread(sender, () -> sender.sendMessage("§c" + message(sender,
                         "lavaplayer.track.error", String.valueOf(e.getMessage()))));
             }
@@ -133,7 +133,7 @@ public final class TrackDownloader {
                 });
             }
 
-            @Override public void loadFailed(FriendlyException e) {
+            @Override public void loadFailed(LoadException e) {
                 onServerThread(sender, () -> sender.sendMessage("§c" + message(sender,
                         "lavaplayer.track.error", String.valueOf(e.getMessage()))));
             }

@@ -1,7 +1,7 @@
 package dev.valkdz.cdisc.audio;
 
-import com.sedmelluq.discord.lavaplayer.container.MediaContainerDetection;
-import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
+import dev.valkdz.cdisc.audio.player.AudioTrackInfo;
+import dev.valkdz.cdisc.audio.player.AudioTrack;
 import dev.valkdz.cdisc.Main;
 import dev.valkdz.cdisc.lyrics.SyncedLyrics;
 import dev.valkdz.cdisc.permission.PermissionRule;
@@ -481,7 +481,7 @@ public final class LocalMusicLibrary {
 
     public String titleFor(String relative, String tagged) {
         boolean usable = tagged != null && !tagged.isBlank()
-                && !tagged.equals(MediaContainerDetection.UNKNOWN_TITLE);
+                && !tagged.equals(AudioTrackInfo.UNKNOWN_TITLE);
         if (usable) return tagged;
         return stripExtension(baseName(relative == null ? "" : relative));
     }

@@ -59,7 +59,7 @@ class SabrSeekableInputStreamTest {
         try (SabrSeekableInputStream stream = open()) {
             assertBytesFrom(readFully(stream, 100), 0);
 
-            assertEquals(100L, stream.getPosition());
+            assertEquals(100L, stream.position());
             assertEquals(1, conversations.get());
         }
     }
@@ -71,7 +71,7 @@ class SabrSeekableInputStreamTest {
             readFully(stream, 100);
             stream.seek(0);
 
-            assertEquals(0L, stream.getPosition());
+            assertEquals(0L, stream.position());
             assertEquals(1, conversations.get());
             assertBytesFrom(readFully(stream, 100), 0);
         }
@@ -86,7 +86,7 @@ class SabrSeekableInputStreamTest {
             readFully(stream, 100);
 
             assertBytesFrom(readFully(stream, 100), 100);
-            assertEquals(200L, stream.getPosition());
+            assertEquals(200L, stream.position());
             assertEquals(1, conversations.get());
         }
     }
@@ -98,7 +98,7 @@ class SabrSeekableInputStreamTest {
             readFully(stream, 200);
             stream.seek(50);
 
-            assertEquals(50L, stream.getPosition());
+            assertEquals(50L, stream.position());
             assertBytesFrom(readFully(stream, 10), 50);
             assertEquals(1, conversations.get());
         }
@@ -111,7 +111,7 @@ class SabrSeekableInputStreamTest {
             readFully(stream, 100);
             stream.seek(PAST_THE_WINDOW);
 
-            assertEquals(PAST_THE_WINDOW, stream.getPosition());
+            assertEquals(PAST_THE_WINDOW, stream.position());
             assertBytesFrom(readFully(stream, 16), PAST_THE_WINDOW);
             assertEquals(1, conversations.get());
         }
@@ -125,7 +125,7 @@ class SabrSeekableInputStreamTest {
             readFully(stream, 16);
 
             stream.seek(0);
-            assertEquals(0L, stream.getPosition());
+            assertEquals(0L, stream.position());
 
             assertEquals(1, conversations.get());
 
@@ -157,7 +157,7 @@ class SabrSeekableInputStreamTest {
 
             assertEquals(expected(1000), (byte) stream.read());
             assertEquals(expected(1001), (byte) stream.read());
-            assertEquals(1002L, stream.getPosition());
+            assertEquals(1002L, stream.position());
         }
     }
 
@@ -176,8 +176,8 @@ class SabrSeekableInputStreamTest {
     @DisplayName("the content length is the one the player response gave")
     void contentLength() throws Exception {
         try (SabrSeekableInputStream stream = open()) {
-            assertEquals(SIZE, stream.getContentLength());
-            assertTrue(stream.canSeekHard());
+            assertEquals(SIZE, stream.length());
+            assertTrue(stream.canSeek());
         }
     }
 }

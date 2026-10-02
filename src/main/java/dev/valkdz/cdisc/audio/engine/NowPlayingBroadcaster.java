@@ -1,6 +1,6 @@
 package dev.valkdz.cdisc.audio.engine;
 
-import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
+import dev.valkdz.cdisc.audio.player.AudioTrack;
 import dev.valkdz.cdisc.Main;
 import dev.valkdz.cdisc.util.Chat;
 import dev.valkdz.cdisc.util.Tasks;

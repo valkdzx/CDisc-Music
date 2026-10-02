@@ -17,6 +17,7 @@ public final class Http {
     public static final String USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
             + "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
     private static final Duration TIMEOUT = Duration.ofSeconds(20);
+    private static final int MAX_REDIRECTS = 8;
 
     private static final HttpClient CLIENT = NetProxy.apply(HttpClient.newBuilder())
             .followRedirects(HttpClient.Redirect.NORMAL)
@@ -55,6 +56,16 @@ public final class Http {
         }
     }
 
+    public static HttpResponse<byte[]> get(String url, String... headers) throws IOException {
+        return send(request(url, headers).GET().build());
+    }
+
+    public static HttpResponse<String> post(String url, String body, String... headers) throws IOException {
+        HttpRequest request = request(url, headers)
+                .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8)).build();
+        return send(CLIENT, request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+    }
+
     public static byte[] bytes(String url, String... headers) throws IOException {
         HttpResponse<byte[]> response = send(request(url, headers).GET().build());
         expectOk(response, url);
@@ -81,12 +92,35 @@ public final class Http {
     }
 
     public static HttpResponse<InputStream> open(String url, long from, long to, String... headers) throws IOException {
-        HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(url))
-                .header("User-Agent", USER_AGENT)
-                .timeout(TIMEOUT);
-        for (int i = 0; i + 1 < headers.length; i += 2) builder.setHeader(headers[i], headers[i + 1]);
-        if (from > 0 || to >= 0) builder.header("Range", "bytes=" + from + "-" + (to >= 0 ? String.valueOf(to) : ""));
-        return send(CLIENT, builder.GET().build(), HttpResponse.BodyHandlers.ofInputStream());
+        return open(url, from, to, null, headers);
+    }
+
+    // A guard sees every hop, so a redirect cannot lead a public link somewhere it may not go.
+    public static HttpResponse<InputStream> open(String url, long from, long to, Guard guard, String... headers)
+            throws IOException {
+        URI target = URI.create(url);
+        for (int hop = 0; ; hop++) {
+            if (guard != null) guard.check(target);
+            HttpRequest.Builder builder = HttpRequest.newBuilder(target)
+                    .header("User-Agent", USER_AGENT)
+                    .timeout(TIMEOUT);
+            for (int i = 0; i + 1 < headers.length; i += 2) builder.setHeader(headers[i], headers[i + 1]);
+            if (from > 0 || to >= 0) {
+                builder.header("Range", "bytes=" + from + "-" + (to >= 0 ? String.valueOf(to) : ""));
+            }
+            HttpResponse<InputStream> response = send(guard == null ? CLIENT : NO_REDIRECTS, builder.GET().build(),
+                    HttpResponse.BodyHandlers.ofInputStream());
+            int status = response.statusCode();
+            String location = response.headers().firstValue("Location").orElse(null);
+            if (guard == null || status < 300 || status >= 400 || location == null) return response;
+            response.body().close();
+            if (hop >= MAX_REDIRECTS) throw new IOException("Too many redirects from " + url);
+            target = target.resolve(location);
+        }
+    }
+
+    public interface Guard {
+        void check(URI target) throws IOException;
     }
 
     public static void expectOk(HttpResponse<?> response, String what) throws IOException {

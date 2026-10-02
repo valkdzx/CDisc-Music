@@ -59,21 +59,33 @@ public final class Playback {
     }
 
     public void decode(MediaInput input, String mimeType) throws Exception {
+        decode(input, mimeType, 0);
+    }
+
+    // For input that cannot seek but was opened at a known point, such as an HLS segment.
+    public void decode(MediaInput input, String mimeType, long openedAtMs) throws Exception {
         register(input);
         try (Demuxer demuxer = Media.open(input, mimeType)) {
-            decode(demuxer);
+            decode(demuxer, openedAtMs);
         }
     }
 
     public void decode(Demuxer demuxer) throws Exception {
+        decode(demuxer, 0);
+    }
+
+    public void decode(Demuxer demuxer, long openedAtMs) throws Exception {
+        register(demuxer);
         AudioDecoder decoder = Media.decoder(demuxer.format());
         Pipeline pipeline = new Pipeline(decoder.sampleRate(), decoder.channels());
         long preroll = demuxer.format().seekPrerollMs();
         if (startMs > 0 && demuxer.canSeek()) {
             long landed = demuxer.seek(Math.max(0, startMs - preroll));
-            pipeline.restart(landed, startMs, 0);
+            pipeline.restart(landed, startMs, 0, false);
+        } else if (openedAtMs > 0) {
+            pipeline.restart(openedAtMs, startMs, 0, true);
         } else {
-            pipeline.restart(0, startMs, demuxer.format().skipSamples());
+            pipeline.restart(0, startMs, demuxer.format().skipSamples(), true);
         }
 
         float[][] buffer = new float[decoder.channels()][decoder.maxSamples()];
@@ -83,7 +95,7 @@ public final class Playback {
                 long target = executor.takeSeek();
                 long landed = demuxer.seek(Math.max(0, target - preroll));
                 decoder.reset();
-                pipeline.restart(landed, target, 0);
+                pipeline.restart(landed, target, 0, false);
             }
             executor.checkpoint();
             Packet packet = demuxer.next();
@@ -139,7 +151,7 @@ public final class Playback {
             }
         }
 
-        void restart(long landedMs, long targetMs, int skip) {
+        void restart(long landedMs, long targetMs, int skip, boolean exact) {
             outSample = landedMs * 48;
             dropUntil = targetMs * 48;
             skipInput = skip;
@@ -148,7 +160,7 @@ public final class Playback {
             resampledSamples = 0;
             pending.clear();
             pendingSamples = 0;
-            timeKnown = skip > 0 || landedMs == targetMs && targetMs == 0;
+            timeKnown = exact || skip > 0;
             if (resamplers != null) for (Resampler r : resamplers) r.reset();
         }
 

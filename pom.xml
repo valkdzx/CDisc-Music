@@ -14,8 +14,6 @@
     <properties>
         <java.version>21</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <lavaplayer.version>2.2.7</lavaplayer.version>
-        <youtube.source.version>1.18.2</youtube.source.version>
     </properties>
 
     <build>
@@ -86,20 +84,12 @@
             <url>https://maven.maxhenkel.de/releases/</url>
         </repository>
         <repository>
-            <id>lavalink-repo</id>
-            <url>https://maven.lavalink.dev/releases</url>
-        </repository>
-        <repository>
             <id>dmulloy2-repo</id>
             <url>https://repo.dmulloy2.net/repository/public/</url>
         </repository>
         <repository>
             <id>codemc-repo</id>
             <url>https://repo.codemc.io/repository/maven-public/</url>
-        </repository>
-        <repository>
-            <id>TopiWTF-releases</id>
-            <url>https://maven.topi.wtf/releases</url>
         </repository>
         <repository>
             <id>papermc</id>
@@ -160,26 +150,11 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>dev.arbjerg</groupId>
-            <artifactId>lavaplayer</artifactId>
-            <version>${lavaplayer.version}</version>
-        </dependency>
-        <dependency>
-            <!-- The Rhino youtube-source ships, declared so YoutubeCipher compiles against it:
-                 a provided rhino-runtime 1.7.13 numbers its tokens differently. -->
+            <!-- Runs YouTube's player script for YoutubeCipher. This exact version: a
+                 rhino-runtime 1.7.13 numbers its tokens differently. -->
             <groupId>org.mozilla</groupId>
             <artifactId>rhino</artifactId>
             <version>1.7.14</version>
-        </dependency>
-        <dependency>
-            <groupId>dev.lavalink.youtube</groupId>
-            <artifactId>common</artifactId>
-            <version>${youtube.source.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.github.topi314.lavasrc</groupId>
-            <artifactId>lavasrc</artifactId>
-            <version>4.8.1</version>
         </dependency>
         <dependency>
             <groupId>de.maxhenkel.voicechat</groupId>
@@ -221,11 +196,6 @@
             <groupId>de.tr7zw</groupId>
             <artifactId>item-nbt-api</artifactId>
             <version>2.15.7</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-core</artifactId>
-            <version>2.20.0</version>
         </dependency>
         <dependency>
             <groupId>org.jetbrains</groupId>

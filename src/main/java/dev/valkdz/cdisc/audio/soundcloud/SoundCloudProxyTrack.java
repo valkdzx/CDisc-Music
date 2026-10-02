@@ -1,14 +1,13 @@
 package dev.valkdz.cdisc.audio.soundcloud;
 
-import com.sedmelluq.discord.lavaplayer.source.AudioSourceManager;
-import com.sedmelluq.discord.lavaplayer.tools.FriendlyException;
-import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
-import com.sedmelluq.discord.lavaplayer.track.AudioTrackInfo;
-import com.sedmelluq.discord.lavaplayer.track.DelegatedAudioTrack;
-import com.sedmelluq.discord.lavaplayer.track.playback.LocalAudioTrackExecutor;
-import dev.valkdz.cdisc.audio.sabr.DirectAudioTrack;
+import dev.valkdz.cdisc.audio.player.AudioSourceManager;
+import dev.valkdz.cdisc.audio.player.AudioTrack;
+import dev.valkdz.cdisc.audio.player.AudioTrackInfo;
+import dev.valkdz.cdisc.audio.player.HttpStream;
+import dev.valkdz.cdisc.audio.player.LoadException;
+import dev.valkdz.cdisc.audio.player.Playback;
 
-public final class SoundCloudProxyTrack extends DelegatedAudioTrack {
+public final class SoundCloudProxyTrack extends AudioTrack {
 
     private static final long FRESH_MS = 5 * 60 * 1000L;
 
@@ -26,22 +25,17 @@ public final class SoundCloudProxyTrack extends DelegatedAudioTrack {
     }
 
     @Override
-    public void process(LocalAudioTrackExecutor executor) throws Exception {
+    public void process(Playback playback) throws Exception {
         String url = streamUrl;
         String mime = mimeType;
         // The stream link is signed with an expiry, so a queued or repeated track asks again.
         if (url == null || System.currentTimeMillis() - resolvedAt > FRESH_MS) {
             SoundCloudProxySourceManager.Resolved fresh = sourceManager.resolve(trackInfo.identifier);
-            if (fresh == null) {
-                throw new FriendlyException("This SoundCloud link is not a track",
-                        FriendlyException.Severity.COMMON, null);
-            }
+            if (fresh == null) throw new LoadException("This SoundCloud link is not a track");
             url = fresh.streamUrl();
             mime = fresh.mimeType();
         }
-
-        processDelegate(new DirectAudioTrack(trackInfo, sourceManager, sourceManager.interfaces(),
-                url, mime, -1), executor);
+        playback.decode(new HttpStream(url, -1), mime);
     }
 
     @Override
