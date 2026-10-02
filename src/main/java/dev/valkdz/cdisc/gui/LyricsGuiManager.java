@@ -1,8 +1,8 @@
 package dev.valkdz.cdisc.gui;
 
 import dev.valkdz.cdisc.Main;
-import dev.valkdz.cdisc.lyrics.HologramStyle;
-import dev.valkdz.cdisc.lyrics.LyricsStyle;
+import dev.valkdz.cdisc.feature.lyrics.HologramStyle;
+import dev.valkdz.cdisc.feature.lyrics.LyricsStyle;
 import dev.valkdz.cdisc.permission.Action;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;

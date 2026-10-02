@@ -1,8 +1,8 @@
 package dev.valkdz.cdisc.command;
 
 import dev.valkdz.cdisc.Main;
-import dev.valkdz.cdisc.lyrics.HologramStyle;
-import dev.valkdz.cdisc.lyrics.PresetOffers;
+import dev.valkdz.cdisc.feature.lyrics.HologramStyle;
+import dev.valkdz.cdisc.feature.lyrics.PresetOffers;
 import dev.valkdz.cdisc.permission.Action;
 import dev.valkdz.cdisc.util.Chat;
 import org.bukkit.entity.Player;

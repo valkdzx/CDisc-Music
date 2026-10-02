@@ -1,13 +1,13 @@
 package dev.valkdz.cdisc.gui;
 
 import dev.valkdz.cdisc.Main;
+import dev.valkdz.cdisc.feature.lyrics.LyricsMode;
+import dev.valkdz.cdisc.feature.lyrics.LyricsPrefs;
+import dev.valkdz.cdisc.feature.speaker.SpeakerSettings;
 import dev.valkdz.cdisc.jukebox.BeaconUtils;
 import dev.valkdz.cdisc.jukebox.PlaybackManager;
 import dev.valkdz.cdisc.jukebox.queue.DiscQueue;
 import dev.valkdz.cdisc.jukebox.queue.RepeatMode;
-import dev.valkdz.cdisc.lyrics.LyricsMode;
-import dev.valkdz.cdisc.lyrics.LyricsPrefs;
-import dev.valkdz.cdisc.speaker.SpeakerSettings;
 import dev.valkdz.cdisc.util.Chat;
 import dev.valkdz.cdisc.util.PlayerPrefs;
 import org.bukkit.block.Block;

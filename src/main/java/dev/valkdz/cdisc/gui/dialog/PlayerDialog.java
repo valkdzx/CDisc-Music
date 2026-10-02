@@ -1,12 +1,12 @@
 package dev.valkdz.cdisc.gui.dialog;
 
 import dev.valkdz.cdisc.Main;
+import dev.valkdz.cdisc.feature.speaker.SpeakerSettings;
 import dev.valkdz.cdisc.gui.PlayerActions;
 import dev.valkdz.cdisc.jukebox.BeaconUtils;
 import dev.valkdz.cdisc.jukebox.PlaybackManager;
 import dev.valkdz.cdisc.jukebox.queue.RepeatMode;
 import dev.valkdz.cdisc.permission.Action;
-import dev.valkdz.cdisc.speaker.SpeakerSettings;
 import dev.valkdz.cdisc.util.PlayerPrefs;
 import dev.valkdz.cdisc.util.Tasks;
 import dev.valkdz.cdisc.util.TimeUtils;

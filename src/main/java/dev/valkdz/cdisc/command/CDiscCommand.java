@@ -1,13 +1,13 @@
 package dev.valkdz.cdisc.command;
 
 import dev.valkdz.cdisc.Main;
-import dev.valkdz.cdisc.audio.LocalMusicLibrary;
 import dev.valkdz.cdisc.disc.ItemUtils;
 import dev.valkdz.cdisc.disc.PvDiscs;
+import dev.valkdz.cdisc.feature.horn.GoatHorns;
+import dev.valkdz.cdisc.feature.local.LocalMusicLibrary;
+import dev.valkdz.cdisc.feature.lyrics.LyricsMode;
+import dev.valkdz.cdisc.feature.lyrics.LyricsPrefs;
 import dev.valkdz.cdisc.gui.dialog.Dialogs;
-import dev.valkdz.cdisc.horn.GoatHorns;
-import dev.valkdz.cdisc.lyrics.LyricsMode;
-import dev.valkdz.cdisc.lyrics.LyricsPrefs;
 import dev.valkdz.cdisc.permission.Action;
 import dev.valkdz.cdisc.permission.Perms;
 import dev.valkdz.cdisc.util.SneakMode;
@@ -118,7 +118,7 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
             p.sendMessage("§c" + message(p, holdMessage()));
             return;
         }
-        if (dev.valkdz.cdisc.broadcast.BroadcastTrack.isAddress(query)) {
+        if (dev.valkdz.cdisc.feature.broadcast.BroadcastTrack.isAddress(query)) {
             if (allowed(p, Action.DISC_BROADCAST)) plugin.getBroadcastManager().createDisc(p, item, query);
             return;
         }
@@ -470,7 +470,7 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
                 return;
             }
             sender.sendMessage("§c" + message(sender,
-                    dev.valkdz.cdisc.audio.TrackDownloader.failureKey(result.status()),
+                    dev.valkdz.cdisc.feature.local.TrackDownloader.failureKey(result.status()),
                     result.detail() == null ? "?" : result.detail()));
         });
     }

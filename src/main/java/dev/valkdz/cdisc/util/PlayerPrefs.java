@@ -43,7 +43,7 @@ public final class PlayerPrefs {
     public static int localVolume(Player player) {
         Integer stored = container(player).get(LOCAL_VOLUME, PersistentDataType.INTEGER);
         return stored == null ? VOLUME_FOLLOWS_JUKEBOX
-                : dev.valkdz.cdisc.speaker.SpeakerSettings.clampVolume(stored);
+                : dev.valkdz.cdisc.feature.speaker.SpeakerSettings.clampVolume(stored);
     }
 
     public static void setLocalVolume(Player player, int volume) {
@@ -53,7 +53,7 @@ public final class PlayerPrefs {
             return;
         }
         pdc.set(LOCAL_VOLUME, PersistentDataType.INTEGER,
-                dev.valkdz.cdisc.speaker.SpeakerSettings.clampVolume(volume));
+                dev.valkdz.cdisc.feature.speaker.SpeakerSettings.clampVolume(volume));
     }
 
     public static int effectiveLocalVolume(Player player, int jukeboxVolume) {

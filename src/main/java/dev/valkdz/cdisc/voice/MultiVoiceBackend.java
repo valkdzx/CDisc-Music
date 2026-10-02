@@ -1,6 +1,6 @@
 package dev.valkdz.cdisc.voice;
 
-import dev.valkdz.cdisc.speaker.SpeakerSettings;
+import dev.valkdz.cdisc.feature.speaker.SpeakerSettings;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Entity;

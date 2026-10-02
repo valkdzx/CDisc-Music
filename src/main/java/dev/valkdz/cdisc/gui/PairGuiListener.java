@@ -1,9 +1,9 @@
 package dev.valkdz.cdisc.gui;
 
 import dev.valkdz.cdisc.Main;
-import dev.valkdz.cdisc.speaker.SpeakerGroup;
-import dev.valkdz.cdisc.speaker.SpeakerGroupManager;
-import dev.valkdz.cdisc.speaker.SpeakerSettings;
+import dev.valkdz.cdisc.feature.speaker.SpeakerGroup;
+import dev.valkdz.cdisc.feature.speaker.SpeakerGroupManager;
+import dev.valkdz.cdisc.feature.speaker.SpeakerSettings;
 import dev.valkdz.cdisc.util.Tasks;
 import org.bukkit.Location;
 import org.bukkit.Material;

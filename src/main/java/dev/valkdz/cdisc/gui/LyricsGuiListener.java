@@ -1,9 +1,9 @@
 package dev.valkdz.cdisc.gui;
 
 import dev.valkdz.cdisc.Main;
-import dev.valkdz.cdisc.lyrics.HologramStyle;
-import dev.valkdz.cdisc.lyrics.LyricsPrefs;
-import dev.valkdz.cdisc.lyrics.LyricsStyle;
+import dev.valkdz.cdisc.feature.lyrics.HologramStyle;
+import dev.valkdz.cdisc.feature.lyrics.LyricsPrefs;
+import dev.valkdz.cdisc.feature.lyrics.LyricsStyle;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;

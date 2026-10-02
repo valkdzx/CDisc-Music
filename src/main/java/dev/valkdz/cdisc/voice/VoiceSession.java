@@ -19,7 +19,7 @@ public interface VoiceSession {
     default void setDirectVolume(int volume) {
     }
 
-    default void applySpeakerSettings(dev.valkdz.cdisc.speaker.SpeakerSettings settings) {
+    default void applySpeakerSettings(dev.valkdz.cdisc.feature.speaker.SpeakerSettings settings) {
     }
 
     default void setSilencedListeners(java.util.Set<java.util.UUID> silenced) {

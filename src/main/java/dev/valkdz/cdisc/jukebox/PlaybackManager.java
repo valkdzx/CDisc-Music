@@ -4,8 +4,6 @@ import dev.valkdz.cdisc.Main;
 import dev.valkdz.cdisc.api.NowPlaying;
 import dev.valkdz.cdisc.api.event.PlaybackStopEvent;
 import dev.valkdz.cdisc.api.event.TrackStartEvent;
-import dev.valkdz.cdisc.audio.LocalMusicLibrary;
-import dev.valkdz.cdisc.audio.LocalTrackSettings;
 import dev.valkdz.cdisc.audio.player.AudioEventAdapter;
 import dev.valkdz.cdisc.audio.player.AudioLoadResultHandler;
 import dev.valkdz.cdisc.audio.player.AudioPlayer;
@@ -21,14 +19,16 @@ import dev.valkdz.cdisc.disc.ItemUtils;
 import dev.valkdz.cdisc.disc.LoadDiagnosis;
 import dev.valkdz.cdisc.disc.SearchQuery;
 import dev.valkdz.cdisc.disc.SearchResults;
-import dev.valkdz.cdisc.horn.GoatHorns;
+import dev.valkdz.cdisc.feature.horn.GoatHorns;
+import dev.valkdz.cdisc.feature.local.LocalMusicLibrary;
+import dev.valkdz.cdisc.feature.local.LocalTrackSettings;
+import dev.valkdz.cdisc.feature.lyrics.SyncedLyrics;
+import dev.valkdz.cdisc.feature.speaker.SpeakerGroup;
+import dev.valkdz.cdisc.feature.speaker.SpeakerSettings;
 import dev.valkdz.cdisc.jukebox.queue.DiscQueue;
 import dev.valkdz.cdisc.jukebox.queue.QueueStore;
 import dev.valkdz.cdisc.jukebox.queue.RepeatMode;
-import dev.valkdz.cdisc.lyrics.SyncedLyrics;
 import dev.valkdz.cdisc.metrics.CDiscMetrics;
-import dev.valkdz.cdisc.speaker.SpeakerGroup;
-import dev.valkdz.cdisc.speaker.SpeakerSettings;
 import dev.valkdz.cdisc.util.Config;
 import dev.valkdz.cdisc.util.Tasks;
 import dev.valkdz.cdisc.util.TimeUtils;
@@ -285,7 +285,7 @@ public class PlaybackManager {
         List<AudioSession> list = sessions.get(main);
         if (list == null || list.isEmpty()) return;
 
-        dev.valkdz.cdisc.portable.PortableJukeboxManager.Carry carry =
+        dev.valkdz.cdisc.feature.portable.PortableJukeboxManager.Carry carry =
                 plugin.getPortableJukeboxManager().carryOfBlock(main);
         if (carry == null) return;
 
@@ -1001,7 +1001,7 @@ public class PlaybackManager {
 
             @Override
             public void onTrackStuck(AudioPlayer p, AudioTrack t, long thresholdMs) {
-                if (t instanceof dev.valkdz.cdisc.broadcast.BroadcastTrack) return;
+                if (t instanceof dev.valkdz.cdisc.feature.broadcast.BroadcastTrack) return;
                 Bukkit.getLogger().warning("[CDisc] Track stalled (no frames for over "
                         + thresholdMs + "ms): \"" + t.getInfo().title + "\" ("
                         + t.getInfo().uri + ", via "

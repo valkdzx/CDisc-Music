@@ -1,7 +1,6 @@
 package dev.valkdz.cdisc.audio.source;
 
 import dev.valkdz.cdisc.Main;
-import dev.valkdz.cdisc.audio.LocalMusicLibrary;
 import dev.valkdz.cdisc.audio.player.AudioEventAdapter;
 import dev.valkdz.cdisc.audio.player.AudioItem;
 import dev.valkdz.cdisc.audio.player.AudioLoadResultHandler;
@@ -18,6 +17,7 @@ import dev.valkdz.cdisc.audio.source.music.YandexMusicSourceManager;
 import dev.valkdz.cdisc.audio.source.soundcloud.SoundCloudSourceManager;
 import dev.valkdz.cdisc.audio.source.spotify.SpotifySourceManager;
 import dev.valkdz.cdisc.audio.source.youtube.CustomYoutubeApiResolver;
+import dev.valkdz.cdisc.feature.local.LocalMusicLibrary;
 import dev.valkdz.cdisc.util.Config;
 import org.bukkit.Bukkit;
 
@@ -550,8 +550,8 @@ public class TrackLoader {
 
     private static boolean loadBroadcast(String resolved, String title, String author,
                                          AudioLoadResultHandler handler) {
-        if (!dev.valkdz.cdisc.broadcast.BroadcastTrack.isAddress(resolved)) return false;
-        handler.trackLoaded(new dev.valkdz.cdisc.broadcast.BroadcastTrack(resolved.trim(), title, author));
+        if (!dev.valkdz.cdisc.feature.broadcast.BroadcastTrack.isAddress(resolved)) return false;
+        handler.trackLoaded(new dev.valkdz.cdisc.feature.broadcast.BroadcastTrack(resolved.trim(), title, author));
         return true;
     }
 
@@ -973,7 +973,7 @@ public class TrackLoader {
     public String resolveQuery(String query) {
         if (query == null || query.isBlank()) return null;
         String q = query.trim();
-        if (dev.valkdz.cdisc.broadcast.BroadcastTrack.isAddress(q)) return q;
+        if (dev.valkdz.cdisc.feature.broadcast.BroadcastTrack.isAddress(q)) return q;
 
         if (LocalMusicLibrary.isLocalQuery(q)) {
             return plugin.getLocalMusic().resolveToPath(q);

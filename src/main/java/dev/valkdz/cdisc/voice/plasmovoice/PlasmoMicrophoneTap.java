@@ -1,8 +1,8 @@
 package dev.valkdz.cdisc.voice.plasmovoice;
 
 import dev.valkdz.cdisc.Main;
-import dev.valkdz.cdisc.broadcast.MicrophoneAudio;
-import dev.valkdz.cdisc.broadcast.MicrophoneSink;
+import dev.valkdz.cdisc.feature.broadcast.MicrophoneAudio;
+import dev.valkdz.cdisc.feature.broadcast.MicrophoneSink;
 import su.plo.voice.api.audio.codec.AudioDecoder;
 import su.plo.voice.api.event.EventPriority;
 import su.plo.voice.api.server.PlasmoVoiceServer;

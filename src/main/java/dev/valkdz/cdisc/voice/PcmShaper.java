@@ -1,6 +1,6 @@
 package dev.valkdz.cdisc.voice;
 
-import dev.valkdz.cdisc.speaker.SpeakerSettings;
+import dev.valkdz.cdisc.feature.speaker.SpeakerSettings;
 
 public final class PcmShaper {
 

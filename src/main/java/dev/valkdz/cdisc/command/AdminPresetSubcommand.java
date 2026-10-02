@@ -1,8 +1,8 @@
 package dev.valkdz.cdisc.command;
 
 import dev.valkdz.cdisc.Main;
-import dev.valkdz.cdisc.lyrics.HologramPresets;
-import dev.valkdz.cdisc.lyrics.HologramStyle;
+import dev.valkdz.cdisc.feature.lyrics.HologramPresets;
+import dev.valkdz.cdisc.feature.lyrics.HologramStyle;
 import dev.valkdz.cdisc.util.Tasks;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;

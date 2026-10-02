@@ -1,6 +1,6 @@
 package dev.valkdz.cdisc.voice.plasmovoice;
 
-import dev.valkdz.cdisc.speaker.SpeakerSettings;
+import dev.valkdz.cdisc.feature.speaker.SpeakerSettings;
 import su.plo.voice.api.audio.codec.AudioEncoder;
 import su.plo.voice.api.encryption.Encryption;
 import su.plo.voice.api.server.PlasmoVoiceServer;

@@ -13,7 +13,7 @@ import su.plo.voice.api.server.audio.source.ServerDirectSource;
 import su.plo.voice.api.server.audio.source.ServerEntitySource;
 import su.plo.voice.api.server.audio.source.ServerProximitySource;
 import su.plo.voice.api.server.audio.source.ServerStaticSource;
-import dev.valkdz.cdisc.speaker.SpeakerSettings;
+import dev.valkdz.cdisc.feature.speaker.SpeakerSettings;
 import su.plo.voice.api.server.player.VoicePlayer;
 import su.plo.slib.api.server.entity.McServerEntity;
 import su.plo.slib.api.server.position.ServerPos3d;

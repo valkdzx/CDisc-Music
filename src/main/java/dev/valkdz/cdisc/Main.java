@@ -2,6 +2,8 @@ package dev.valkdz.cdisc;
 
 import de.tr7zw.changeme.nbtapi.NBT;
 import dev.valkdz.cdisc.command.CDiscCommand;
+import dev.valkdz.cdisc.feature.portable.PortableJukeboxListener;
+import dev.valkdz.cdisc.feature.portable.PortableJukeboxManager;
 import dev.valkdz.cdisc.gui.PlayerActions;
 import dev.valkdz.cdisc.gui.PlayerGuiListener;
 import dev.valkdz.cdisc.gui.PlayerGuiManager;
@@ -11,8 +13,6 @@ import dev.valkdz.cdisc.jukebox.JukeboxListener;
 import dev.valkdz.cdisc.jukebox.PlaybackManager;
 import dev.valkdz.cdisc.jukebox.TrackProgressDisplay;
 import dev.valkdz.cdisc.metrics.CDiscMetrics;
-import dev.valkdz.cdisc.portable.PortableJukeboxListener;
-import dev.valkdz.cdisc.portable.PortableJukeboxManager;
 import dev.valkdz.cdisc.update.UpdateChecker;
 import dev.valkdz.cdisc.util.Config;
 import dev.valkdz.cdisc.util.MessageManager;
@@ -36,35 +36,35 @@ public final class Main extends JavaPlugin {
     private PlayerActions playerActions;
     private QueueGuiManager queueGuiManager;
     private dev.valkdz.cdisc.gui.LyricsGuiManager lyricsGuiManager;
-    private dev.valkdz.cdisc.lyrics.HologramPresets hologramPresets;
+    private dev.valkdz.cdisc.feature.lyrics.HologramPresets hologramPresets;
     private dev.valkdz.cdisc.gui.ScreenPreferences screenPreferences;
-    private dev.valkdz.cdisc.lyrics.HologramPreview hologramPreview;
-    private final dev.valkdz.cdisc.lyrics.PresetOffers presetOffers =
-            new dev.valkdz.cdisc.lyrics.PresetOffers();
+    private dev.valkdz.cdisc.feature.lyrics.HologramPreview hologramPreview;
+    private final dev.valkdz.cdisc.feature.lyrics.PresetOffers presetOffers =
+            new dev.valkdz.cdisc.feature.lyrics.PresetOffers();
     private dev.valkdz.cdisc.gui.JukeboxViewers jukeboxViewers;
     private VoiceBackendManager voiceBackendManager;
-    private dev.valkdz.cdisc.broadcast.BroadcastManager broadcastManager;
-    private dev.valkdz.cdisc.broadcast.BroadcastGui broadcastGui;
+    private dev.valkdz.cdisc.feature.broadcast.BroadcastManager broadcastManager;
+    private dev.valkdz.cdisc.feature.broadcast.BroadcastGui broadcastGui;
     private UpdateChecker updateChecker;
     private PortableJukeboxManager portableJukeboxManager;
-    private dev.valkdz.cdisc.horn.HornPlayer hornPlayer;
-    private dev.valkdz.cdisc.speaker.SpeakerGroupManager speakerGroupManager;
+    private dev.valkdz.cdisc.feature.horn.HornPlayer hornPlayer;
+    private dev.valkdz.cdisc.feature.speaker.SpeakerGroupManager speakerGroupManager;
     private dev.valkdz.cdisc.gui.PairGuiManager pairGuiManager;
-    private dev.valkdz.cdisc.speaker.SpeakerParticles speakerParticles;
+    private dev.valkdz.cdisc.feature.speaker.SpeakerParticles speakerParticles;
     private dev.valkdz.cdisc.gui.PlaylistGuiManager playlistGuiManager;
     private dev.valkdz.cdisc.gui.LocalConfigGuiManager localConfigGuiManager;
     private dev.valkdz.cdisc.disc.SearchResults searchResults;
-    private dev.valkdz.cdisc.audio.LocalMusicLibrary localMusic;
-    private dev.valkdz.cdisc.audio.LocalDownloader localDownloader;
-    private dev.valkdz.cdisc.audio.TrackDownloader trackDownloader;
+    private dev.valkdz.cdisc.feature.local.LocalMusicLibrary localMusic;
+    private dev.valkdz.cdisc.feature.local.LocalDownloader localDownloader;
+    private dev.valkdz.cdisc.feature.local.TrackDownloader trackDownloader;
     private dev.valkdz.cdisc.jukebox.PlaybackResume playbackResume;
     private dev.valkdz.cdisc.permission.PermissionsConfig permissions;
     private dev.valkdz.cdisc.region.RegionGuard regionGuard;
     private dev.valkdz.cdisc.audio.source.youtube.PoTokenService poTokenService;
-    private dev.valkdz.cdisc.lyrics.LyricsService lyricsService;
-    private dev.valkdz.cdisc.lyrics.LyricsDisplay lyricsDisplay;
-    private dev.valkdz.cdisc.lyrics.chat.LiveChat liveChat;
-    private dev.valkdz.cdisc.lyrics.CarriedLyrics carriedLyrics;
+    private dev.valkdz.cdisc.feature.lyrics.LyricsService lyricsService;
+    private dev.valkdz.cdisc.feature.lyrics.LyricsDisplay lyricsDisplay;
+    private dev.valkdz.cdisc.feature.lyrics.chat.LiveChat liveChat;
+    private dev.valkdz.cdisc.feature.lyrics.CarriedLyrics carriedLyrics;
 
     private Object plasmoAddon;
 
@@ -93,16 +93,16 @@ public final class Main extends JavaPlugin {
 
         // Must exist before PlaybackManager starts a session: playback asks it
         // whether the jukebox has speakers paired to it.
-        speakerGroupManager = new dev.valkdz.cdisc.speaker.SpeakerGroupManager(this);
+        speakerGroupManager = new dev.valkdz.cdisc.feature.speaker.SpeakerGroupManager(this);
 
-        localMusic = new dev.valkdz.cdisc.audio.LocalMusicLibrary(this);
+        localMusic = new dev.valkdz.cdisc.feature.local.LocalMusicLibrary(this);
         if (localMusic.isEnabled()) {
             getLogger().info("Local music folder: " + localMusic.root());
             greetIfFolderEmpty();
         }
 
-        localDownloader = new dev.valkdz.cdisc.audio.LocalDownloader(this);
-        trackDownloader = new dev.valkdz.cdisc.audio.TrackDownloader(this);
+        localDownloader = new dev.valkdz.cdisc.feature.local.LocalDownloader(this);
+        trackDownloader = new dev.valkdz.cdisc.feature.local.TrackDownloader(this);
 
         audioPlayerManager = new PlaybackManager(this);
 
@@ -111,12 +111,12 @@ public final class Main extends JavaPlugin {
         poTokenService = new dev.valkdz.cdisc.audio.source.youtube.PoTokenService(this);
         poTokenService.start();
 
-        lyricsService = new dev.valkdz.cdisc.lyrics.LyricsService(this);
-        liveChat = new dev.valkdz.cdisc.lyrics.chat.LiveChat(this);
-        lyricsDisplay = new dev.valkdz.cdisc.lyrics.LyricsDisplay(this, lyricsService);
+        lyricsService = new dev.valkdz.cdisc.feature.lyrics.LyricsService(this);
+        liveChat = new dev.valkdz.cdisc.feature.lyrics.chat.LiveChat(this);
+        lyricsDisplay = new dev.valkdz.cdisc.feature.lyrics.LyricsDisplay(this, lyricsService);
         lyricsDisplay.start();
 
-        carriedLyrics = new dev.valkdz.cdisc.lyrics.CarriedLyrics(this, lyricsService);
+        carriedLyrics = new dev.valkdz.cdisc.feature.lyrics.CarriedLyrics(this, lyricsService);
         carriedLyrics.start();
 
         boolean nbtReady = NBT.preloadApi();
@@ -143,9 +143,9 @@ public final class Main extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new PlayerGuiListener(this), this);
         playerGuiManager.start();
 
-        hologramPresets = new dev.valkdz.cdisc.lyrics.HologramPresets(this);
+        hologramPresets = new dev.valkdz.cdisc.feature.lyrics.HologramPresets(this);
         screenPreferences = new dev.valkdz.cdisc.gui.ScreenPreferences(this);
-        hologramPreview = new dev.valkdz.cdisc.lyrics.HologramPreview(this);
+        hologramPreview = new dev.valkdz.cdisc.feature.lyrics.HologramPreview(this);
 
         lyricsGuiManager = new dev.valkdz.cdisc.gui.LyricsGuiManager(this);
         getServer().getPluginManager().registerEvents(
@@ -169,15 +169,15 @@ public final class Main extends JavaPlugin {
         getServer().getPluginManager().registerEvents(playbackResume, this);
         playbackResume.load();
         getServer().getPluginManager().registerEvents(
-                new dev.valkdz.cdisc.speaker.SpeakerProtectionListener(this), this);
+                new dev.valkdz.cdisc.feature.speaker.SpeakerProtectionListener(this), this);
 
-        speakerParticles = new dev.valkdz.cdisc.speaker.SpeakerParticles(this);
+        speakerParticles = new dev.valkdz.cdisc.feature.speaker.SpeakerParticles(this);
         speakerParticles.start();
 
         audioPlayerManager.setOnSessionEnded(block -> {
             playerGuiManager.forceCloseFor(block);
             lyricsDisplay.clear(block);
-            dev.valkdz.cdisc.speaker.SpeakerSettings.forget(block);
+            dev.valkdz.cdisc.feature.speaker.SpeakerSettings.forget(block);
             queueGuiManager.forceCloseFor(block);
             jukeboxViewers.clear(block);
             jukeboxListener.clearControlled(block);
@@ -191,7 +191,7 @@ public final class Main extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new PortableJukeboxListener(this), this);
         portableJukeboxManager.start();
 
-        hornPlayer = new dev.valkdz.cdisc.horn.HornPlayer(this);
+        hornPlayer = new dev.valkdz.cdisc.feature.horn.HornPlayer(this);
         getServer().getPluginManager().registerEvents(hornPlayer, this);
         hornPlayer.start();
 
@@ -210,12 +210,12 @@ public final class Main extends JavaPlugin {
         }
 
         if (isEnabled()) {
-            broadcastManager = new dev.valkdz.cdisc.broadcast.BroadcastManager(this);
-            broadcastGui = new dev.valkdz.cdisc.broadcast.BroadcastGui(this);
+            broadcastManager = new dev.valkdz.cdisc.feature.broadcast.BroadcastManager(this);
+            broadcastGui = new dev.valkdz.cdisc.feature.broadcast.BroadcastGui(this);
             getServer().getPluginManager().registerEvents(broadcastManager, this);
             getServer().getPluginManager().registerEvents(broadcastGui, this);
             getServer().getPluginManager().registerEvents(
-                    new dev.valkdz.cdisc.broadcast.MicrophoneItemListener(this), this);
+                    new dev.valkdz.cdisc.feature.broadcast.MicrophoneItemListener(this), this);
             broadcastManager.start();
         }
 
@@ -337,7 +337,7 @@ public final class Main extends JavaPlugin {
 
     public dev.valkdz.cdisc.gui.LyricsGuiManager getLyricsGuiManager() { return lyricsGuiManager; }
 
-    public dev.valkdz.cdisc.lyrics.HologramPresets getHologramPresets() { return hologramPresets; }
+    public dev.valkdz.cdisc.feature.lyrics.HologramPresets getHologramPresets() { return hologramPresets; }
 
     public void presetChanged(org.bukkit.entity.Player player) {
         if (lyricsDisplay != null) lyricsDisplay.presetChanged(player);
@@ -346,30 +346,30 @@ public final class Main extends JavaPlugin {
 
     public dev.valkdz.cdisc.gui.ScreenPreferences getScreenPreferences() { return screenPreferences; }
 
-    public dev.valkdz.cdisc.lyrics.HologramPreview getHologramPreview() { return hologramPreview; }
+    public dev.valkdz.cdisc.feature.lyrics.HologramPreview getHologramPreview() { return hologramPreview; }
 
-    public dev.valkdz.cdisc.lyrics.PresetOffers getPresetOffers() { return presetOffers; }
+    public dev.valkdz.cdisc.feature.lyrics.PresetOffers getPresetOffers() { return presetOffers; }
     public JukeboxListener getJukeboxListener() { return jukeboxListener; }
     public VoiceBackendManager getVoiceBackendManager() { return voiceBackendManager; }
-    public dev.valkdz.cdisc.broadcast.BroadcastManager getBroadcastManager() { return broadcastManager; }
-    public dev.valkdz.cdisc.broadcast.BroadcastGui getBroadcastGui() { return broadcastGui; }
+    public dev.valkdz.cdisc.feature.broadcast.BroadcastManager getBroadcastManager() { return broadcastManager; }
+    public dev.valkdz.cdisc.feature.broadcast.BroadcastGui getBroadcastGui() { return broadcastGui; }
     public UpdateChecker getUpdateChecker() { return updateChecker; }
     public PortableJukeboxManager getPortableJukeboxManager() { return portableJukeboxManager; }
-    public dev.valkdz.cdisc.horn.HornPlayer getHornPlayer() { return hornPlayer; }
-    public dev.valkdz.cdisc.speaker.SpeakerGroupManager getSpeakerGroupManager() { return speakerGroupManager; }
+    public dev.valkdz.cdisc.feature.horn.HornPlayer getHornPlayer() { return hornPlayer; }
+    public dev.valkdz.cdisc.feature.speaker.SpeakerGroupManager getSpeakerGroupManager() { return speakerGroupManager; }
     public dev.valkdz.cdisc.gui.PairGuiManager getPairGuiManager() { return pairGuiManager; }
     public dev.valkdz.cdisc.gui.PlaylistGuiManager getPlaylistGuiManager() { return playlistGuiManager; }
     public dev.valkdz.cdisc.gui.LocalConfigGuiManager getLocalConfigGuiManager() { return localConfigGuiManager; }
     public dev.valkdz.cdisc.disc.SearchResults getSearchResults() { return searchResults; }
-    public dev.valkdz.cdisc.audio.LocalMusicLibrary getLocalMusic() { return localMusic; }
-    public dev.valkdz.cdisc.audio.LocalDownloader getLocalDownloader() { return localDownloader; }
-    public dev.valkdz.cdisc.audio.TrackDownloader getTrackDownloader() { return trackDownloader; }
+    public dev.valkdz.cdisc.feature.local.LocalMusicLibrary getLocalMusic() { return localMusic; }
+    public dev.valkdz.cdisc.feature.local.LocalDownloader getLocalDownloader() { return localDownloader; }
+    public dev.valkdz.cdisc.feature.local.TrackDownloader getTrackDownloader() { return trackDownloader; }
     public dev.valkdz.cdisc.audio.source.youtube.PoTokenService getPoTokenService() { return poTokenService; }
-    public dev.valkdz.cdisc.lyrics.LyricsService getLyricsService() { return lyricsService; }
-    public dev.valkdz.cdisc.lyrics.LyricsDisplay getLyricsDisplay() { return lyricsDisplay; }
-    public dev.valkdz.cdisc.lyrics.chat.LiveChat getLiveChat() { return liveChat; }
+    public dev.valkdz.cdisc.feature.lyrics.LyricsService getLyricsService() { return lyricsService; }
+    public dev.valkdz.cdisc.feature.lyrics.LyricsDisplay getLyricsDisplay() { return lyricsDisplay; }
+    public dev.valkdz.cdisc.feature.lyrics.chat.LiveChat getLiveChat() { return liveChat; }
 
-    public dev.valkdz.cdisc.lyrics.CarriedLyrics getCarriedLyrics() { return carriedLyrics; }
+    public dev.valkdz.cdisc.feature.lyrics.CarriedLyrics getCarriedLyrics() { return carriedLyrics; }
     public Object getPlasmoAddon() { return plasmoAddon; }
 
     private void greetIfFolderEmpty() {
@@ -410,7 +410,7 @@ public final class Main extends JavaPlugin {
         poTokenService.start();
 
         lyricsService.clearCache();
-        dev.valkdz.cdisc.lyrics.LyricsPrefs.forgetAll();
+        dev.valkdz.cdisc.feature.lyrics.LyricsPrefs.forgetAll();
         lyricsDisplay.clearAll();
         lyricsDisplay.start();
     }

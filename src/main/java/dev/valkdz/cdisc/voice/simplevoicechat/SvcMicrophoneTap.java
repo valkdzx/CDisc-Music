@@ -7,8 +7,8 @@ import de.maxhenkel.voicechat.api.events.MicrophonePacketEvent;
 import de.maxhenkel.voicechat.api.opus.OpusDecoder;
 import de.maxhenkel.voicechat.api.packets.MicrophonePacket;
 import dev.valkdz.cdisc.Main;
-import dev.valkdz.cdisc.broadcast.MicrophoneAudio;
-import dev.valkdz.cdisc.broadcast.MicrophoneSink;
+import dev.valkdz.cdisc.feature.broadcast.MicrophoneAudio;
+import dev.valkdz.cdisc.feature.broadcast.MicrophoneSink;
 
 import java.util.Map;
 import java.util.UUID;

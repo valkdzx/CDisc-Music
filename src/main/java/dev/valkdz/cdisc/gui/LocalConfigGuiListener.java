@@ -1,7 +1,7 @@
 package dev.valkdz.cdisc.gui;
 
 import dev.valkdz.cdisc.Main;
-import dev.valkdz.cdisc.audio.LocalTrackSettings;
+import dev.valkdz.cdisc.feature.local.LocalTrackSettings;
 import dev.valkdz.cdisc.gui.LocalConfigGuiManager.Kind;
 import dev.valkdz.cdisc.gui.LocalConfigGuiManager.Pending;
 import dev.valkdz.cdisc.util.Chat;

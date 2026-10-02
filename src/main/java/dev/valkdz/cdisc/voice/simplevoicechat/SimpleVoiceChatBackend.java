@@ -8,7 +8,7 @@ import de.maxhenkel.voicechat.api.audiochannel.EntityAudioChannel;
 import de.maxhenkel.voicechat.api.audiochannel.LocationalAudioChannel;
 import de.maxhenkel.voicechat.api.audiochannel.StaticAudioChannel;
 import de.maxhenkel.voicechat.api.opus.OpusEncoder;
-import dev.valkdz.cdisc.speaker.SpeakerSettings;
+import dev.valkdz.cdisc.feature.speaker.SpeakerSettings;
 import dev.valkdz.cdisc.util.Tasks;
 import dev.valkdz.cdisc.voice.PcmShaper;
 import dev.valkdz.cdisc.voice.VoiceBackend;

@@ -1,6 +1,6 @@
 package dev.valkdz.cdisc.audio.source;
 
-import dev.valkdz.cdisc.audio.FileNames;
+import dev.valkdz.cdisc.feature.local.FileNames;
 
 import java.net.URI;
 import java.net.URLDecoder;

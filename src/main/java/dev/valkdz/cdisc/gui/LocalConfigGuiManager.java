@@ -1,8 +1,8 @@
 package dev.valkdz.cdisc.gui;
 
 import dev.valkdz.cdisc.Main;
-import dev.valkdz.cdisc.audio.LocalMusicLibrary;
-import dev.valkdz.cdisc.audio.LocalTrackSettings;
+import dev.valkdz.cdisc.feature.local.LocalMusicLibrary;
+import dev.valkdz.cdisc.feature.local.LocalTrackSettings;
 import dev.valkdz.cdisc.permission.Action;
 import dev.valkdz.cdisc.util.Chat;
 import org.bukkit.Bukkit;

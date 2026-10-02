@@ -1,7 +1,7 @@
 package dev.valkdz.cdisc.command;
 
 import dev.valkdz.cdisc.Main;
-import dev.valkdz.cdisc.audio.LocalMusicLibrary;
+import dev.valkdz.cdisc.feature.local.LocalMusicLibrary;
 import dev.valkdz.cdisc.util.Config;
 
 import java.util.ArrayList;
@@ -206,7 +206,7 @@ final class Diagnostics {
                 ? "through the backend, token as fallback" : "through the backend, no key needed");
     }
 
-    private static String defaultPreset(dev.valkdz.cdisc.lyrics.HologramPresets.Assignment everyone) {
+    private static String defaultPreset(dev.valkdz.cdisc.feature.lyrics.HologramPresets.Assignment everyone) {
         if (everyone == null) return "";
         return ", everyone else gets " + everyone.preset() + (everyone.forced() ? " (forced)" : "");
     }
