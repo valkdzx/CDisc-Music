@@ -790,8 +790,15 @@ public class LavaPlayerManager {
                 }));
     }
 
-    private void stored(Player player, ItemStack item, AudioTrack track, String query, String fallback,
+    private void stored(Player player, ItemStack captured, AudioTrack track, String query, String fallback,
                         String title, String author, String fetch, ItemUtils.Hint hint) {
+        ItemStack item = writable(player, captured);
+        if (item == null) {
+            String hold = plugin.cdiscConfig().isGoatHornEnabled() ? "horn.hold" : "cdisc.hold_disc";
+            player.sendMessage("§c" + plugin.getMessageManager().get(player, hold));
+            return;
+        }
+
         dev.valkdz.cdisc.api.event.DiscCreateEvent event = new dev.valkdz.cdisc.api.event.DiscCreateEvent(
                 player, item, fallback != null ? fallback : query, title, author, track.getInfo().length);
         Bukkit.getPluginManager().callEvent(event);
@@ -813,6 +820,14 @@ public class LavaPlayerManager {
             player.sendMessage("§e" + plugin.getMessageManager()
                     .get(player, "horn.trimmed", TimeUtils.format(length), TimeUtils.format(clip)));
         }
+    }
+
+    // The stack taken when the command ran is split off into a new one as soon as the player
+    // moves it and is left empty, so a load that took a while writes into what is held now.
+    private ItemStack writable(Player player, ItemStack captured) {
+        if (captured != null && !captured.getType().isAir() && captured.getAmount() > 0) return captured;
+        ItemStack disc = ItemUtils.getDiscInHand(player);
+        return disc != null ? disc : GoatHorns.inHand(plugin, player);
     }
 
     public void startPlaying(Block block, String query) {
