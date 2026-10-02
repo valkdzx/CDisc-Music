@@ -1,11 +1,11 @@
 package dev.valkdz.cdisc.audio;
 
-import dev.valkdz.cdisc.audio.player.AudioTrack;
 import dev.valkdz.cdisc.Main;
-import dev.valkdz.cdisc.audio.backend.BackendMusicTrack;
-import dev.valkdz.cdisc.audio.sabr.DirectAudioTrack;
-import dev.valkdz.cdisc.audio.sabr.SabrAudioTrack;
-import dev.valkdz.cdisc.audio.sabr.SabrSeekableInputStream;
+import dev.valkdz.cdisc.audio.player.AudioTrack;
+import dev.valkdz.cdisc.audio.source.music.BackendMusicTrack;
+import dev.valkdz.cdisc.audio.source.youtube.DirectAudioTrack;
+import dev.valkdz.cdisc.audio.source.youtube.SabrAudioTrack;
+import dev.valkdz.cdisc.audio.source.youtube.SabrSeekableInputStream;
 import dev.valkdz.cdisc.util.SafeUrl;
 import dev.valkdz.cdisc.util.Tasks;
 import org.bukkit.Bukkit;

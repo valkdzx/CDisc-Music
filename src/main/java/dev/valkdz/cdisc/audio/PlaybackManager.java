@@ -5,7 +5,6 @@ import dev.valkdz.cdisc.api.NowPlaying;
 import dev.valkdz.cdisc.api.event.PlaybackStopEvent;
 import dev.valkdz.cdisc.api.event.TrackStartEvent;
 import dev.valkdz.cdisc.audio.engine.NowPlayingBroadcaster;
-import dev.valkdz.cdisc.audio.engine.TrackLoader;
 import dev.valkdz.cdisc.audio.player.AudioEventAdapter;
 import dev.valkdz.cdisc.audio.player.AudioLoadResultHandler;
 import dev.valkdz.cdisc.audio.player.AudioPlayer;
@@ -17,6 +16,9 @@ import dev.valkdz.cdisc.audio.player.LoadException;
 import dev.valkdz.cdisc.audio.queue.DiscQueue;
 import dev.valkdz.cdisc.audio.queue.QueueStore;
 import dev.valkdz.cdisc.audio.queue.RepeatMode;
+import dev.valkdz.cdisc.audio.source.DiscordSource;
+import dev.valkdz.cdisc.audio.source.TrackLoader;
+import dev.valkdz.cdisc.audio.source.youtube.CustomYoutubeApiResolver;
 import dev.valkdz.cdisc.horn.GoatHorns;
 import dev.valkdz.cdisc.lyrics.SyncedLyrics;
 import dev.valkdz.cdisc.metrics.CDiscMetrics;
@@ -772,9 +774,9 @@ public class PlaybackManager {
     private void storeLater(Player player, ItemStack item, AudioTrack track, String query,
                             String fallback, String title, String author, String fetch,
                             String resolved) {
-        String videoId = dev.valkdz.cdisc.audio.sabr.SabrResolver.videoIdOf(resolved);
+        String videoId = dev.valkdz.cdisc.audio.source.youtube.SabrResolver.videoIdOf(resolved);
         if (videoId == null) {
-            videoId = dev.valkdz.cdisc.audio.sabr.SabrResolver.videoIdOf(track.getInfo().identifier);
+            videoId = dev.valkdz.cdisc.audio.source.youtube.SabrResolver.videoIdOf(track.getInfo().identifier);
         }
 
         boolean substituted = trackLoader.wasSubstituted(resolved, track);

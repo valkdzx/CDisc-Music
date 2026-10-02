@@ -3,8 +3,8 @@ package dev.valkdz.cdisc;
 import de.tr7zw.changeme.nbtapi.NBT;
 import dev.valkdz.cdisc.audio.PlaybackManager;
 import dev.valkdz.cdisc.command.CDiscCommand;
-import dev.valkdz.cdisc.gui.PlayerGuiListener;
 import dev.valkdz.cdisc.gui.PlayerActions;
+import dev.valkdz.cdisc.gui.PlayerGuiListener;
 import dev.valkdz.cdisc.gui.PlayerGuiManager;
 import dev.valkdz.cdisc.gui.QueueGuiListener;
 import dev.valkdz.cdisc.gui.QueueGuiManager;
@@ -60,7 +60,7 @@ public final class Main extends JavaPlugin {
     private dev.valkdz.cdisc.audio.PlaybackResume playbackResume;
     private dev.valkdz.cdisc.permission.PermissionsConfig permissions;
     private dev.valkdz.cdisc.region.RegionGuard regionGuard;
-    private dev.valkdz.cdisc.youtube.PoTokenService poTokenService;
+    private dev.valkdz.cdisc.audio.source.youtube.PoTokenService poTokenService;
     private dev.valkdz.cdisc.lyrics.LyricsService lyricsService;
     private dev.valkdz.cdisc.lyrics.LyricsDisplay lyricsDisplay;
     private dev.valkdz.cdisc.lyrics.chat.LiveChat liveChat;
@@ -108,7 +108,7 @@ public final class Main extends JavaPlugin {
 
         audioPlayerManager.startQueuePersistence();
 
-        poTokenService = new dev.valkdz.cdisc.youtube.PoTokenService(this);
+        poTokenService = new dev.valkdz.cdisc.audio.source.youtube.PoTokenService(this);
         poTokenService.start();
 
         lyricsService = new dev.valkdz.cdisc.lyrics.LyricsService(this);
@@ -364,7 +364,7 @@ public final class Main extends JavaPlugin {
     public dev.valkdz.cdisc.audio.LocalMusicLibrary getLocalMusic() { return localMusic; }
     public dev.valkdz.cdisc.audio.LocalDownloader getLocalDownloader() { return localDownloader; }
     public dev.valkdz.cdisc.audio.TrackDownloader getTrackDownloader() { return trackDownloader; }
-    public dev.valkdz.cdisc.youtube.PoTokenService getPoTokenService() { return poTokenService; }
+    public dev.valkdz.cdisc.audio.source.youtube.PoTokenService getPoTokenService() { return poTokenService; }
     public dev.valkdz.cdisc.lyrics.LyricsService getLyricsService() { return lyricsService; }
     public dev.valkdz.cdisc.lyrics.LyricsDisplay getLyricsDisplay() { return lyricsDisplay; }
     public dev.valkdz.cdisc.lyrics.chat.LiveChat getLiveChat() { return liveChat; }

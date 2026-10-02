@@ -1,6 +1,7 @@
 package dev.valkdz.cdisc.audio;
 
 import dev.valkdz.cdisc.Main;
+import dev.valkdz.cdisc.audio.source.DiscordSource;
 import dev.valkdz.cdisc.util.Config;
 import org.bukkit.entity.Player;
 
@@ -53,7 +54,7 @@ public final class LoadDiagnosis {
         }
 
         if (lower.startsWith("sp:")) {
-            if (!dev.valkdz.cdisc.audio.engine.TrackLoader.spotifySearchable(config)) {
+            if (!dev.valkdz.cdisc.audio.source.TrackLoader.spotifySearchable(config)) {
                 return youtubeHint(plugin, player, config);
             }
             return keyed(plugin, player, config.isSpotifyEnabled(),

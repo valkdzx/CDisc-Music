@@ -7,7 +7,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
-final class FileNames {
+public final class FileNames {
 
     private static final Map<String, String> TYPE_EXTENSIONS = Map.ofEntries(
             Map.entry("audio/mpeg", "mp3"),
@@ -33,7 +33,7 @@ final class FileNames {
     private FileNames() {
     }
 
-    static String choose(String desired,
+    public static String choose(String desired,
                          String contentDisposition,
                          String url,
                          String contentType,
@@ -102,7 +102,7 @@ final class FileNames {
         return TYPE_EXTENSIONS.get(bare.trim());
     }
 
-    static String filenameOf(String header) {
+    public static String filenameOf(String header) {
         if (header == null) return null;
         String lower = header.toLowerCase(Locale.ROOT);
 

@@ -1,12 +1,12 @@
 package dev.valkdz.cdisc.audio;
 
+import dev.valkdz.cdisc.Main;
 import dev.valkdz.cdisc.audio.player.AudioLoadResultHandler;
-import dev.valkdz.cdisc.audio.player.LoadException;
 import dev.valkdz.cdisc.audio.player.AudioPlaylist;
 import dev.valkdz.cdisc.audio.player.AudioTrack;
 import dev.valkdz.cdisc.audio.player.AudioTrackInfo;
-import dev.valkdz.cdisc.Main;
-import dev.valkdz.cdisc.audio.engine.TrackLoader;
+import dev.valkdz.cdisc.audio.player.LoadException;
+import dev.valkdz.cdisc.audio.source.TrackLoader;
 import dev.valkdz.cdisc.util.Tasks;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
