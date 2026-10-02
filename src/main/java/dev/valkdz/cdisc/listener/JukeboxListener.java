@@ -441,35 +441,23 @@ public class JukeboxListener implements Listener {
         }
     }
 
-    @EventHandler
+    @EventHandler(ignoreCancelled = true)
     public void onExplode(BlockExplodeEvent e) {
-        e.blockList().removeIf(block -> {
-            if (block.getType() == Material.JUKEBOX) {
-                clearJukeboxNBT(block);
-                LavaPlayerManager apm = plugin.getAudioPlayerManager();
-
-                apm.stopPlaying(block, apm.getGeneration(block));
-
-                customDiscBlocks.remove(BlockKey.of(block));
-                return true;
-            }
-            return false;
-        });
+        e.blockList().removeIf(this::holdsCdisc);
     }
 
-    @EventHandler
+    @EventHandler(ignoreCancelled = true)
     public void onEntityExplode(EntityExplodeEvent e) {
-        e.blockList().removeIf(block -> {
-            if (block.getType() == Material.JUKEBOX) {
-                clearJukeboxNBT(block);
-                LavaPlayerManager apm = plugin.getAudioPlayerManager();
-                apm.stopPlaying(block, apm.getGeneration(block));
+        e.blockList().removeIf(this::holdsCdisc);
+    }
 
-                customDiscBlocks.remove(BlockKey.of(block));
-                return true;
-            }
-            return false;
-        });
+    // Spared rather than destroyed, since an explosion would scatter its queue; it stays
+    // whole, so its music keeps playing.
+    private boolean holdsCdisc(Block block) {
+        if (block.getType() != Material.JUKEBOX) return false;
+        LavaPlayerManager apm = plugin.getAudioPlayerManager();
+        if (apm.hasActiveSession(block) || apm.getQueue(block) != null) return true;
+        return block.getState() instanceof Jukebox jukebox && ItemUtils.isCdiscDisc(jukebox.getRecord());
     }
 
     public void clearJukeboxNBT(Block block) {
