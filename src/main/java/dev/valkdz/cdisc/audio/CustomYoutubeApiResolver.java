@@ -208,7 +208,11 @@ public class CustomYoutubeApiResolver {
             streamUrl = probed.getInfo().identifier;
         }
 
-        return new HttpAudioTrack(trackInfo(videoId, streamUrl, info), container, httpProbe);
+        AudioTrackInfo built = trackInfo(videoId, streamUrl, info);
+        long length = dev.valkdz.cdisc.audio.backend.RangedHttpAudioTrack.contentLengthOf(streamUrl);
+        return length > 0
+                ? new dev.valkdz.cdisc.audio.backend.RangedHttpAudioTrack(built, container, httpProbe, length)
+                : new HttpAudioTrack(built, container, httpProbe);
     }
 
     // The stream URL 302s to googlevideo and lavaplayer refuses redirects while playing,
