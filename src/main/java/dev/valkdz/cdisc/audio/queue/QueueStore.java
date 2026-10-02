@@ -113,6 +113,11 @@ public final class QueueStore {
 
     public boolean clearBlock(Block block) {
         if (!loaded(block)) return false;
+        if (!onOwner(block)) {
+            if (!plugin.isEnabled()) return false;
+            Tasks.region(plugin, block, () -> clearBlock(block));
+            return true;
+        }
         if (!(block.getState() instanceof Jukebox jukebox)) return true;
 
         PersistentDataContainer pdc = jukebox.getPersistentDataContainer();
@@ -155,10 +160,9 @@ public final class QueueStore {
             Block block = entry.getKey();
             DiscQueue queue = entry.getValue();
 
-            if (queue.isEmpty()) {
-                clearBlock(block);
-                continue;
-            }
+            // An emptied queue whose jukebox can't be cleared now is filed empty instead,
+            // or the copy still inside the jukebox would bring its discs back.
+            if (queue.isEmpty() && clearBlock(block)) continue;
 
             byte[] encoded = encode(queue);
             if (encoded == null) continue;
@@ -197,6 +201,11 @@ public final class QueueStore {
 
     private boolean writeBlock(Block block, byte[] encoded) {
         if (!loaded(block)) return false;
+        if (!onOwner(block)) {
+            if (!plugin.isEnabled()) return false;
+            Tasks.region(plugin, block, () -> writeBlock(block, encoded));
+            return true;
+        }
         if (!(block.getState() instanceof Jukebox jukebox)) return false;
 
         PersistentDataContainer pdc = jukebox.getPersistentDataContainer();
@@ -205,6 +214,12 @@ public final class QueueStore {
         pdc.set(queueKey, PersistentDataType.BYTE_ARRAY, encoded);
         jukebox.update(true, false);
         return true;
+    }
+
+    // Folia hands a block entity only to the thread of its region; the save timer runs on the
+    // global one, and while disabling nothing can be scheduled, so the file takes those.
+    private static boolean onOwner(Block block) {
+        return !Tasks.isFolia() || Tasks.owns(block.getLocation());
     }
 
     private static boolean loaded(Block block) {
