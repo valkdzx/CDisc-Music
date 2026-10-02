@@ -5,6 +5,7 @@ import dev.valkdz.cdisc.audio.media.codec.FlacDecoder;
 import dev.valkdz.cdisc.audio.media.codec.Mp3Decoder;
 import dev.valkdz.cdisc.audio.media.codec.PcmDecoder;
 import dev.valkdz.cdisc.audio.media.codec.VorbisDecoder;
+import dev.valkdz.cdisc.audio.media.codec.opus.OpusDecoder;
 import dev.valkdz.cdisc.audio.media.container.AdtsReader;
 import dev.valkdz.cdisc.audio.media.container.FlacReader;
 import dev.valkdz.cdisc.audio.media.container.MatroskaReader;
@@ -115,7 +116,7 @@ public final class Media {
             case FLAC -> new FlacDecoder(format.config());
             case PCM -> new PcmDecoder(format);
             case VORBIS -> new VorbisDecoder(format.headers());
-            case OPUS -> throw new IOException(format.codec() + " is not supported yet");
+            case OPUS -> new OpusDecoder(format.config());
         };
     }
 

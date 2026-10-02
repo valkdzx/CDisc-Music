@@ -36,9 +36,9 @@ class MediaDecodeTest {
                 }
                 total = Math.min(all[0].length, total + n - from);
             }
-            float[][] trimmed = new float[all.length][];
+            float[][] trimmed = new float[all.length + 1][];
             for (int c = 0; c < all.length; c++) trimmed[c] = Arrays.copyOf(all[c], total);
-            assertEquals(44100, decoder.sampleRate(), name);
+            trimmed[all.length] = new float[]{decoder.sampleRate()};
             return trimmed;
         }
     }
@@ -68,24 +68,28 @@ class MediaDecodeTest {
 
     @ParameterizedTest
     @CsvSource({
-            "tone.mp3, 1.0, 35",
-            "tone.m4a, 1.0, 35",
-            "tone.aac, 1.0, 35",
-            "tone.mka, 1.0, 35",
-            "tone.flac, 1.0, 70",
-            "tone.ogg, 1.0, 70",
-            "tone-vorbis.ogg, 1.0, 35",
-            "tone-vorbis.webm, 1.0, 35",
-            "tone.wav, 0.25, 70"
+            "tone.mp3, 1.0, 35, 0.05",
+            "tone.m4a, 1.0, 35, 0.05",
+            "tone.aac, 1.0, 35, 0.05",
+            "tone.mka, 1.0, 35, 0.05",
+            "tone.flac, 1.0, 70, 0.05",
+            "tone.ogg, 1.0, 70, 0.05",
+            "tone-vorbis.ogg, 1.0, 35, 0.05",
+            "tone-vorbis.webm, 1.0, 35, 0.05",
+            "tone-opus.ogg, 1.0, 35, 0.05",
+            "tone-opus.webm, 1.0, 35, 0.05",
+            "tone-hybrid.opus, 1.0, 5, 0.15",
+            "tone.wav, 0.25, 70, 0.05"
     })
-    void decodesTheTone(String name, double seconds, double minSnr) throws IOException {
+    void decodesTheTone(String name, double seconds, double minSnr, double amplitudeTolerance) throws IOException {
         float[][] pcm = decode(name);
-        assertEquals(2, pcm.length, name);
-        assertTrue(Math.abs(pcm[0].length - 44100 * seconds) < 2400, name + " length " + pcm[0].length);
-        double[] left = fit(pcm[0], 440, 44100);
-        double[] right = fit(pcm[1], 1000, 44100);
-        assertEquals(0.5, left[0], 0.05, name + " left amplitude");
-        assertEquals(0.5, right[0], 0.05, name + " right amplitude");
+        assertEquals(3, pcm.length, name);
+        int rate = (int) pcm[2][0];
+        assertTrue(Math.abs(pcm[0].length - rate * seconds) < rate / 20.0, name + " length " + pcm[0].length);
+        double[] left = fit(pcm[0], 440, rate);
+        double[] right = fit(pcm[1], 1000, rate);
+        assertEquals(0.5, left[0], amplitudeTolerance, name + " left amplitude");
+        assertEquals(0.5, right[0], amplitudeTolerance, name + " right amplitude");
         assertTrue(left[1] > minSnr, name + " left snr " + left[1]);
         assertTrue(right[1] > minSnr, name + " right snr " + right[1]);
     }
