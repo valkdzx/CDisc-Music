@@ -30,6 +30,7 @@ public final class Mp3Reader implements Demuxer {
     private long xingFrames;
     private long xingBytes;
     private int[] toc;
+    private boolean cbr;
     private int skip;
     private long sampleCursor;
     private TrackFormat format;
@@ -69,7 +70,9 @@ public final class Mp3Reader implements Demuxer {
         frameSamples = Mp3Decoder.frameSamples(h);
         readInfoFrame(h);
 
-        format = TrackFormat.of(Codec.MP3, sampleRate, channels, null).withSkip(skip, 0);
+        if (toc == null && xingFrames == 0) cbr = true;
+        format = TrackFormat.of(Codec.MP3, sampleRate, channels, null)
+                .withSkip(skip, 2L * frameSamples * 1000 / sampleRate + 1);
     }
 
     private static int[] header(byte[] data) {
@@ -120,6 +123,7 @@ public final class Mp3Reader implements Demuxer {
         int at = 4 + ((h[1] & 1) == 0 ? 2 : 0) + sideInfo;
 
         if (at + 8 <= got && (tagAt(at, "Xing") || tagAt(at, "Info"))) {
+            cbr = tagAt(at, "Info");
             int flags = (int) be32(at + 4);
             int field = at + 8;
             if ((flags & 1) != 0 && field + 4 <= got) {
@@ -140,8 +144,7 @@ public final class Mp3Reader implements Demuxer {
                 int delay = ((look[field + 21] & 0xFF) << 4) | ((look[field + 22] & 0xFF) >> 4);
                 skip = delay + DECODER_DELAY;
             }
-            in.skip(length);
-            audioStart = in.position();
+            skipInfoFrame(length);
             return;
         }
 
@@ -149,8 +152,17 @@ public final class Mp3Reader implements Demuxer {
         if (vbri + 26 <= got && tagAt(vbri, "VBRI")) {
             xingBytes = be32(vbri + 10);
             xingFrames = be32(vbri + 14);
-            in.skip(length);
-            audioStart = in.position();
+            skipInfoFrame(length);
+        }
+    }
+
+    // The tag frame is written at whatever bitrate fits it, so CBR maths needs a real audio header.
+    private void skipInfoFrame(int length) throws IOException {
+        in.skip(length);
+        audioStart = in.position();
+        if (in.peek(look, 4) == 4) {
+            int[] h = header(look);
+            if (Mp3Decoder.hdrValid(h) && Mp3Decoder.hdrCompare(first, h)) first = h;
         }
     }
 
@@ -205,7 +217,7 @@ public final class Mp3Reader implements Demuxer {
             int read = in.readAtMost(frame, 0, length);
             if (read < length) return null;
 
-            long timeUs = sampleCursor * 1_000_000L / sampleRate;
+            long timeUs = (sampleCursor - skip) * 1_000_000L / sampleRate;
             sampleCursor += Mp3Decoder.frameSamples(h);
             return new Packet(frame, timeUs);
         }
@@ -222,21 +234,44 @@ public final class Mp3Reader implements Demuxer {
         long end = audioEnd > 0 ? audioEnd : in.length();
         long span = xingBytes > 0 ? xingBytes : end - audioStart;
         targetMs = Math.max(0, Math.min(targetMs, duration));
+        double frameBytes = averageFrameBytes(span);
 
         long offset;
-        if (toc != null && duration > 0) {
+        if (toc != null && !cbr) {
             double percent = Math.min(99.999, targetMs * 100.0 / duration);
             int whole = (int) percent;
             double a = toc[whole];
             double b = whole < 99 ? toc[whole + 1] : 256;
             offset = (long) ((a + (b - a) * (percent - whole)) / 256.0 * span);
         } else {
-            offset = duration > 0 ? (long) ((double) targetMs / duration * span) : 0;
+            long frame = (targetMs * sampleRate / 1000 + skip) / frameSamples;
+            offset = Math.max(0, (long) (frame * frameBytes) - 2);
         }
 
         in.seek(Math.min(end, audioStart + offset));
         if (!sync(false)) return targetMs;
-        sampleCursor = targetMs * sampleRate / 1000;
-        return targetMs;
+        long landed = in.position() - audioStart;
+        long frame = toc != null && !cbr
+                ? Math.round((double) landedMs(landed, span, duration) * sampleRate / 1000 / frameSamples)
+                : Math.round(landed / frameBytes);
+        sampleCursor = frame * frameSamples;
+        return Math.max(0, (sampleCursor - skip) * 1000 / sampleRate);
+    }
+
+    private double averageFrameBytes(long span) {
+        if (!cbr && xingFrames > 0 && span > 0) return (double) span / xingFrames;
+        return frameSamples / 8.0 * Mp3Decoder.bitrateKbps(first) * 1000.0 / sampleRate;
+    }
+
+    private long landedMs(long offset, long span, long duration) {
+        double at = (double) offset / span * 256.0;
+        for (int i = 0; i < 99; i++) {
+            if (at < toc[i + 1]) {
+                double percent = i + (toc[i + 1] > toc[i] ? (at - toc[i]) / (toc[i + 1] - toc[i]) : 0);
+                return (long) (Math.max(0, percent) * duration / 100);
+            }
+        }
+        double last = toc[99] < 256 ? 99 + (at - toc[99]) / (256 - toc[99]) : 99;
+        return (long) (Math.min(100, last) * duration / 100);
     }
 }
