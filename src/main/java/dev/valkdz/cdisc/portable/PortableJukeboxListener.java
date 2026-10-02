@@ -84,7 +84,7 @@ public class PortableJukeboxListener implements Listener {
     private void endFor(org.bukkit.entity.Player player) {
         PortableJukeboxManager portable = plugin.getPortableJukeboxManager();
         for (PortableJukeboxManager.Carry carry : portable.carriesOf(player)) {
-            portable.endCarry(carry, portable.findHandle(player, carry));
+            portable.endCarry(carry, portable.locateHandle(player, carry));
         }
     }
 }

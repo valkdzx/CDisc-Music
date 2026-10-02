@@ -74,7 +74,7 @@ public final class PortableJukeboxManager {
 
         for (Carry carry : allCarries()) {
             Player carrier = Bukkit.getPlayer(carry.carrier());
-            endCarry(carry, carrier == null ? null : findHandle(carrier, carry));
+            endCarry(carry, carrier == null ? null : locateHandle(carrier, carry));
         }
     }
 
@@ -258,7 +258,7 @@ public final class PortableJukeboxManager {
         for (Carry carry : allCarries()) {
             if (!carry.origin().equals(origin)) continue;
             Player carrier = Bukkit.getPlayer(carry.carrier());
-            settle(carry, carrier == null ? null : findHandle(carrier, carry), false);
+            settle(carry, carrier == null ? null : locateHandle(carrier, carry), false);
         }
     }
 
@@ -282,23 +282,24 @@ public final class PortableJukeboxManager {
             return;
         }
 
-        if (discs.isEmpty()) return;
-
-        ItemStack recovered = new ItemStack(Material.JUKEBOX);
-        materialize(recovered, discs, carrier);
-        dropRecovered(carrier, origin, recovered);
+        dropRecovered(carrier, origin, discs);
     }
 
-    private void dropRecovered(Player carrier, Block origin, ItemStack jukebox) {
+    // The handle is the jukebox itself and still exists wherever it went (a frame, a bundle,
+    // an allay), so only the discs come back; a fresh jukebox here would be a second one.
+    private void dropRecovered(Player carrier, Block origin, List<ItemStack> discs) {
+        if (discs.isEmpty()) return;
         if (carrier != null && carrier.isOnline()) {
-            carrier.getWorld().dropItemNaturally(carrier.getLocation(), jukebox);
+            for (ItemStack disc : discs) carrier.getWorld().dropItemNaturally(carrier.getLocation(), disc);
             return;
         }
         if (origin.getWorld().isChunkLoaded(origin.getX() >> 4, origin.getZ() >> 4)) {
-            origin.getWorld().dropItemNaturally(origin.getLocation().add(0.5, 0.5, 0.5), jukebox);
+            for (ItemStack disc : discs) {
+                origin.getWorld().dropItemNaturally(origin.getLocation().add(0.5, 0.5, 0.5), disc);
+            }
         } else {
-            plugin.getLogger().warning("[CDisc] Couldn't return " + jukebox.getAmount()
-                    + " carried jukebox to an offline carrier; its chunk isn't loaded.");
+            plugin.getLogger().warning("[CDisc] Couldn't return " + discs.size()
+                    + " disc(s) of a carried jukebox to an offline carrier; its chunk isn't loaded.");
         }
     }
 
@@ -349,6 +350,15 @@ public final class PortableJukeboxManager {
         return null;
     }
 
+    public ItemStack locateHandle(Player player, Carry carry) {
+        ItemStack handle = findHandle(player, carry);
+        if (handle != null || player == null) return handle;
+
+        ItemStack cursor = player.getItemOnCursor();
+        if (carry.id().toString().equals(handleIdOf(cursor))) return cursor;
+        return findHandleIn(player.getOpenInventory().getTopInventory().getContents(), carry);
+    }
+
     private void endIfHandleGone(Player carrier, Carry carry) {
         if (findHandle(carrier, carry) != null) return;
 
@@ -363,13 +373,7 @@ public final class PortableJukeboxManager {
             return;
         }
 
-        List<ItemStack> discs = plugin.getAudioPlayerManager().drainQueue(carry.origin());
         settle(carry, null, true);
-        if (discs.isEmpty()) return;
-
-        ItemStack recovered = new ItemStack(Material.JUKEBOX);
-        materialize(recovered, discs, carrier);
-        carrier.getWorld().dropItemNaturally(carrier.getLocation(), recovered);
     }
 
     public static void clearHandle(ItemStack item) {
