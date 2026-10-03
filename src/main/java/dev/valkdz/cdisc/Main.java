@@ -1,6 +1,5 @@
 package dev.valkdz.cdisc;
 
-import de.tr7zw.changeme.nbtapi.NBT;
 import dev.valkdz.cdisc.command.CDiscCommand;
 import dev.valkdz.cdisc.config.Config;
 import dev.valkdz.cdisc.config.MessageManager;
@@ -16,6 +15,7 @@ import dev.valkdz.cdisc.jukebox.JukeboxListener;
 import dev.valkdz.cdisc.jukebox.PlaybackManager;
 import dev.valkdz.cdisc.jukebox.TrackProgressDisplay;
 import dev.valkdz.cdisc.update.UpdateChecker;
+import dev.valkdz.cdisc.util.BlockNbt;
 import dev.valkdz.cdisc.util.Tasks;
 import dev.valkdz.cdisc.voice.VoiceBackendManager;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -119,12 +119,10 @@ public final class Main extends JavaPlugin {
         carriedLyrics = new dev.valkdz.cdisc.feature.lyrics.CarriedLyrics(this, lyricsService);
         carriedLyrics.start();
 
-        boolean nbtReady = NBT.preloadApi();
-        if (!nbtReady) {
-            getLogger().warning("NBT-API reported it may not fully support this server version. "
-                    + "Continuing anyway — jukebox disc animation syncing may be degraded, but playback is unaffected.");
-        } else {
-            getLogger().info("NBT-API successfully initialized!");
+        if (!BlockNbt.init()) {
+            getLogger().warning("Block NBT access is not available on this server version. "
+                    + "The jukebox spin animation may not resume and carried jukeboxes lose other plugins' block data; "
+                    + "playback is unaffected.");
         }
 
         Objects.requireNonNull(getCommand("cdisc")).setExecutor(new CDiscCommand(this));

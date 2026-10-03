@@ -32,10 +32,6 @@
                             <createDependencyReducedPom>true</createDependencyReducedPom>
 
                             <relocations>
-                                <relocation>
-                                    <pattern>de.tr7zw.changeme.nbtapi</pattern>
-                                    <shadedPattern>dev.valkdz.cdisc.util.nbtapi</shadedPattern>
-                                </relocation>
                                 <!-- bStats REQUIRES relocation: an unrelocated
                                      org.bstats would clash with whichever copy
                                      another plugin loaded first. -->
@@ -191,11 +187,6 @@
             <artifactId>netty-all</artifactId>
             <version>4.1.97.Final</version>
             <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>de.tr7zw</groupId>
-            <artifactId>item-nbt-api</artifactId>
-            <version>2.15.7</version>
         </dependency>
         <dependency>
             <groupId>org.jetbrains</groupId>

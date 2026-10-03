@@ -1,12 +1,10 @@
 package dev.valkdz.cdisc.feature.portable;
 
-import de.tr7zw.changeme.nbtapi.NBT;
-import de.tr7zw.changeme.nbtapi.iface.ReadWriteNBT;
-import de.tr7zw.changeme.nbtapi.iface.ReadableNBT;
 import dev.valkdz.cdisc.Main;
 import dev.valkdz.cdisc.jukebox.DiscStorage;
 import dev.valkdz.cdisc.jukebox.PlaybackManager;
 import dev.valkdz.cdisc.jukebox.queue.DiscQueue;
+import dev.valkdz.cdisc.util.BlockNbt;
 import dev.valkdz.cdisc.util.Tasks;
 import dev.valkdz.cdisc.voice.anchor.SoundAnchor;
 import org.bukkit.Bukkit;
@@ -15,7 +13,6 @@ import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Particle;
 import org.bukkit.block.Block;
-import org.bukkit.block.BlockState;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.inventory.InventoryView;
@@ -29,8 +26,6 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.function.Consumer;
-import java.util.function.Function;
 
 public final class PortableJukeboxManager {
 
@@ -426,10 +421,7 @@ public final class PortableJukeboxManager {
 
     private String captureNbt(Block block) {
         try {
-            BlockState state = block.getState();
-
-            Function<ReadableNBT, String> reader = ReadableNBT::toString;
-            String snapshot = NBT.get(state, reader);
+            String snapshot = BlockNbt.read(block);
 
             if (snapshot != null && snapshot.length() > MAX_SNAPSHOT_CHARS) {
 
@@ -447,7 +439,7 @@ public final class PortableJukeboxManager {
 
     private static String topLevelKeys(String snapshot) {
         try {
-            return String.join(", ", NBT.parseNBT(snapshot).getKeys());
+            return String.join(", ", BlockNbt.keys(snapshot));
         } catch (Exception e) {
             return "?";
         }
@@ -456,9 +448,7 @@ public final class PortableJukeboxManager {
     private void restoreNbt(Block block, String snapshot) {
         if (snapshot == null || snapshot.isBlank()) return;
         try {
-            BlockState state = block.getState();
-            Consumer<ReadWriteNBT> modifier = nbt -> nbt.mergeCompound(NBT.parseNBT(snapshot));
-            NBT.modify(state, modifier);
+            BlockNbt.merge(block, snapshot);
         } catch (Exception e) {
             plugin.getLogger().warning("[CDisc] Could not restore jukebox NBT on placement: " + e.getMessage()
                     + " — the jukebox works, but block data set by other plugins may be lost.");

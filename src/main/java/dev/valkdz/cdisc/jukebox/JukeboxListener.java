@@ -1,12 +1,11 @@
 package dev.valkdz.cdisc.jukebox;
 
-import de.tr7zw.changeme.nbtapi.NBT;
-import de.tr7zw.changeme.nbtapi.iface.ReadWriteNBT;
 import dev.valkdz.cdisc.Main;
 import dev.valkdz.cdisc.config.SneakMode;
 import dev.valkdz.cdisc.disc.ItemUtils;
 import dev.valkdz.cdisc.integration.worldguard.RegionGuard;
 import dev.valkdz.cdisc.jukebox.packet.WorldEventPacketInterceptor;
+import dev.valkdz.cdisc.util.BlockNbt;
 import dev.valkdz.cdisc.util.Tasks;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -37,7 +36,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Consumer;
 
 public class JukeboxListener implements Listener {
 
@@ -55,11 +53,6 @@ public class JukeboxListener implements Listener {
     // Jukeboxes whose sound CDisc owns; without this the vanilla disc sound leaks
     // through. Cleared only when playback genuinely ends.
     private final Set<BlockKey> queueControlled = ConcurrentHashMap.newKeySet();
-
-    private static final String[] TICKS_SINCE_SONG_TAG_CANDIDATES = {
-            "ticks_since_song_started",
-            "RecordStartTick"
-    };
 
     private final Main plugin;
     private final ParrotDance parrotDance;
@@ -307,7 +300,7 @@ public class JukeboxListener implements Listener {
                     customDiscBlocks.remove(key);
                 } else {
 
-                    resumeSpinAnimation(state);
+                    resumeSpinAnimation(state.getBlock());
                 }
             }
         } catch (Exception e) {
@@ -315,18 +308,14 @@ public class JukeboxListener implements Listener {
         }
     }
 
-    private void resumeSpinAnimation(BlockState state) {
-        for (String tag : TICKS_SINCE_SONG_TAG_CANDIDATES) {
-            try {
-                Consumer<ReadWriteNBT> modifier = n -> n.setLong(tag, 0L);
-                NBT.modify(state, modifier);
-                return;
-            } catch (Exception ignored) {
-
-            }
+    private void resumeSpinAnimation(Block block) {
+        if (!BlockNbt.isReady()) return;
+        try {
+            BlockNbt.merge(block, "{ticks_since_song_started:0L}");
+        } catch (Exception e) {
+            plugin.getLogger().warning("[CDisc] Could not resume the jukebox spinning animation: " + e
+                    + " — playback itself is unaffected.");
         }
-        plugin.getLogger().warning("[CDisc] Could not find a known jukebox animation NBT tag on this server version; "
-                + "the spinning animation may not resume correctly, but playback itself is unaffected.");
     }
 
     // MONITOR: the queue leaves the block here, so a plugin cancelling the break after
@@ -334,7 +323,6 @@ public class JukeboxListener implements Listener {
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBreak(BlockBreakEvent e) {
         if (e.getBlock().getType() == Material.JUKEBOX) {
-            clearJukeboxNBT(e.getBlock());
             PlaybackManager apm = plugin.getAudioPlayerManager();
             apm.stopPlaying(e.getBlock(), apm.getGeneration(e.getBlock()));
             if (packQueueIntoDroppedJukebox(e.getBlock(), e.getPlayer())) {
@@ -348,7 +336,6 @@ public class JukeboxListener implements Listener {
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBurn(BlockBurnEvent e) {
         if (e.getBlock().getType() != Material.JUKEBOX) return;
-        clearJukeboxNBT(e.getBlock());
         PlaybackManager apm = plugin.getAudioPlayerManager();
         apm.stopPlaying(e.getBlock(), apm.getGeneration(e.getBlock()));
         packQueueIntoDroppedJukebox(e.getBlock(), null);
@@ -429,7 +416,7 @@ public class JukeboxListener implements Listener {
             jukebox.setRecord(disc == null ? null : disc.clone());
             jukebox.update(true, false);
             if (disc != null) {
-                resumeSpinAnimation(block.getState());
+                resumeSpinAnimation(block);
             }
         } catch (Exception e) {
             plugin.getLogger().warning("[CDisc] Failed to swap jukebox disc visual: " + e.getMessage());
@@ -469,14 +456,5 @@ public class JukeboxListener implements Listener {
         PlaybackManager apm = plugin.getAudioPlayerManager();
         if (apm.hasActiveSession(block) || apm.getQueue(block) != null) return true;
         return block.getState() instanceof Jukebox jukebox && ItemUtils.isCdiscDisc(jukebox.getRecord());
-    }
-
-    public void clearJukeboxNBT(Block block) {
-        for (String tag : TICKS_SINCE_SONG_TAG_CANDIDATES) {
-            try {
-                Consumer<ReadWriteNBT> remover = nbt -> nbt.removeKey(tag);
-                NBT.modify(block.getState(), remover);
-            } catch (Exception ignored) {}
-        }
     }
 }
