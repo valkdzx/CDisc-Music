@@ -30,6 +30,7 @@
 - Fixed: YouTube player detection
 - Fixed: seeking through the YouTube backend
 - Fixed: seek jumping back
+- Fixed: Spotify tracks matched to another song by the same artist
 
 ## 2.1.2
 

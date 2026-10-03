@@ -46,4 +46,26 @@ class SpotifyTrackTest {
         assertNull(SpotifyBridge.pick(List.of(
                 new YouTubeSearch.Result("other", "Unrelated", "Someone", 200)), wanted));
     }
+
+    @Test
+    void anotherSongOfTheSameArtistAndLengthIsNotAMatch() {
+        SpotifyBridge.Wanted wanted = new SpotifyBridge.Wanted("RUA1D2300745", "Папик", "CUPSIZE", 118_985);
+
+        assertNull(SpotifyBridge.pick(List.of(
+                new YouTubeSearch.Result("malaya", "CUPSIZE - Малая | Премьера 2022", "GORKY RECORDS", 117),
+                new YouTubeSearch.Result("topic", "Малая", "CUPSIZE - Topic", 118)), wanted));
+
+        assertEquals("papik", SpotifyBridge.pick(List.of(
+                new YouTubeSearch.Result("malaya", "CUPSIZE - Малая | Премьера 2022", "GORKY RECORDS", 117),
+                new YouTubeSearch.Result("papik", "CUPSIZE, 17 SEVENTEEN - Папик | Премьера 2023", "GORKY RECORDS", 120)),
+                wanted));
+    }
+
+    @Test
+    void aFeaturingOrRemasterNoteDoesNotHideTheSong() {
+        SpotifyBridge.Wanted wanted = new SpotifyBridge.Wanted(null, "Song (feat. Guest) - 2011 Remaster", "Band", 200_000);
+
+        assertEquals("clip", SpotifyBridge.pick(List.of(
+                new YouTubeSearch.Result("clip", "Band ft. Guest - Song", "Band", 201)), wanted));
+    }
 }

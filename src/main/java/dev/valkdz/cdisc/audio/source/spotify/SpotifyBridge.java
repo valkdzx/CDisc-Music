@@ -442,21 +442,27 @@ public final class SpotifyBridge {
         return best == null ? null : best.videoId();
     }
 
+    // The artist alone proves nothing: any of their songs within the length slack would pass,
+    // and an ISRC search answers with the artist's other uploads, Topic ones included.
     private static boolean plausible(YouTubeSearch.Result result, String title, String artist) {
-        if (result.isArtTrack()) return true;
-
         String videoTitle = normalise(result.title());
-        String channel = normalise(result.channel());
-        String wanted = normalise(title);
-
-        if (!wanted.isEmpty() && !videoTitle.isEmpty()
-                && (videoTitle.contains(wanted) || wanted.contains(videoTitle))) {
-            return true;
-        }
+        String wanted = normalise(coreOf(title));
+        if (wanted.isEmpty() || !videoTitle.contains(wanted)) return false;
+        if (wanted.length() > 3) return true;
 
         String performer = normalise(artist);
-        return !performer.isEmpty()
-                && (videoTitle.contains(performer) || channel.contains(performer));
+        return result.isArtTrack() || performer.isEmpty() || videoTitle.contains(performer)
+                || normalise(result.channel()).contains(performer);
+    }
+
+    private static String coreOf(String title) {
+        if (title == null) return "";
+        int cut = title.length();
+        for (String mark : new String[]{" (", " [", " - "}) {
+            int at = title.indexOf(mark);
+            if (at > 0) cut = Math.min(cut, at);
+        }
+        return title.substring(0, cut);
     }
 
     private static String normalise(String text) {
