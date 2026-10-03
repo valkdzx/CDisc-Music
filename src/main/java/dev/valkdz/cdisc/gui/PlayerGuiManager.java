@@ -597,8 +597,8 @@ public class PlayerGuiManager {
             lore.add((mode == current ? "§a▸ " : "§8  ")
                     + plugin.getMessageManager().get(player, mode.messageKey()));
         }
-        lore.add(plugin.getMessageManager().get(player, "gui.lyrics.hint"));
-        lore.add(plugin.getMessageManager().get(player, "gui.lyrics.hint_settings"));
+        lore.add(plugin.getMessageManager().get(player, "gui.lyrics.click_views"));
+        lore.add(plugin.getMessageManager().get(player, "gui.lyrics.click_look"));
 
         lore.addAll(lyricsLore(player, info));
 

@@ -9,6 +9,7 @@
 - Parrots within three blocks of a jukebox dance to CDisc discs as they do to vanilla ones, and stop when playback ends.
 - Players given a server hologram preset without force keep their own look: the Return my own look button in `/cdisc preset` brings it back, and editing the preset turns it into their own. `/cdisc admin presets unset` also returns it.
 - The lyrics button in the player screen: left click shows the next view above jukeboxes, right click the previous one, and shift+click opens your own hologram look.
+- The lyrics button's hints reach servers that ran an earlier version too, and now say that shift with either click opens the look settings. The old text, which still told left click to switch the hologram off, was kept on every update as if an administrator had written it.
 - A carried jukebox whose item left the inventory without being dropped — put in an item frame, a bundle or a decorated pot, handed to an allay, or held on the cursor when the music ended — no longer gives back a second jukebox. Its discs come back on their own.
 - Folia: jukebox queues are saved again. The save reached into every jukebox from the global thread, which Folia refuses, so nothing was kept and the console logged an error every two seconds.
 - An explosion next to a playing jukebox no longer silences it. Jukeboxes that play, hold a CDisc disc or keep a queue are still spared by explosions; other jukeboxes now break as they do without the plugin.

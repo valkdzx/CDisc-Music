@@ -311,8 +311,8 @@ gui:
   lyrics:
     sidebar_title: "Songtext"
     name: "&6Songtext"
-    hint: "&7Linksklick: nächste Ansicht, Rechtsklick: vorherige"
-    hint_settings: "&7Shift+Klick für dein eigenes Aussehen"
+    click_views: "&7Linksklick: nächste Ansicht, Rechtsklick: vorherige"
+    click_look: "&7Shift+Links-/Rechtsklick: Aussehen einstellen"
     mode_title: "&7Was du über Jukeboxen siehst:"
     mode_off: "Aus"
     mode_lyrics: "Songtext"
