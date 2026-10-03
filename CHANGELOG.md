@@ -1,12 +1,7 @@
 # Changelog
 
-## 2.1.2
+## 2.2 (Unrelease)
 
-- Broadcasts: `/cdisc create broadcast:Name` makes a disc that plays no music. In a jukebox it goes live, and its host — whoever made the disc — or an operator adds up to six microphones from the Broadcast button. A handheld microphone is heard only from its holder, can be passed on or put back in the jukebox, and returns to the host past `handheld-range`; a block microphone hears a player as far as their voice carries, quieter with distance. Voices reach the jukebox and its paired speakers through Simple Voice Chat and Plasmo Voice. `broadcast.enabled` in config.yml switches it off.
-- Crossfade: the next disc in a queue is loaded ten seconds before the end and the last seconds of both are blended. `crossfade` in config.yml sets the length, 0 turns it off, and each jukebox can turn it off from Advanced or the dialog's options.
-- Server hologram presets: `/cdisc admin presets add <name>` makes a named look in the `/cdisc preset` window, `set <name> <players> [true|false]` gives it to players or a selector, `unset` takes it back and `remove` deletes it. Given without force it is a starting point players can still change; forced, it is all they see. `default <name|none> [true|false]` gives it to everyone else, players who join later included. Edits reach everyone at once. Needs `cdisc.admin.presets`, operators by default.
-- The player screen is two rows: controls on top, Advanced, the lyrics and exit below. Speakers, volume, beacon range, carrying, track messages, the dialog switch and crossfade moved to Advanced, and each player's last screen is opened again next time.
-- PlaceholderAPI placeholders `%cdisc_...%` describe the nearest jukebox a player can hear; other plugins get `TrackStartEvent`, `PlaybackStopEvent`, the cancellable `DiscCreateEvent` and `CDiscApi`.
 - LavaPlayer, youtube-source and LavaSrc are gone: CDisc reads, decodes and plays every source with code of its own. The jar is 3 MB instead of 41 MB, and no native libraries are unpacked at startup.
 - YouTube searches, playlists of up to 600 videos and mixes, SoundCloud, Twitch, Spotify search, Yandex Music and VK Music with a token, HTTP streams and local files are all read by the plugin itself. MP3, AAC, FLAC, Vorbis, Opus and WAV play from MP4, WebM, Ogg, FLAC, WAV, AIFF, MP3, ADTS and HLS.
 - `youtube.clients` and `youtube.log-client-failures` leave sources.yml: they only set up youtube-source.
@@ -29,7 +24,16 @@
 - Seeking no longer jumps back. While the new place loaded, the time in the boss bar, the player screen and the lyrics showed the old place again, the old audio kept playing, and a second seek counted from there. The time now stays on the new place, and the old audio stops at once.
 - SoundCloud tracks that SoundCloud only plays as a 30-second preview are left out of search results and refused as links, with a message saying why. They used to become discs that showed the full length, stopped at 0:30 and ended when seeked past it. A goat horn still takes them, since its clip fits in the preview.
 - Mixcloud, Reddit, Vimeo, Bandcamp, OC ReMix, Soundgasm and PornHub are no longer sources, and their switches leave sources.yml.
+- The lyrics display no longer costs the server thread several percent while a track that is not from the music folder plays. Each tick it tried to read the track's address as a file path, and on Windows a link fails that with an exception.
 - `/cdisc disc convert` follows its own `disc.convert` rule in permissions.yml, not the one for creating discs, and `/cdisc disc` suggests only the subcommands a player may use.
+
+## 2.1.2
+
+- Broadcasts: `/cdisc create broadcast:Name` makes a disc that plays no music. In a jukebox it goes live, and its host — whoever made the disc — or an operator adds up to six microphones from the Broadcast button. A handheld microphone is heard only from its holder, can be passed on or put back in the jukebox, and returns to the host past `handheld-range`; a block microphone hears a player as far as their voice carries, quieter with distance. Voices reach the jukebox and its paired speakers through Simple Voice Chat and Plasmo Voice. `broadcast.enabled` in config.yml switches it off.
+- Crossfade: the next disc in a queue is loaded ten seconds before the end and the last seconds of both are blended. `crossfade` in config.yml sets the length, 0 turns it off, and each jukebox can turn it off from Advanced or the dialog's options.
+- Server hologram presets: `/cdisc admin presets add <name>` makes a named look in the `/cdisc preset` window, `set <name> <players> [true|false]` gives it to players or a selector, `unset` takes it back and `remove` deletes it. Given without force it is a starting point players can still change; forced, it is all they see. `default <name|none> [true|false]` gives it to everyone else, players who join later included. Edits reach everyone at once. Needs `cdisc.admin.presets`, operators by default.
+- The player screen is two rows: controls on top, Advanced, the lyrics and exit below. Speakers, volume, beacon range, carrying, track messages, the dialog switch and crossfade moved to Advanced, and each player's last screen is opened again next time.
+- PlaceholderAPI placeholders `%cdisc_...%` describe the nearest jukebox a player can hear; other plugins get `TrackStartEvent`, `PlaybackStopEvent`, the cancellable `DiscCreateEvent` and `CDiscApi`.
 
 ## 2.1.1-fix2
 

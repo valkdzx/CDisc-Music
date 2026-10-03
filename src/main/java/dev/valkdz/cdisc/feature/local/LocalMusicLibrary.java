@@ -486,8 +486,11 @@ public final class LocalMusicLibrary {
         return stripExtension(baseName(relative == null ? "" : relative));
     }
 
+    // Asked every tick for whatever plays; a URL would fail to parse as a path, and the
+    // exception's stack trace alone cost more than the rest of the lyrics display.
     public String addressOf(AudioTrack track) {
-        if (track == null) return null;
+        if (track == null || track.getSourceManager() == null
+                || !"local".equals(track.getSourceManager().getSourceName())) return null;
         String relative = relativize(track.getInfo().identifier);
         if (relative == null) relative = relativize(track.getInfo().uri);
         return relative == null ? null : PREFIX + relative;
