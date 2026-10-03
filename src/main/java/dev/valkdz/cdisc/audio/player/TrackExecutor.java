@@ -2,14 +2,14 @@ package dev.valkdz.cdisc.audio.player;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 
 final class TrackExecutor implements Runnable {
 
-    static final int BUFFER_FRAMES = 1500;
+    static final int BUFFER_FRAMES = 500;
 
     static final class SeekRequested extends RuntimeException {
         SeekRequested() {
@@ -26,16 +26,16 @@ final class TrackExecutor implements Runnable {
     final AudioTrack track;
     private final AudioPlayer player;
     final ArrayBlockingQueue<AudioFrame> queue = new ArrayBlockingQueue<>(BUFFER_FRAMES);
-    private final List<Closeable> resources = new CopyOnWriteArrayList<>();
+    private final List<Closeable> resources = new ArrayList<>();
     private volatile boolean stopped;
     private volatile long pendingSeek = -1;
     private volatile long shownPosition = -1;
     private volatile long lastTimecode;
     volatile boolean finished;
     volatile LoadException failure;
-    volatile long lastFrameAt = System.currentTimeMillis();
+    volatile long lastFrameAt = System.nanoTime();
     volatile boolean stuckReported;
-    private volatile Thread thread;
+    private Thread thread;
 
     TrackExecutor(AudioTrack track, AudioPlayer player) {
         this.track = track;
@@ -45,20 +45,24 @@ final class TrackExecutor implements Runnable {
 
     @Override
     public void run() {
-        thread = Thread.currentThread();
+        synchronized (this) {
+            thread = Thread.currentThread();
+        }
         long start = track.startPosition();
         try {
             while (!stopped) {
                 Playback playback = new Playback(this, start);
                 try {
                     track.process(playback);
-                    break;
                 } catch (SeekRequested seek) {
                     start = takeSeek();
                     if (start < 0) start = playback.positionMs();
+                    continue;
                 } finally {
                     closeResources();
                 }
+                if (!awaitSeek()) break;
+                start = takeSeek();
             }
         } catch (Stopped ignored) {
         } catch (InterruptedException e) {
@@ -70,7 +74,25 @@ final class TrackExecutor implements Runnable {
         } finally {
             closeResources();
             finished = true;
-            thread = null;
+            synchronized (this) {
+                thread = null;
+            }
+        }
+    }
+
+    // The decoder reaches the end while the queue still holds seconds of audio; a seek made
+    // then must restart decoding, so the track only finishes once the queue has drained.
+    private boolean awaitSeek() throws InterruptedException {
+        while (true) {
+            synchronized (this) {
+                if (stopped) return false;
+                if (pendingSeek >= 0) return true;
+                if (queue.isEmpty()) {
+                    finished = true;
+                    return false;
+                }
+            }
+            Thread.sleep(20);
         }
     }
 
@@ -86,18 +108,14 @@ final class TrackExecutor implements Runnable {
         return shown >= 0 ? shown : lastTimecode;
     }
 
-    void seek(long ms) {
+    synchronized void seek(long ms) {
         shownPosition = ms;
         pendingSeek = ms;
         queue.clear();
-        lastFrameAt = System.currentTimeMillis();
+        lastFrameAt = System.nanoTime();
     }
 
-    long peekSeek() {
-        return pendingSeek;
-    }
-
-    long takeSeek() {
+    synchronized long takeSeek() {
         long seek = pendingSeek;
         pendingSeek = -1;
         queue.clear();
@@ -125,30 +143,44 @@ final class TrackExecutor implements Runnable {
         lastTimecode = frame.getTimecode();
         long shown = shownPosition;
         if (shown >= 0 && pendingSeek < 0 && Math.abs(frame.getTimecode() - shown) <= 3000) shownPosition = -1;
-        lastFrameAt = System.currentTimeMillis();
+        lastFrameAt = System.nanoTime();
         stuckReported = false;
     }
 
     void register(Closeable resource) {
-        resources.add(resource);
-        if (stopped) closeResources();
+        synchronized (resources) {
+            if (!stopped) {
+                resources.add(resource);
+                return;
+            }
+        }
+        close(resource);
     }
 
     private void closeResources() {
-        for (Closeable resource : resources) {
-            try {
-                resource.close();
-            } catch (IOException | RuntimeException ignored) {
-            }
+        List<Closeable> open;
+        synchronized (resources) {
+            if (resources.isEmpty()) return;
+            open = new ArrayList<>(resources);
+            resources.clear();
         }
-        resources.clear();
+        for (Closeable resource : open) close(resource);
+    }
+
+    private static void close(Closeable resource) {
+        try {
+            resource.close();
+        } catch (IOException | RuntimeException ignored) {
+        }
     }
 
     void stop() {
         stopped = true;
         queue.clear();
         closeResources();
-        Thread running = thread;
-        if (running != null) running.interrupt();
+        // The pool reuses this thread for the next track once run() returns.
+        synchronized (this) {
+            if (thread != null) thread.interrupt();
+        }
     }
 }

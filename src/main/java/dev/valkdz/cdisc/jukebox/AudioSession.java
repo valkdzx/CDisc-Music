@@ -32,7 +32,7 @@ public class AudioSession {
     private String lastTrackId;
     private long lastPumpFailureMs;
 
-    private static final int STREAM_LEAD_CAP = 1500;
+    private static final int STREAM_LEAD_CAP = 500;
     private static final int STREAM_PREBUFFER = 75;
     private static final int DISC_LEAD_CAP = 2;
 

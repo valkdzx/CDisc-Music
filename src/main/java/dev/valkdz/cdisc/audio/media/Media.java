@@ -35,10 +35,11 @@ public final class Media {
             if (read < 0) break;
             got += read;
         }
-        MediaInput replay = input.canSeek() ? seekBack(input, start) : new Replay(head, got, input, start);
+        MediaInput replay = new Replay(head, got, input, start);
 
         Container container = detect(head, got);
         if (container == Container.UNKNOWN) container = fromMime(mimeType);
+        if (container == Container.UNKNOWN) container = guess(head, got);
         return switch (container) {
             case MP4 -> new Mp4Reader(replay);
             case MATROSKA -> new MatroskaReader(replay);
@@ -50,11 +51,6 @@ public final class Media {
             case UNKNOWN -> throw new IOException("The stream is in no format we recognise"
                     + (mimeType == null ? "" : " (" + mimeType + ")"));
         };
-    }
-
-    private static MediaInput seekBack(MediaInput input, long start) throws IOException {
-        input.seek(start);
-        return input;
     }
 
     public static Container detect(byte[] h, int length) {
@@ -71,23 +67,51 @@ public final class Media {
                 || (is(h, 4, "mdat") && length > 16)) {
             return Container.MP4;
         }
-        int at = 0;
-        if (is(h, 0, "ID3") && length >= 10) {
-            int size = ((h[6] & 0x7F) << 21) | ((h[7] & 0x7F) << 14) | ((h[8] & 0x7F) << 7) | (h[9] & 0x7F);
-            at = 10 + size + ((h[5] & 0x10) != 0 ? 10 : 0);
-            if (at + 4 > length) return Container.MP3;
-            if (is(h, at, "fLaC")) return Container.FLAC;
-        }
-        for (int i = at; i + 4 <= length; i++) {
+        int at = id3End(h, length);
+        if (at + 4 > length) return Container.UNKNOWN;
+        if (is(h, at, "fLaC")) return Container.FLAC;
+        return scan(h, length, at, true);
+    }
+
+    // Only after the magic numbers and the MIME type: a lone sync word turns up in any binary data.
+    private static Container guess(byte[] h, int length) {
+        int at = id3End(h, length);
+        if (at > 0 && at + 4 > length) return Container.MP3;
+        return scan(h, length, at, false);
+    }
+
+    private static int id3End(byte[] h, int length) {
+        if (length < 10 || !is(h, 0, "ID3")) return 0;
+        int size = ((h[6] & 0x7F) << 21) | ((h[7] & 0x7F) << 14) | ((h[8] & 0x7F) << 7) | (h[9] & 0x7F);
+        return 10 + size + ((h[5] & 0x10) != 0 ? 10 : 0);
+    }
+
+    private static Container scan(byte[] h, int length, int from, boolean confirm) {
+        for (int i = from; i + 4 <= length; i++) {
             if ((h[i] & 0xFF) != 0xFF || (h[i + 1] & 0xE0) != 0xE0) continue;
             if ((h[i + 1] & 0x06) == 0) {
-                if ((h[i + 1] & 0xF0) == 0xF0) return Container.ADTS;
+                if ((h[i + 1] & 0xF0) != 0xF0) continue;
+                if (!confirm) return Container.ADTS;
+                if (i + 6 > length) continue;
+                int next = i + (((h[i + 3] & 0x03) << 11) | ((h[i + 4] & 0xFF) << 3) | ((h[i + 5] & 0xE0) >> 5));
+                if (next > i + 7 && next + 2 <= length && (h[next] & 0xFF) == 0xFF && (h[next + 1] & 0xF6) == 0xF0) {
+                    return Container.ADTS;
+                }
             } else {
-                int[] header = {h[i] & 0xFF, h[i + 1] & 0xFF, h[i + 2] & 0xFF, h[i + 3] & 0xFF};
-                if (Mp3Decoder.hdrValid(header)) return Container.MP3;
+                int[] header = mp3Header(h, i);
+                if (!Mp3Decoder.hdrValid(header)) continue;
+                if (!confirm) return Container.MP3;
+                int size = Mp3Decoder.frameBytes(header, 0);
+                if (size == 0) continue;
+                int next = i + size + Mp3Decoder.padding(header);
+                if (next + 4 <= length && Mp3Decoder.hdrCompare(header, mp3Header(h, next))) return Container.MP3;
             }
         }
         return Container.UNKNOWN;
+    }
+
+    private static int[] mp3Header(byte[] h, int at) {
+        return new int[]{h[at] & 0xFF, h[at + 1] & 0xFF, h[at + 2] & 0xFF, h[at + 3] & 0xFF};
     }
 
     private static Container fromMime(String mimeType) {
@@ -120,12 +144,14 @@ public final class Media {
         };
     }
 
+    // Serves the probed bytes again so a network input is not reopened just to go back to its start.
     private static final class Replay extends MediaInput {
         private final byte[] head;
         private final int headLength;
         private final MediaInput rest;
         private final long start;
         private int at;
+        private boolean restMoved;
 
         Replay(byte[] head, int headLength, MediaInput rest, long start) {
             this.head = head;
@@ -143,7 +169,28 @@ public final class Media {
                 at += taken;
                 return taken;
             }
+            if (restMoved) {
+                rest.seek(start + headLength);
+                restMoved = false;
+            }
             return rest.read(buffer, offset, length);
+        }
+
+        @Override
+        public boolean canSeek() {
+            return rest.canSeek();
+        }
+
+        @Override
+        public void seek(long target) throws IOException {
+            if (target >= start && target < start + headLength) {
+                if (at >= headLength) restMoved = rest.position() != start + headLength;
+                at = (int) (target - start);
+                return;
+            }
+            at = headLength;
+            rest.seek(target);
+            restMoved = false;
         }
 
         @Override

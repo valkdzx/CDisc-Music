@@ -91,13 +91,17 @@ public final class Playback {
         float[][] buffer = new float[decoder.channels()][decoder.maxSamples()];
         int bad = 0;
         while (true) {
-            if (executor.peekSeek() >= 0 && demuxer.canSeek() && !executor.stopped()) {
+            try {
+                executor.checkpoint();
+            } catch (TrackExecutor.SeekRequested seek) {
+                if (!demuxer.canSeek()) throw seek;
                 long target = executor.takeSeek();
+                if (target < 0) continue;
                 long landed = demuxer.seek(Math.max(0, target - preroll));
                 decoder.reset();
                 pipeline.restart(landed, target, 0, false);
+                continue;
             }
-            executor.checkpoint();
             Packet packet = demuxer.next();
             if (packet == null) break;
             int n;
