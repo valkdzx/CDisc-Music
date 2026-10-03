@@ -102,6 +102,17 @@ public final class LyricsDisplay {
     private record Seat(HologramStyle style, LyricsMode mode) {
     }
 
+    private record Spot(Player player, World world, double x, double y, double z, Seat seat) {
+
+        boolean near(Block block, double rangeSquared) {
+            if (!world.equals(block.getWorld())) return false;
+            double dx = x - block.getX();
+            double dy = y - block.getY();
+            double dz = z - block.getZ();
+            return dx * dx + dy * dy + dz * dz <= rangeSquared;
+        }
+    }
+
     // What one copy should show. The lyrics thread composes it; the region thread only applies it.
     private record Frame(String text, String footer, boolean slide) {
 
@@ -476,18 +487,34 @@ public final class LyricsDisplay {
         PlaybackManager apm = plugin.getAudioPlayerManager();
         if (apm == null) return;
 
-        for (Block block : apm.activeBlockView()) {
+        Set<Block> active = apm.activeBlockView();
+        if (active.isEmpty()) return;
+
+        Map<UUID, Spot> spots = spots(defaults);
+        for (Block block : active) {
             Tasks.inRegion(plugin, block, () -> {
-                seat(block, states.computeIfAbsent(block, b -> new Hologram()), defaults);
+                seat(block, states.computeIfAbsent(block, b -> new Hologram()), spots);
                 if (sweep) sweepAround(block);
             });
         }
     }
 
-    private void seat(Block block, Hologram state, HologramStyle defaults) {
+    private Map<UUID, Spot> spots(HologramStyle defaults) {
+        HologramPresets presets = plugin.getHologramPresets();
+        Map<UUID, Spot> spots = new HashMap<>();
+        for (Player online : Bukkit.getOnlinePlayers()) {
+            UUID id = online.getUniqueId();
+            Location at = online.getLocation();
+            spots.put(id, new Spot(online, at.getWorld(), at.getX(), at.getY(), at.getZ(),
+                    new Seat(presets.orDefault(id, defaults), LyricsPrefs.mode(online))));
+        }
+        return spots;
+    }
+
+    private void seat(Block block, Hologram state, Map<UUID, Spot> spots) {
         if (state.closed) return;
 
-        seatAudience(block, state, defaults);
+        seatAudience(block, state, spots);
         state.live = List.copyOf(state.variants.values());
 
         // An entity can vanish with its chunk; the last frame it was given brings it back.
@@ -600,34 +627,33 @@ public final class LyricsDisplay {
         Tasks.entityLater(plugin, entity, () -> applyTransform(entity, 0f, scale, fadeTicks), 1L);
     }
 
-    private void seatAudience(Block block, Hologram state, HologramStyle defaults) {
-        HologramPresets presets = plugin.getHologramPresets();
+    private void seatAudience(Block block, Hologram state, Map<UUID, Spot> spots) {
+        double rangeSquared = audienceRangeSquared;
 
         Iterator<Map.Entry<UUID, Variant>> seated = state.seats.entrySet().iterator();
         while (seated.hasNext()) {
             Map.Entry<UUID, Variant> entry = seated.next();
-            Player viewer = Bukkit.getPlayer(entry.getKey());
+            Spot spot = spots.get(entry.getKey());
             Variant variant = entry.getValue();
 
-            if (viewer != null && inRange(viewer, block)
-                    && variant.mode == LyricsPrefs.mode(viewer)
-                    && variant.style.equals(presets.orDefault(entry.getKey(), defaults))) {
+            if (spot != null && spot.near(block, rangeSquared)
+                    && variant.mode == spot.seat().mode() && variant.style.equals(spot.seat().style())) {
                 continue;
             }
 
-            leave(variant, entry.getKey(), viewer);
+            leave(variant, entry.getKey(), spot == null ? null : spot.player());
             seated.remove();
         }
 
-        for (Player online : Bukkit.getOnlinePlayers()) {
-            UUID id = online.getUniqueId();
-            if (state.seats.containsKey(id) || !inRange(online, block)) continue;
+        for (Map.Entry<UUID, Spot> entry : spots.entrySet()) {
+            UUID id = entry.getKey();
+            Spot spot = entry.getValue();
+            if (spot.seat().mode() == LyricsMode.OFF || state.seats.containsKey(id)
+                    || !spot.near(block, rangeSquared)) {
+                continue;
+            }
 
-            LyricsMode mode = LyricsPrefs.mode(online);
-            if (mode == LyricsMode.OFF) continue;
-
-            Variant variant = state.variants.computeIfAbsent(
-                    new Seat(presets.orDefault(id, defaults), mode), Variant::new);
+            Variant variant = state.variants.computeIfAbsent(spot.seat(), Variant::new);
 
             variant.viewers.add(id);
             state.seats.put(id, variant);

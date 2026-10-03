@@ -36,6 +36,10 @@ public class MessageManager {
     private final Main plugin;
     private final Map<String, FileConfiguration> locales = new ConcurrentHashMap<>();
 
+    private final Map<String, Map<String, String>> templates = new ConcurrentHashMap<>();
+
+    private final Map<String, String> clientLocales = new ConcurrentHashMap<>();
+
     private String forced;
 
     public MessageManager(Main plugin) {
@@ -68,6 +72,7 @@ public class MessageManager {
 
     public void reload() {
         locales.clear();
+        templates.clear();
         load();
     }
 
@@ -128,8 +133,10 @@ public class MessageManager {
     public String localeFor(Player player) {
         if (forced != null) return forced;
         if (player == null) return FALLBACK;
-        String matched = matchBundled(player.getLocale());
-        return matched == null ? FALLBACK : matched;
+        return clientLocales.computeIfAbsent(player.getLocale(), client -> {
+            String matched = matchBundled(client);
+            return matched == null ? FALLBACK : matched;
+        });
     }
 
     public boolean isForced() {
@@ -160,13 +167,23 @@ public class MessageManager {
             return "§c[Missing locale: " + locale + "]";
         }
 
-        String message = config.getString(path);
+        String message = template(locale, config, path);
         if (message == null) {
             return "§c[Missing: " + locale + "." + path + "]";
         }
+        return args.length > 0 ? String.format(message, args) : message;
+    }
 
-        message = message.replace("&", "§");
-        String messageN = Normalizer.normalize(message, Normalizer.Form.NFC);
-        return args.length > 0 ? String.format(messageN, args) : messageN;
+    private String template(String locale, FileConfiguration config, String path) {
+        Map<String, String> known = templates.computeIfAbsent(locale, l -> new ConcurrentHashMap<>());
+        String cached = known.get(path);
+        if (cached != null) return cached;
+
+        String raw = config.getString(path);
+        if (raw == null) return null;
+
+        String message = Normalizer.normalize(raw.replace("&", "§"), Normalizer.Form.NFC);
+        known.put(path, message);
+        return message;
     }
 }
