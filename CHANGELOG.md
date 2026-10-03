@@ -4,6 +4,7 @@
 
 - LavaPlayer, youtube-source and LavaSrc are gone: CDisc reads, decodes and plays every source with code of its own. The jar is 3 MB instead of 41 MB, and no native libraries are unpacked at startup.
 - NBT-API is gone as well. Resuming the jukebox spin and keeping other plugins' block data on a carried jukebox now use a small reader of CDisc's own, which needs no update for a new Minecraft version, so the startup warning about an unsupported server version no longer appears.
+- NBT-API is gone as well. Resuming the jukebox spin and keeping other plugins' block data on a carried jukebox now use a small reader of CDisc's own, which needs no update for a new Minecraft version, so the startup warning about an unsupported server version no longer appears.
 - YouTube searches, playlists of up to 600 videos and mixes, SoundCloud, Twitch, Spotify search, Yandex Music and VK Music with a token, HTTP streams and local files are all read by the plugin itself. MP3, AAC, FLAC, Vorbis, Opus and WAV play from MP4, WebM, Ogg, FLAC, WAV, AIFF, MP3, ADTS and HLS.
 - `youtube.clients` and `youtube.log-client-failures` leave sources.yml: they only set up youtube-source.
 - The crouch progress bar goes away once the player is out of earshot, and a jukebox that is playing, holds a disc or has a queue can no longer be paired as a speaker.
@@ -28,6 +29,7 @@
 - Mixcloud, Reddit, Vimeo, Bandcamp, OC ReMix, Soundgasm and PornHub are no longer sources, and their switches leave sources.yml.
 - The lyrics display no longer costs the server thread several percent while a track that is not from the music folder plays. Each tick it tried to read the track's address as a file path, and on Windows a link fails that with an exception.
 - The lyrics above jukeboxes are worked out on a thread of their own, and the server thread only sets the words when they change. With one jukebox playing a track with lyrics, CDisc's share of the server thread fell from about 10% to 0.1%. The crouch progress bar also stopped copying the jukebox and rebuilding its title every few ticks.
+- The lyrics over a carried jukebox, in its sidebar and above its carrier, are worked out on a thread of their own too, and the server thread only writes what changed.
 - `/cdisc disc convert` follows its own `disc.convert` rule in permissions.yml, not the one for creating discs, and `/cdisc disc` suggests only the subcommands a player may use.
 
 ## 2.1.2

@@ -35,6 +35,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
 
 public final class CarriedLyrics {
 
@@ -57,6 +61,10 @@ public final class CarriedLyrics {
 
     private static final int PREFIX_LIMIT = 64;
 
+    private static final long THINK_MS = 50;
+
+    private static final long FAILURE_LOG_MS = 60_000;
+
     private final Main plugin;
     private final LyricsService service;
     private final NamespacedKey displayKey;
@@ -66,7 +74,11 @@ public final class CarriedLyrics {
     private Tasks.Handle task;
     private Tasks.Handle followTask;
 
-    private double audienceRangeSquared = MIN_AUDIENCE_RANGE * MIN_AUDIENCE_RANGE;
+    private ScheduledExecutorService brain;
+
+    private long lastFailureAt;
+
+    private volatile double audienceRangeSquared = MIN_AUDIENCE_RANGE * MIN_AUDIENCE_RANGE;
 
     public CarriedLyrics(Main plugin, LyricsService service) {
         this.plugin = plugin;
@@ -95,7 +107,20 @@ public final class CarriedLyrics {
         }
     }
 
+    // What the carrier and their audience should read, composed on the lyrics thread.
+    private record Plan(String title, List<String> lines, Map<HologramStyle, String> overhead) {
+    }
+
+    private static final Plan HIDDEN = new Plan(null, List.of(), Map.of());
+
     private static final class Shown {
+
+        volatile Block origin;
+
+        volatile List<HologramStyle> styles = List.of();
+
+        volatile Plan plan;
+
         Scoreboard board;
         Objective objective;
 
@@ -116,6 +141,13 @@ public final class CarriedLyrics {
         // The words are written a few ticks apart, but they follow the carrier as often as
         // the sound does, or they trail behind the player they belong to.
         followTask = Tasks.globalTimer(plugin, this::follow, 1L, 1L);
+
+        brain = Executors.newSingleThreadScheduledExecutor(work -> {
+            Thread thread = new Thread(work, "cdisc-carried-lyrics");
+            thread.setDaemon(true);
+            return thread;
+        });
+        brain.scheduleAtFixedRate(this::thinkSafely, THINK_MS, THINK_MS, TimeUnit.MILLISECONDS);
     }
 
     public void stop() {
@@ -126,6 +158,15 @@ public final class CarriedLyrics {
         if (followTask != null) {
             followTask.cancel();
             followTask = null;
+        }
+        if (brain != null) {
+            brain.shutdownNow();
+            try {
+                brain.awaitTermination(1, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            brain = null;
         }
     }
 
@@ -226,36 +267,72 @@ public final class CarriedLyrics {
     private void draw(Player player, PortableJukeboxManager portable, Config config,
                       HologramStyle defaults) {
         PortableJukeboxManager.Carry carry = portable.carryOf(player);
-        Block origin = carry.origin();
-
-        PlaybackManager apm = plugin.getAudioPlayerManager();
-        PlaybackManager.PlaybackInfo info = apm.getPlaybackInfo(origin);
-        if (info == null || info.live()) {
-            hide(player);
-            return;
-        }
-
-        LyricsService.Result result = service.lookup(info);
-        if (!result.isFound()) {
-            hide(player);
-            return;
-        }
-
-        HologramStyle mine = plugin.getHologramPresets()
-                .orDefault(player.getUniqueId(), defaults);
-
-        List<String> lines = window(result.lyrics(), info.position(), mine, config);
-        if (lines.isEmpty()) {
-            hide(player);
-            return;
-        }
+        if (carry == null) return;
 
         Shown state = shown.computeIfAbsent(player.getUniqueId(), id -> new Shown());
-        if (!lines.equals(state.lastLines)) {
-            writeSidebar(player, state, lines, info);
-            state.lastLines = lines;
+        state.origin = carry.origin();
+
+        Plan plan = state.plan;
+        if (plan == null) return;
+        if (plan == HIDDEN) {
+            take(state, player);
+            return;
         }
-        writeOverhead(player, state, result.lyrics(), info.position(), config, defaults);
+
+        if (!plan.lines().equals(state.lastLines)) {
+            writeSidebar(player, state, plan);
+            state.lastLines = plan.lines();
+        }
+        writeOverhead(player, state, plan, config, defaults);
+    }
+
+    // An exception escaping a scheduleAtFixedRate task cancels every later run.
+    private void thinkSafely() {
+        try {
+            think();
+        } catch (Throwable t) {
+            long now = System.currentTimeMillis();
+            if (now - lastFailureAt < FAILURE_LOG_MS) return;
+            lastFailureAt = now;
+            plugin.getLogger().log(Level.WARNING, "The carried lyrics failed a pass", t);
+        }
+    }
+
+    private void think() {
+        if (shown.isEmpty()) return;
+
+        PlaybackManager apm = plugin.getAudioPlayerManager();
+        if (apm == null) return;
+
+        Config config = plugin.cdiscConfig();
+        HologramStyle defaults = HologramStyle.fromConfig(config);
+        HologramPresets presets = plugin.getHologramPresets();
+
+        for (Map.Entry<UUID, Shown> entry : shown.entrySet()) {
+            Shown state = entry.getValue();
+            Block origin = state.origin;
+            if (origin == null) continue;
+
+            Plan next = plan(state, origin, apm, presets.orDefault(entry.getKey(), defaults), config);
+            if (!next.equals(state.plan)) state.plan = next;
+        }
+    }
+
+    private Plan plan(Shown state, Block origin, PlaybackManager apm, HologramStyle own, Config config) {
+        PlaybackManager.PlaybackInfo info = apm.getPlaybackInfo(origin);
+        if (info == null || info.live()) return HIDDEN;
+
+        LyricsService.Result result = service.lookup(info);
+        if (!result.isFound()) return HIDDEN;
+
+        List<String> lines = window(result.lyrics(), info.position(), own, config);
+        if (lines.isEmpty()) return HIDDEN;
+
+        Map<HologramStyle, String> overhead = new HashMap<>();
+        for (HologramStyle style : state.styles) {
+            overhead.put(style, String.join("\n", window(result.lyrics(), info.position(), style, config)));
+        }
+        return new Plan(info.title(), lines, overhead);
     }
 
     private List<String> window(SyncedLyrics lyrics, long position, HologramStyle style,
@@ -268,8 +345,8 @@ public final class CarriedLyrics {
                         1f));
     }
 
-    private void writeSidebar(Player player, Shown state, List<String> lines,
-                              PlaybackManager.PlaybackInfo info) {
+    private void writeSidebar(Player player, Shown state, Plan plan) {
+        List<String> lines = plan.lines();
         if (state.board == null) {
             state.board = Bukkit.getScoreboardManager().getNewScoreboard();
             state.objective = state.board.registerNewObjective(
@@ -278,7 +355,7 @@ public final class CarriedLyrics {
             state.objective.setDisplaySlot(DisplaySlot.SIDEBAR);
         }
 
-        state.objective.setDisplayName("§b" + trim(info.title(), 30));
+        state.objective.setDisplayName("§b" + trim(plan.title(), 30));
 
         int score = lines.size();
         for (int i = 0; i < lines.size() && i < ROW_KEYS.length; i++) {
@@ -301,11 +378,12 @@ public final class CarriedLyrics {
         }
     }
 
-    private void writeOverhead(Player carrier, Shown state, SyncedLyrics lyrics, long position,
-                               Config config, HologramStyle defaults) {
+    private void writeOverhead(Player carrier, Shown state, Plan plan, Config config,
+                               HologramStyle defaults) {
         if (--state.audienceIn <= 0) {
             state.audienceIn = AUDIENCE_PASSES;
             seatAudience(carrier, state, defaults);
+            state.styles = List.copyOf(state.overhead.keySet());
         }
         if (state.overhead.isEmpty()) return;
 
@@ -328,8 +406,8 @@ public final class CarriedLyrics {
 
             if (group.viewersChanged) showToViewers(group);
 
-            String text = String.join("\n", window(lyrics, position, group.style, config));
-            if (!text.equals(group.lastText)) {
+            String text = plan.overhead().get(group.style);
+            if (text != null && !text.equals(group.lastText)) {
                 group.entity.setText(text);
                 group.lastText = text;
             }
@@ -464,11 +542,6 @@ public final class CarriedLyrics {
         }
     }
 
-    private void hide(Player player) {
-        Shown state = shown.remove(player.getUniqueId());
-        if (state != null) take(state, player);
-    }
-
     public void clear(UUID id) {
         Shown state = shown.remove(id);
         if (state != null) take(state, Bukkit.getPlayer(id));
@@ -493,6 +566,7 @@ public final class CarriedLyrics {
         }
         state.overhead.clear();
         state.seats.clear();
+        state.styles = List.of();
         state.audienceIn = 0;
 
         if (player != null && player.isOnline() && state.board != null
