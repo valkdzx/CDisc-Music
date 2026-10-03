@@ -1,39 +1,35 @@
 # Changelog
 
-## 2.2 (Unrelease)
+## 2.2 (Unreleased)
 
-- LavaPlayer, youtube-source and LavaSrc are gone: CDisc reads, decodes and plays every source with code of its own. The jar is 3 MB instead of 41 MB, and no native libraries are unpacked at startup.
-- NBT-API is gone as well. Resuming the jukebox spin and keeping other plugins' block data on a carried jukebox now use a small reader of CDisc's own, which needs no update for a new Minecraft version, so the startup warning about an unsupported server version no longer appears.
-- YouTube searches, playlists of up to 600 videos and mixes, SoundCloud, Twitch, Spotify search, Yandex Music and VK Music with a token, HTTP streams and local files are all read by the plugin itself. MP3, AAC, FLAC, Vorbis, Opus and WAV play from MP4, WebM, Ogg, FLAC, WAV, AIFF, MP3, ADTS and HLS.
-- `youtube.clients` and `youtube.log-client-failures` leave sources.yml: they only set up youtube-source. So do `youtube.fast-create` and `youtube.probe-timeout-seconds`: every format YouTube serves now plays, so a disc is never tried out before it is written.
-- Spotify discs are written as soon as Spotify names the track, about half a second, instead of after the YouTube match and a read of the video, which took one to three seconds. The match is found meanwhile, so the first play does not wait for it either.
-- The crouch progress bar goes away once the player is out of earshot, and a jukebox that is playing, holds a disc or has a queue can no longer be paired as a speaker.
-- Parrots within three blocks of a jukebox dance to CDisc discs as they do to vanilla ones, and stop when playback ends.
-- Players given a server hologram preset without force keep their own look: the Return my own look button in `/cdisc preset` brings it back, and editing the preset turns it into their own. `/cdisc admin presets unset` also returns it.
-- The lyrics button in the player screen: left click shows the next view above jukeboxes, right click the previous one, and shift+click opens your own hologram look.
-- The lyrics button's hints reach servers that ran an earlier version too, and now say that shift with either click opens the look settings. The old text, which still told left click to switch the hologram off, was kept on every update as if an administrator had written it.
-- A carried jukebox whose item left the inventory without being dropped — put in an item frame, a bundle or a decorated pot, handed to an allay, or held on the cursor when the music ended — no longer gives back a second jukebox. Its discs come back on their own.
-- Folia: jukebox queues are saved again. The save reached into every jukebox from the global thread, which Folia refuses, so nothing was kept and the console logged an error every two seconds.
-- An explosion next to a playing jukebox no longer silences it. Jukeboxes that play, hold a CDisc disc or keep a queue are still spared by explosions; other jukeboxes now break as they do without the plugin.
-- The queue screen takes only CDisc discs. A right click on a queued disc with another item on the cursor used to swap that item into the queue, and a queue full of loaded shulker boxes could break the chunk it stood in.
-- Breaking a jukebox is handled after every other plugin has had its say. A protection plugin that cancelled the break late used to leave the jukebox standing with a second jukebox, holding its queue, dropped beside it.
-- A vanilla disc in a jukebox that also keeps a CDisc queue drops when the jukebox is broken, instead of disappearing.
-- A disc whose track could not start, such as one pointing at a deleted local file or played with no voice mod working, no longer leaves copies of itself in the jukebox's queue for every player nearby.
-- A CDisc disc a hopper puts into a jukebox starts playing on its own, also with nobody nearby or with another plugin intercepting the jukebox's packets.
-- A disc moved to another slot while its track was still loading no longer stays blank under a "loaded" message: the track is written to the disc or horn in hand when loading ends.
-- YouTube: the plugin finds YouTube's current player again, which now names it in an escaped form. Without it the player script was no longer prepared at startup, so the first embedded-player track waited for it, and links that carry a throttling parameter went out unsolved.
-- YouTube: on a server whose address YouTube distrusts, tracks start sooner. After three direct reads in a row fail for the server's address (the bot check, or no answer), the backend is asked first for ten minutes instead of after another failed attempt each time.
-- Seeking a YouTube track played through the backend works again. The audio was asked for in a way YouTube slows to a crawl, so a seek could take ten seconds or never land, and playback itself could fall behind.
-- Seeking no longer jumps back. While the new place loaded, the time in the boss bar, the player screen and the lyrics showed the old place again, the old audio kept playing, and a second seek counted from there. The time now stays on the new place, and the old audio stops at once.
-- SoundCloud tracks that SoundCloud only plays as a 30-second preview are left out of search results and refused as links, with a message saying why. They used to become discs that showed the full length, stopped at 0:30 and ended when seeked past it. A goat horn still takes them, since its clip fits in the preview.
-- Mixcloud, Reddit, Vimeo, Bandcamp, OC ReMix, Soundgasm and PornHub are no longer sources, and their switches leave sources.yml.
-- The lyrics display no longer costs the server thread several percent while a track that is not from the music folder plays. Each tick it tried to read the track's address as a file path, and on Windows a link fails that with an exception.
-- The lyrics above jukeboxes are worked out on a thread of their own, and the server thread only sets the words when they change. With one jukebox playing a track with lyrics, CDisc's share of the server thread fell from about 10% to 0.1%. The crouch progress bar also stopped copying the jukebox and rebuilding its title every few ticks.
-- The lyrics over a carried jukebox, in its sidebar and above its carrier, are worked out on a thread of their own too, and the server thread only writes what changed.
-- The crouch progress bar casts its look ray again only when the player moves or turns, and once a second anyway. It sends its hint every two seconds instead of four times a second, moves the bar only when the shown fill changes, and no longer reads the settings of every crouching player on each pass.
-- Seating readers in front of the lyrics reads each online player once per pass instead of once per playing jukebox, and messages are no longer looked up and normalised anew each time they are shown.
-- Saving speaker groups and a music-folder track's settings writes the file off the server thread.
-- `/cdisc disc convert` follows its own `disc.convert` rule in permissions.yml, not the one for creating discs, and `/cdisc disc` suggests only the subcommands a player may use.
+- Own audio engine: LavaPlayer, youtube-source and LavaSrc removed, jar 41 MB to 3 MB
+- NBT-API removed
+- Own readers for YouTube, SoundCloud, Twitch, Spotify, Yandex Music, VK Music, HTTP and local files
+- Faster Spotify discs
+- Sources removed: Mixcloud, Reddit, Vimeo, Bandcamp, OC ReMix, Soundgasm, PornHub
+- Settings removed: `youtube.clients`, `youtube.log-client-failures`, `youtube.fast-create`, `youtube.probe-timeout-seconds`
+- Lyrics off the server thread, far lower load
+- Lighter crouch progress bar
+- Files saved off the server thread
+- Parrots dance to CDisc discs
+- Lyrics button: next and previous view, shift opens the look
+- Hologram presets keep players' own look
+- Busy jukeboxes can't become speakers
+- YouTube backend asked first after repeated direct failures
+- SoundCloud previews refused
+- `/cdisc disc convert` has its own permission
+- Fixed: duplicated carried jukeboxes
+- Fixed: Folia queue saving
+- Fixed: explosions silencing jukeboxes
+- Fixed: non-CDisc items in the queue
+- Fixed: late-cancelled jukebox breaks
+- Fixed: vanilla disc lost on break
+- Fixed: failed discs copied into the queue
+- Fixed: hopper-inserted discs not playing
+- Fixed: blank disc after moving it while loading
+- Fixed: YouTube player detection
+- Fixed: seeking through the YouTube backend
+- Fixed: seek jumping back
 
 ## 2.1.2
 
