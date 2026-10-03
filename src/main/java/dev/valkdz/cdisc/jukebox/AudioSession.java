@@ -5,6 +5,7 @@ import dev.valkdz.cdisc.audio.player.AudioPlayer;
 import dev.valkdz.cdisc.audio.player.AudioTrack;
 import dev.valkdz.cdisc.voice.VoiceSession;
 
+import java.text.Normalizer;
 import java.util.ArrayDeque;
 import java.util.Objects;
 import java.util.concurrent.Executors;
@@ -348,6 +349,26 @@ public class AudioSession {
 
     public String getDiscAuthor() {
         return discAuthor;
+    }
+
+    private record Nfc(String raw, String value) {
+    }
+
+    private volatile Nfc title;
+    private volatile Nfc author;
+
+    String nfcTitle(String raw) {
+        Nfc last = title;
+        if (last != null && last.raw.equals(raw)) return last.value;
+        title = last = new Nfc(raw, Normalizer.normalize(raw, Normalizer.Form.NFC));
+        return last.value;
+    }
+
+    String nfcAuthor(String raw) {
+        Nfc last = author;
+        if (last != null && last.raw.equals(raw)) return last.value;
+        author = last = new Nfc(raw, Normalizer.normalize(raw, Normalizer.Form.NFC));
+        return last.value;
     }
 
     public void stop() {

@@ -26,6 +26,7 @@
 - SoundCloud tracks that SoundCloud only plays as a 30-second preview are left out of search results and refused as links, with a message saying why. They used to become discs that showed the full length, stopped at 0:30 and ended when seeked past it. A goat horn still takes them, since its clip fits in the preview.
 - Mixcloud, Reddit, Vimeo, Bandcamp, OC ReMix, Soundgasm and PornHub are no longer sources, and their switches leave sources.yml.
 - The lyrics display no longer costs the server thread several percent while a track that is not from the music folder plays. Each tick it tried to read the track's address as a file path, and on Windows a link fails that with an exception.
+- The lyrics above jukeboxes are worked out on a thread of their own, and the server thread only sets the words when they change. With one jukebox playing a track with lyrics, CDisc's share of the server thread fell from about 10% to 0.1%. The crouch progress bar also stopped copying the jukebox and rebuilding its title every few ticks.
 - `/cdisc disc convert` follows its own `disc.convert` rule in permissions.yml, not the one for creating discs, and `/cdisc disc` suggests only the subcommands a player may use.
 
 ## 2.1.2

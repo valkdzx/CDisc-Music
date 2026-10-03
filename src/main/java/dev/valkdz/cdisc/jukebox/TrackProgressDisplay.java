@@ -35,6 +35,11 @@ public class TrackProgressDisplay implements Listener {
     private final Set<UUID> watching = ConcurrentHashMap.newKeySet();
     private final Map<UUID, BossBar> bossBars = new ConcurrentHashMap<>();
 
+    private record BarText(String author, String title, long second, long duration, boolean live, String text) {
+    }
+
+    private final Map<UUID, BarText> barTexts = new ConcurrentHashMap<>();
+
     private final Map<UUID, Block> watchedBlocks = new ConcurrentHashMap<>();
 
     private final Set<UUID> showingHint = ConcurrentHashMap.newKeySet();
@@ -124,8 +129,7 @@ public class TrackProgressDisplay implements Listener {
 
             Tasks.onEntity(plugin, player, () -> {
                 Block target = targetBlock(player);
-                if (isPlayableJukebox(target)
-                        && plugin.getAudioPlayerManager().hasActiveSession(target)) {
+                if (isPlayingJukebox(plugin.getAudioPlayerManager(), target)) {
                     hold(player.getUniqueId(), target);
                 }
             });
@@ -157,7 +161,7 @@ public class TrackProgressDisplay implements Listener {
         }
 
         Block target = targetBlock(player);
-        boolean lookingAtPlayer = isPlayableJukebox(target);
+        boolean lookingAtPlayer = isPlayingJukebox(apm, target);
         if (lookingAtPlayer) {
             watchedBlocks.put(id, target);
         }
@@ -194,6 +198,12 @@ public class TrackProgressDisplay implements Listener {
         }
     }
 
+    // getState() copies the jukebox with all its NBT, too much for every few ticks: a jukebox
+    // that is playing for CDisc holds a CDisc disc, so its session is proof enough.
+    private static boolean isPlayingJukebox(PlaybackManager apm, Block target) {
+        return target != null && target.getType() == Material.JUKEBOX && apm.hasActiveSession(target);
+    }
+
     private boolean isPlayableJukebox(Block target) {
         if (target == null || target.getType() != Material.JUKEBOX) return false;
         if (!(target.getState() instanceof Jukebox jukebox) || !jukebox.hasRecord()) return false;
@@ -203,8 +213,16 @@ public class TrackProgressDisplay implements Listener {
     private void updateBossBar(Player player, PlaybackManager.PlaybackInfo info) {
         UUID id = player.getUniqueId();
 
+        long second = info.position() / 1000;
+        BarText last = barTexts.get(id);
+        boolean same = last != null && last.second() == second && last.duration() == info.duration()
+                && last.live() == info.live() && last.title().equals(info.title())
+                && last.author().equals(info.author());
+
         String title;
-        if (info.live()) {
+        if (same) {
+            title = last.text();
+        } else if (info.live()) {
             title = plugin.getMessageManager().track(player, "bossbar.title_live", 0,
                     info.author(), info.title());
         } else {
@@ -216,7 +234,10 @@ public class TrackProgressDisplay implements Listener {
         BossBar bar = bossBars.computeIfAbsent(id, key ->
                 Bukkit.createBossBar(title, BarColor.WHITE, BarStyle.SOLID));
 
-        bar.setTitle(title);
+        if (!same) {
+            bar.setTitle(title);
+            barTexts.put(id, new BarText(info.author(), info.title(), second, info.duration(), info.live(), title));
+        }
 
         bar.setColor(info.live() ? BarColor.RED : BarColor.WHITE);
         bar.setProgress(info.live() ? 1.0 : progressRatio(info.position(), info.duration()));
@@ -248,6 +269,7 @@ public class TrackProgressDisplay implements Listener {
     private void dropState(UUID id) {
         BossBar bar = bossBars.remove(id);
         if (bar != null) bar.removeAll();
+        barTexts.remove(id);
         watchedBlocks.remove(id);
         showingHint.remove(id);
         sneakHeld.remove(id);
@@ -258,6 +280,7 @@ public class TrackProgressDisplay implements Listener {
             bar.removeAll();
         }
         bossBars.clear();
+        barTexts.clear();
         watchedBlocks.clear();
         showingHint.clear();
         sneakHeld.clear();

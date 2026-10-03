@@ -24,6 +24,14 @@ public record LyricsQuery(String artist, String track, long durationMs, LyricsQu
 
     private static final Pattern ARTIST_SPLIT = Pattern.compile("\\s+[-\u2013\u2014|]\\s+");
 
+    private static final Pattern EMPTY_BRACKETS = Pattern.compile("[(\\[{]\\s*[)\\]}]");
+
+    private static final Pattern SPACES = Pattern.compile("\\s+");
+
+    private static final Pattern LEADING_PUNCTUATION = Pattern.compile("^[\\p{Pd}|,;:.]+\\s*");
+
+    private static final Pattern TRAILING_PUNCTUATION = Pattern.compile("\\s*[\\p{Pd}|,;:]+$");
+
     private static final Pattern PLACEHOLDER_AUTHOR =
             Pattern.compile("^(?:unknown|unknown\\s+artist|various\\s+artists|no\\s+name|n/a|-)$",
                     Pattern.CASE_INSENSITIVE);
@@ -75,14 +83,14 @@ public record LyricsQuery(String artist, String track, long durationMs, LyricsQu
         if (raw == null) return "";
         String title = NOISE_BRACKETS.matcher(raw).replaceAll(" ");
 
-        title = title.replaceAll("[(\\[{]\\s*[)\\]}]", " ");
+        title = EMPTY_BRACKETS.matcher(title).replaceAll(" ");
         return tidy(title);
     }
 
     private static String tidy(String text) {
-        String tidied = text.replaceAll("\\s+", " ").trim();
-        tidied = tidied.replaceAll("^[\\p{Pd}|,;:.]+\\s*", "");
-        tidied = tidied.replaceAll("\\s*[\\p{Pd}|,;:]+$", "");
+        String tidied = SPACES.matcher(text).replaceAll(" ").trim();
+        tidied = LEADING_PUNCTUATION.matcher(tidied).replaceAll("");
+        tidied = TRAILING_PUNCTUATION.matcher(tidied).replaceAll("");
         return tidied.trim();
     }
 }

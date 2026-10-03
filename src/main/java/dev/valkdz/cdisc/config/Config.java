@@ -12,6 +12,7 @@ public final class Config {
     private final Main plugin;
     private final Tokens tokens;
     private final SourcesConfig sources;
+    private volatile int generation;
 
     public Config(Main plugin) {
         this.plugin = plugin;
@@ -39,6 +40,11 @@ public final class Config {
         plugin.reloadConfig();
         tokens.reload();
         sources.reload();
+        generation++;
+    }
+
+    public int generation() {
+        return generation;
     }
 
     public boolean isYoutubeEnabled() {

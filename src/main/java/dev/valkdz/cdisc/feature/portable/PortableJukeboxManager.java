@@ -116,11 +116,7 @@ public final class PortableJukeboxManager {
     }
 
     public boolean isCarried(Block origin) {
-        if (origin == null) return false;
-        for (Carry carry : allCarries()) {
-            if (origin.equals(carry.origin())) return true;
-        }
-        return false;
+        return origin != null && carryOfBlock(origin) != null;
     }
 
     public boolean hasRoom(Player player) {

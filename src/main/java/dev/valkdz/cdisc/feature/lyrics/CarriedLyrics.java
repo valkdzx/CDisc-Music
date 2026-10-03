@@ -220,7 +220,7 @@ public final class CarriedLyrics {
     }
 
     private boolean wants(Player player, PortableJukeboxManager portable) {
-        return PlayerPrefs.showsLyricsScoreboard(player) && portable.carryOf(player) != null;
+        return portable.carryOf(player) != null && PlayerPrefs.showsLyricsScoreboard(player);
     }
 
     private void draw(Player player, PortableJukeboxManager portable, Config config,

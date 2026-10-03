@@ -27,7 +27,21 @@ public record HologramStyle(
     public static final int BRIGHTNESS_WORLD = -1;
 
 
+    private record Cached(Config config, int generation, HologramStyle style) {
+    }
+
+    private static volatile Cached cached;
+
     public static HologramStyle fromConfig(Config config) {
+        Cached last = cached;
+        int generation = config.generation();
+        if (last != null && last.config == config && last.generation == generation) return last.style;
+        HologramStyle style = read(config);
+        cached = new Cached(config, generation, style);
+        return style;
+    }
+
+    private static HologramStyle read(Config config) {
         return new HologramStyle(
                 0x000000,
                 config.getLyricsBackgroundOpacity(),

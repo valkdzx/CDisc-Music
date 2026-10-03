@@ -30,7 +30,13 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
+import java.util.logging.Level;
 
 public final class LyricsDisplay {
 
@@ -41,6 +47,10 @@ public final class LyricsDisplay {
     private static final double VIEW_RANGE_BLOCKS = 64;
 
     private static final int AUDIENCE_TICKS = 10;
+
+    private static final long THINK_MS = 50;
+
+    private static final long FAILURE_LOG_MS = 60_000;
 
     private static final float[] SIZE_SCALE = {
             0.5f, 0.6f, 0.7f, 0.85f, 1.0f, 1.2f, 1.4f, 1.6f, 1.8f, 2.0f
@@ -54,7 +64,7 @@ public final class LyricsDisplay {
 
     private static final int FOOTER_LINE_WIDTH = 1000;
 
-    private static final int SWEEP_TICKS = 20 * 60;
+    private static final int SWEEP_PASSES = 20 * 60 / AUDIENCE_TICKS;
 
     private static final double SWEEP_RADIUS = 4;
     private static final double SWEEP_HEIGHT = 8;
@@ -67,11 +77,21 @@ public final class LyricsDisplay {
 
     private final Set<UUID> awaiting = ConcurrentHashMap.newKeySet();
 
-    private Tasks.Handle task;
+    private Tasks.Handle seating;
 
-    private int sweepIn = SWEEP_TICKS;
+    private ScheduledExecutorService brain;
 
-    private double audienceRangeSquared = MIN_AUDIENCE_RANGE * MIN_AUDIENCE_RANGE;
+    private int sweepIn = SWEEP_PASSES;
+
+    private long lastFailureAt;
+
+    private volatile double audienceRangeSquared = MIN_AUDIENCE_RANGE * MIN_AUDIENCE_RANGE;
+
+    private record Settings(Config config, int generation, boolean enabled, double rangeSquared,
+                            long countdownMs, String countdownFilled, String countdownEmpty, int updateTicks) {
+    }
+
+    private volatile Settings settings;
 
     public LyricsDisplay(Main plugin, LyricsService service) {
         this.plugin = plugin;
@@ -82,11 +102,25 @@ public final class LyricsDisplay {
     private record Seat(HologramStyle style, LyricsMode mode) {
     }
 
+    // What one copy should show. The lyrics thread composes it; the region thread only applies it.
+    private record Frame(String text, String footer, boolean slide) {
+
+        Frame still() {
+            return slide ? new Frame(text, footer, false) : this;
+        }
+    }
+
+    private static final Frame NOTHING = new Frame(null, null, false);
+
     private static final class Variant {
 
         final HologramStyle style;
 
         final LyricsMode mode;
+
+        final AtomicReference<Frame> pending = new AtomicReference<>();
+
+        // Owned by the jukebox's region thread.
 
         final Set<UUID> viewers = new HashSet<>();
 
@@ -98,13 +132,17 @@ public final class LyricsDisplay {
 
         TextDisplay footer;
 
-        String lastText;
+        Frame wanted;
 
-        String lastFooter;
+        String shownText;
+
+        String shownFooter;
+
+        // Owned by the lyrics thread.
+
+        Frame posted;
 
         String lastHeader;
-
-        boolean viewersChanged;
 
         long lastFrame = Long.MIN_VALUE;
 
@@ -116,48 +154,58 @@ public final class LyricsDisplay {
 
         boolean slidePending;
 
-        boolean pendingRelease;
-
         Variant(Seat seat) {
             this.style = seat.style();
             this.mode = seat.mode();
         }
 
         void rewind() {
-            lastText = null;
-            lastFooter = null;
             lastHeader = null;
             lastFrame = Long.MIN_VALUE;
             lastIndex = Integer.MIN_VALUE;
             lastFirst = Integer.MIN_VALUE;
             fadeLeft = 0;
             slidePending = false;
-            pendingRelease = false;
         }
     }
 
     private static final class Hologram {
 
+        // Owned by the jukebox's region thread.
+
         final Map<Seat, Variant> variants = new HashMap<>();
 
         final Map<UUID, Variant> seats = new HashMap<>();
+
+        volatile List<Variant> live = List.of();
+
+        volatile boolean closed;
+
+        final AtomicBoolean scheduled = new AtomicBoolean();
+
+        // Owned by the lyrics thread.
 
         String trackTitle;
         long trackDuration = Long.MIN_VALUE;
 
         int recheckIn;
 
-        int audienceIn;
-
         SyncedLyrics lyrics;
+
+        LyricsQuery query;
+
+        String queryAuthor;
 
         boolean wantedLyrics;
 
-        void resetForNewTrack() {
+        boolean dirty;
+
+        void resetForNewTrack(List<Variant> live) {
             lyrics = null;
+            query = null;
             recheckIn = 0;
 
-            for (Variant variant : variants.values()) {
+            for (Variant variant : live) {
                 variant.rewind();
             }
         }
@@ -166,18 +214,35 @@ public final class LyricsDisplay {
     public void start() {
         stop();
 
-        task = Tasks.globalTimer(plugin, this::tick, 1L, 1L);
+        seating = Tasks.globalTimer(plugin, this::seatAll, 1L, AUDIENCE_TICKS);
+
+        brain = Executors.newSingleThreadScheduledExecutor(work -> {
+            Thread thread = new Thread(work, "cdisc-lyrics");
+            thread.setDaemon(true);
+            return thread;
+        });
+        brain.scheduleAtFixedRate(this::thinkSafely, THINK_MS, THINK_MS, TimeUnit.MILLISECONDS);
     }
 
     public void stop() {
-        if (task != null) {
-            task.cancel();
-            task = null;
+        if (seating != null) {
+            seating.cancel();
+            seating = null;
+        }
+        if (brain != null) {
+            brain.shutdownNow();
+            try {
+                brain.awaitTermination(1, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            brain = null;
         }
     }
 
     public void clearAll() {
         for (Hologram state : states.values()) {
+            state.closed = true;
             clearVariants(state);
         }
         states.clear();
@@ -185,7 +250,10 @@ public final class LyricsDisplay {
 
     public void clear(Block block) {
         Hologram state = states.remove(block);
-        if (state != null) clearVariants(state);
+        if (state == null) return;
+
+        state.closed = true;
+        Tasks.inRegion(plugin, block, () -> clearVariants(state));
     }
 
     private static final long ANSWER_POLL_TICKS = 10L;
@@ -339,7 +407,7 @@ public final class LyricsDisplay {
         }
         state.variants.clear();
         state.seats.clear();
-        state.audienceIn = 0;
+        state.live = List.of();
     }
 
     private void dropEntity(Variant variant) {
@@ -355,9 +423,7 @@ public final class LyricsDisplay {
             variant.entity = null;
         }
         variant.shownTo.clear();
-        variant.lastText = null;
-        variant.lastHeader = null;
-        variant.lastFrame = Long.MIN_VALUE;
+        variant.shownText = null;
         dropFooter(variant);
     }
 
@@ -373,46 +439,64 @@ public final class LyricsDisplay {
             variant.footer = null;
         }
         variant.footerShownTo.clear();
-        variant.lastFooter = null;
+        variant.shownFooter = null;
     }
 
-    private void tick() {
+    private Settings settings(Config config) {
+        Settings last = settings;
+        int generation = config.generation();
+        if (last != null && last.config() == config && last.generation() == generation) return last;
+
+        double range = Math.max(MIN_AUDIENCE_RANGE, config.getLyricsViewRange() * VIEW_RANGE_BLOCKS);
+        Settings fresh = new Settings(config, generation, config.isLyricsEnabled(), range * range,
+                config.getLyricsCountdownSeconds() * 1000L,
+                config.getLyricsCountdownFilled(), config.getLyricsCountdownEmpty(),
+                Math.max(1, config.getLyricsUpdateTicks()));
+        settings = fresh;
+        return fresh;
+    }
+
+    // ---- Server side: who sits where, every AUDIENCE_TICKS, and the entities themselves.
+
+    private void seatAll() {
         Config config = plugin.cdiscConfig();
-        if (!config.isLyricsEnabled()) {
+        Settings now = settings(config);
+        if (!now.enabled()) {
             if (!states.isEmpty()) clearAll();
             return;
         }
+        audienceRangeSquared = now.rangeSquared();
 
+        boolean sweep = --sweepIn <= 0;
+        if (sweep) sweepIn = SWEEP_PASSES;
+        seatBlocks(HologramStyle.fromConfig(config), sweep);
+    }
+
+    private void seatBlocks(HologramStyle defaults, boolean sweep) {
         PlaybackManager apm = plugin.getAudioPlayerManager();
-        Set<Block> active = apm.activeBlocks();
+        if (apm == null) return;
 
-        if (!states.isEmpty()) {
-            states.keySet().stream()
-                    .filter(block -> !active.contains(block))
-                    .toList()
-                    .forEach(this::clear);
-        }
-
-        if (!active.isEmpty()) {
-            double range = Math.max(MIN_AUDIENCE_RANGE,
-                    config.getLyricsViewRange() * VIEW_RANGE_BLOCKS);
-            audienceRangeSquared = range * range;
-
-            HologramStyle defaults = HologramStyle.fromConfig(config);
-            for (Block block : active) {
-                Tasks.inRegion(plugin, block, () -> update(block, apm, config, defaults));
-            }
-        }
-
-        if (--sweepIn <= 0) {
-            sweepIn = SWEEP_TICKS;
-            sweepStale(active);
+        for (Block block : apm.activeBlockView()) {
+            Tasks.inRegion(plugin, block, () -> {
+                seat(block, states.computeIfAbsent(block, b -> new Hologram()), defaults);
+                if (sweep) sweepAround(block);
+            });
         }
     }
 
-    private void sweepStale(Set<Block> active) {
-        for (Block block : active) {
-            Tasks.inRegion(plugin, block, () -> sweepAround(block));
+    private void seat(Block block, Hologram state, HologramStyle defaults) {
+        if (state.closed) return;
+
+        seatAudience(block, state, defaults);
+        state.live = List.copyOf(state.variants.values());
+
+        // An entity can vanish with its chunk; the last frame it was given brings it back.
+        for (Variant variant : state.variants.values()) {
+            Frame wanted = variant.wanted;
+            boolean lost = wanted != null && wanted.text() != null
+                    && (gone(variant.entity) || (wanted.footer() != null && gone(variant.footer)));
+            if (lost) show(block, variant, wanted);
+            else if (alive(variant)) showToViewers(variant);
         }
     }
 
@@ -435,130 +519,85 @@ public final class LyricsDisplay {
         }
     }
 
-    private void update(Block block, PlaybackManager apm, Config config,
-                        HologramStyle defaults) {
-        Hologram state = states.computeIfAbsent(block, b -> new Hologram());
+    private void apply(Block block, Hologram state) {
+        state.scheduled.set(false);
+        if (state.closed) return;
 
-        PlaybackManager.PlaybackInfo info = apm.getPlaybackInfo(block);
+        for (Variant variant : state.variants.values()) {
+            Frame next = variant.pending.getAndSet(null);
+            if (next == null) continue;
 
-        if (info == null || (plugin.getPortableJukeboxManager() != null
-                && plugin.getPortableJukeboxManager().isCarried(block))) {
-            clearVariants(state);
+            variant.wanted = next.still();
+            show(block, variant, next);
+        }
+    }
+
+    private void show(Block block, Variant variant, Frame frame) {
+        if (frame.text() == null) {
+            dropEntity(variant);
             return;
         }
 
-        ChatFeed.Snapshot chat = null;
-        if (info.live()) {
-            chat = plugin.getLiveChat() == null ? null : plugin.getLiveChat().read(info.uri());
-            if (chat == null) {
-                clearVariants(state);
-                return;
+        HologramStyle style = variant.style;
+        Location base = hologramLocation(block, style.height());
+        if (base == null) {
+            dropEntity(variant);
+            return;
+        }
+
+        // Under the words the track line is its own entity, so sliding the words leaves it still.
+        float line = LINE_HEIGHT * scaleFor(style.size());
+        Location footerAt = base.clone().subtract(0, FOOTER_SINK_LINES * line, 0);
+        Location location = frame.footer() == null ? base
+                : footerAt.clone().add(0, FOOTER_DROP_LINES * line, 0);
+
+        Config config = plugin.cdiscConfig();
+        if (gone(variant.entity)) {
+            dropEntity(variant);
+            variant.entity = spawn(location, style, config);
+            if (variant.entity == null) return;
+        } else if (moved(variant.entity.getLocation(), location)) {
+            Tasks.teleport(variant.entity, location);
+        }
+
+        if (frame.footer() != null) {
+            placeFooter(variant, footerAt, style, config);
+            if (variant.footer != null && !frame.footer().equals(variant.shownFooter)) {
+                variant.footer.setText(frame.footer());
+                variant.shownFooter = frame.footer();
             }
+        } else {
+            dropFooter(variant);
         }
 
-        if (info.duration() != state.trackDuration || !info.title().equals(state.trackTitle)) {
-            state.trackTitle = info.title();
-            state.trackDuration = info.duration();
-            state.resetForNewTrack();
+        if (!frame.text().equals(variant.shownText)) {
+            variant.entity.setText(frame.text());
+            variant.shownText = frame.text();
         }
 
-        if (--state.audienceIn <= 0) {
-            state.audienceIn = AUDIENCE_TICKS;
-            seatAudience(block, state, defaults);
-        }
-        if (state.variants.isEmpty()) return;
-
-        boolean wantsLyrics = false;
-        for (Variant variant : state.variants.values()) {
-            wantsLyrics |= variant.mode.showsLyrics() && chat == null;
-        }
-        if (wantsLyrics && !state.wantedLyrics) state.recheckIn = 0;
-        state.wantedLyrics = wantsLyrics;
-
-        if (--state.recheckIn <= 0) {
-            state.recheckIn = Math.max(1, config.getLyricsUpdateTicks());
-            state.lyrics = wantsLyrics ? lookup(info) : null;
-        }
-
-        if (chat != null) renderChat(block, state, info, chat, config);
-        else render(block, state, info, config);
+        showToViewers(variant);
+        if (frame.slide()) slide(variant);
     }
 
-    private SyncedLyrics lookup(PlaybackManager.PlaybackInfo info) {
-        LyricsService.Result result = service.lookup(info);
-        return result.isFound() ? result.lyrics() : null;
+    private void placeFooter(Variant variant, Location at, HologramStyle style, Config config) {
+        if (!gone(variant.footer)) {
+            if (moved(variant.footer.getLocation(), at)) Tasks.teleport(variant.footer, at);
+            return;
+        }
+
+        dropFooter(variant);
+        variant.footer = spawn(at, style, config);
+        if (variant.footer != null) variant.footer.setLineWidth(FOOTER_LINE_WIDTH);
     }
 
-    private void render(Block block, Hologram state, PlaybackManager.PlaybackInfo info,
-                        Config config) {
-        long position = info.position();
-        SyncedLyrics found = state.lyrics;
-        int foundIndex = found == null ? -1 : found.indexAt(position);
+    // The release has to reach the client a tick after the jump, or there is nothing to animate.
+    private void slide(Variant variant) {
+        TextDisplay entity = variant.entity;
+        float scale = scaleFor(variant.style.size());
+        int fadeTicks = variant.style.fadeTicks();
 
-        long fullCountdownMs = config.getLyricsCountdownSeconds() * 1000L;
-        int foundCountdown = LyricsRenderer.countdownStep(found, position, fullCountdownMs);
-
-        for (Variant variant : state.variants.values()) {
-            SyncedLyrics lyrics = variant.mode.showsLyrics() ? found : null;
-            String header = variant.mode.header(
-                    info.title(), info.author(), position, info.duration());
-            if (lyrics == null && header == null) {
-                dropEntity(variant);
-                continue;
-            }
-
-            int index = lyrics == null ? -1 : foundIndex;
-            int countdownStep = lyrics == null ? 0 : foundCountdown;
-            step(variant, index, index < 0 ? 0 : Math.max(0, index - variant.style.linesBefore()));
-
-            long frame = ((long) index << 32) | ((long) (countdownStep & 0xFFFF) << 16)
-                    | (variant.fadeLeft & 0xFFFF);
-            boolean sameFrame = frame == variant.lastFrame
-                    && Objects.equals(header, variant.lastHeader);
-
-            if (draw(block, variant, lyrics == null ? null
-                            : options -> LyricsRenderer.window(lyrics, position, options),
-                    header, fullCountdownMs, sameFrame, config)) {
-
-                variant.lastFrame = frame;
-                variant.lastHeader = header;
-                advanceSlide(variant);
-            }
-
-            if (variant.fadeLeft > 0) variant.fadeLeft--;
-        }
-    }
-
-    private void renderChat(Block block, Hologram state, PlaybackManager.PlaybackInfo info,
-                            ChatFeed.Snapshot chat, Config config) {
-        int index = chat.index();
-
-        for (Variant variant : state.variants.values()) {
-            String header = variant.mode.liveHeader(info.title(), info.author(), info.position());
-            if (!variant.mode.showsLyrics() || (index < 0 && header == null)) {
-                dropEntity(variant);
-                continue;
-            }
-
-            // Every new message scrolls, even while the window is still filling up.
-            step(variant, index, index);
-
-            long frame = ((long) index << 32) | (variant.fadeLeft & 0xFFFF);
-            boolean sameFrame = frame == variant.lastFrame
-                    && Objects.equals(header, variant.lastHeader);
-
-            if (draw(block, variant, index < 0 ? null
-                            : options -> LyricsRenderer.chat(chat.messages(), options,
-                                    variant.style.textOpacity()),
-                    header, 0L, sameFrame, config)) {
-
-                variant.lastFrame = frame;
-                variant.lastHeader = header;
-                advanceSlide(variant);
-            }
-
-            if (variant.fadeLeft > 0) variant.fadeLeft--;
-        }
+        applyTransform(entity, -LINE_HEIGHT * scale, scale, 0);
+        Tasks.entityLater(plugin, entity, () -> applyTransform(entity, 0f, scale, fadeTicks), 1L);
     }
 
     private void seatAudience(Block block, Hologram state, HologramStyle defaults) {
@@ -591,7 +630,6 @@ public final class LyricsDisplay {
                     new Seat(presets.orDefault(id, defaults), mode), Variant::new);
 
             variant.viewers.add(id);
-            variant.viewersChanged = true;
             state.seats.put(id, variant);
         }
 
@@ -615,8 +653,6 @@ public final class LyricsDisplay {
     }
 
     private void showToViewers(Variant variant) {
-        variant.viewersChanged = false;
-
         for (UUID id : variant.viewers) {
             if (variant.shownTo.contains(id)) continue;
 
@@ -639,6 +675,218 @@ public final class LyricsDisplay {
         }
     }
 
+    // ---- Lyrics thread: what every copy should say, handed over only when it changes.
+
+    // An exception escaping a scheduleAtFixedRate task cancels every later run.
+    private void thinkSafely() {
+        try {
+            think();
+        } catch (Throwable t) {
+            report(t);
+        }
+    }
+
+    private void report(Throwable t) {
+        long now = System.currentTimeMillis();
+        if (now - lastFailureAt < FAILURE_LOG_MS) return;
+        lastFailureAt = now;
+        plugin.getLogger().log(Level.WARNING, "The lyrics display failed a pass", t);
+    }
+
+    private void think() {
+        Settings now = settings(plugin.cdiscConfig());
+        if (!now.enabled()) return;
+
+        PlaybackManager apm = plugin.getAudioPlayerManager();
+        if (apm == null) return;
+        Set<Block> active = apm.activeBlockView();
+
+        Iterator<Map.Entry<Block, Hologram>> held = states.entrySet().iterator();
+        while (held.hasNext()) {
+            Map.Entry<Block, Hologram> entry = held.next();
+            if (active.contains(entry.getKey())) continue;
+
+            held.remove();
+            Hologram state = entry.getValue();
+            state.closed = true;
+            Tasks.inRegion(plugin, entry.getKey(), () -> clearVariants(state));
+        }
+
+        for (Block block : active) {
+            Hologram state = states.computeIfAbsent(block, b -> new Hologram());
+            try {
+                think(block, state, apm, now);
+            } catch (RuntimeException e) {
+                report(e);
+            }
+            if (state.dirty) {
+                state.dirty = false;
+                if (state.scheduled.compareAndSet(false, true)) {
+                    Tasks.inRegion(plugin, block, () -> apply(block, state));
+                }
+            }
+        }
+    }
+
+    private void think(Block block, Hologram state, PlaybackManager apm, Settings now) {
+        List<Variant> live = state.live;
+        PlaybackManager.PlaybackInfo info = apm.getPlaybackInfo(block);
+
+        if (info == null || (plugin.getPortableJukeboxManager() != null
+                && plugin.getPortableJukeboxManager().isCarried(block))) {
+            hideAll(state, live);
+            return;
+        }
+
+        ChatFeed.Snapshot chat = null;
+        if (info.live()) {
+            chat = plugin.getLiveChat() == null ? null : plugin.getLiveChat().read(info.uri());
+            if (chat == null) {
+                hideAll(state, live);
+                return;
+            }
+        }
+
+        if (info.duration() != state.trackDuration || !info.title().equals(state.trackTitle)) {
+            state.trackTitle = info.title();
+            state.trackDuration = info.duration();
+            state.resetForNewTrack(live);
+        }
+        if (live.isEmpty()) return;
+
+        boolean wantsLyrics = false;
+        for (Variant variant : live) {
+            wantsLyrics |= variant.mode.showsLyrics() && chat == null;
+        }
+        if (wantsLyrics && !state.wantedLyrics) state.recheckIn = 0;
+        state.wantedLyrics = wantsLyrics;
+
+        if (--state.recheckIn <= 0) {
+            state.recheckIn = now.updateTicks();
+            state.lyrics = wantsLyrics ? lookup(state, info) : null;
+        }
+
+        if (chat != null) renderChat(state, live, info, chat, now);
+        else render(state, live, info, now);
+    }
+
+    private SyncedLyrics lookup(Hologram state, PlaybackManager.PlaybackInfo info) {
+        if (info.ownLyrics() != null) return info.ownLyrics();
+        if (state.query == null || !info.author().equals(state.queryAuthor)) {
+            state.query = LyricsQuery.of(info.author(), info.title(), info.duration());
+            state.queryAuthor = info.author();
+        }
+        LyricsService.Result result = service.lookup(state.query);
+        return result.isFound() ? result.lyrics() : null;
+    }
+
+    private void render(Hologram state, List<Variant> live, PlaybackManager.PlaybackInfo info,
+                        Settings now) {
+        long position = info.position();
+        SyncedLyrics found = state.lyrics;
+        int foundIndex = found == null ? -1 : found.indexAt(position);
+
+        long fullCountdownMs = now.countdownMs();
+        int foundCountdown = LyricsRenderer.countdownStep(found, position, fullCountdownMs);
+
+        for (Variant variant : live) {
+            SyncedLyrics lyrics = variant.mode.showsLyrics() ? found : null;
+            String header = variant.mode.header(
+                    info.title(), info.author(), position, info.duration());
+            if (lyrics == null && header == null) {
+                hide(state, variant);
+                continue;
+            }
+
+            int index = lyrics == null ? -1 : foundIndex;
+            int countdownStep = lyrics == null ? 0 : foundCountdown;
+            step(variant, index, index < 0 ? 0 : Math.max(0, index - variant.style.linesBefore()));
+
+            long frame = ((long) index << 32) | ((long) (countdownStep & 0xFFFF) << 16)
+                    | (variant.fadeLeft & 0xFFFF);
+            if (frame != variant.lastFrame || !Objects.equals(header, variant.lastHeader)) {
+                variant.lastFrame = frame;
+                variant.lastHeader = header;
+                offer(state, variant, compose(variant, lyrics == null ? null
+                                : options -> LyricsRenderer.window(lyrics, position, options),
+                        header, fullCountdownMs, now));
+            }
+
+            if (variant.fadeLeft > 0) variant.fadeLeft--;
+        }
+    }
+
+    private void renderChat(Hologram state, List<Variant> live, PlaybackManager.PlaybackInfo info,
+                            ChatFeed.Snapshot chat, Settings now) {
+        int index = chat.index();
+
+        for (Variant variant : live) {
+            String header = variant.mode.liveHeader(info.title(), info.author(), info.position());
+            if (!variant.mode.showsLyrics() || (index < 0 && header == null)) {
+                hide(state, variant);
+                continue;
+            }
+
+            // Every new message scrolls, even while the window is still filling up.
+            step(variant, index, index);
+
+            long frame = ((long) index << 32) | (variant.fadeLeft & 0xFFFF);
+            if (frame != variant.lastFrame || !Objects.equals(header, variant.lastHeader)) {
+                variant.lastFrame = frame;
+                variant.lastHeader = header;
+                offer(state, variant, compose(variant, index < 0 ? null
+                                : options -> LyricsRenderer.chat(chat.messages(), options,
+                                        variant.style.textOpacity()),
+                        header, 0L, now));
+            }
+
+            if (variant.fadeLeft > 0) variant.fadeLeft--;
+        }
+    }
+
+    private static Frame compose(Variant variant, Function<LyricsRenderer.Options, List<String>> body,
+                                 String header, long fullCountdownMs, Settings now) {
+        HologramStyle style = variant.style;
+
+        LyricsRenderer.Options options = new LyricsRenderer.Options(
+                style.linesBefore(), style.linesAfter(),
+                style.lyricsStyle(),
+                style.countdown() ? fullCountdownMs : 0L,
+                now.countdownFilled(), now.countdownEmpty(),
+                fadeProgress(variant));
+
+        List<String> lines = new ArrayList<>();
+        if (body != null) lines.addAll(body.apply(options));
+        if (body == null && header != null) lines.add(style.trackColor() + header);
+        if (lines.isEmpty()) return NOTHING;
+
+        String footer = body != null && header != null ? style.trackColor() + header : null;
+        boolean slide = variant.slidePending;
+        variant.slidePending = false;
+        return new Frame(String.join("\n", lines), footer, slide);
+    }
+
+    private static void hideAll(Hologram state, List<Variant> live) {
+        for (Variant variant : live) hide(state, variant);
+    }
+
+    // Forgets the last frame too, so the same words come back once there is something to show.
+    private static void hide(Hologram state, Variant variant) {
+        variant.lastFrame = Long.MIN_VALUE;
+        variant.lastHeader = null;
+        offer(state, variant, NOTHING);
+    }
+
+    private static void offer(Hologram state, Variant variant, Frame frame) {
+        Frame still = frame.still();
+        if (!frame.slide() && still.equals(variant.posted)) return;
+
+        variant.posted = still;
+        variant.pending.getAndUpdate(old -> old != null && old.slide() && !frame.slide()
+                ? new Frame(frame.text(), frame.footer(), true) : frame);
+        state.dirty = true;
+    }
+
     private static void step(Variant variant, int index, int first) {
         if (index == variant.lastIndex) return;
 
@@ -657,98 +905,6 @@ public final class LyricsDisplay {
         }
     }
 
-    private boolean draw(Block block, Variant variant,
-                         Function<LyricsRenderer.Options, List<String>> body, String header,
-                         long fullCountdownMs, boolean sameFrame, Config config) {
-        HologramStyle style = variant.style;
-
-        Location base = hologramLocation(block, style.height());
-        if (base == null) {
-
-            dropEntity(variant);
-            return false;
-        }
-
-        // Under the words the track line is its own entity, so sliding the words leaves it still.
-        String footer = body != null ? header : null;
-        float line = LINE_HEIGHT * scaleFor(style.size());
-        Location footerAt = base.clone().subtract(0, FOOTER_SINK_LINES * line, 0);
-        Location location = footer == null ? base
-                : footerAt.clone().add(0, FOOTER_DROP_LINES * line, 0);
-
-        boolean fresh = false;
-        if (gone(variant.entity)) {
-
-            dropEntity(variant);
-
-            variant.entity = spawn(location, style, config);
-            if (variant.entity == null) return false;
-
-            variant.viewersChanged = true;
-            fresh = true;
-        } else if (moved(variant.entity.getLocation(), location)) {
-            Tasks.teleport(variant.entity, location);
-        }
-
-        boolean freshFooter = false;
-        if (footer != null) {
-            freshFooter = placeFooter(variant, footerAt, style, config);
-            if (variant.footer == null) footer = null;
-        } else {
-            dropFooter(variant);
-        }
-
-        if (variant.viewersChanged) showToViewers(variant);
-
-        if (footer != null) {
-            String footerText = style.trackColor() + footer;
-            if (!footerText.equals(variant.lastFooter)) {
-                variant.footer.setText(footerText);
-                variant.lastFooter = footerText;
-            }
-        }
-
-        if (sameFrame && !fresh && !freshFooter && variant.lastText != null) return true;
-
-        LyricsRenderer.Options options = new LyricsRenderer.Options(
-                style.linesBefore(), style.linesAfter(),
-                style.lyricsStyle(),
-                style.countdown() ? fullCountdownMs : 0L,
-                config.getLyricsCountdownFilled(), config.getLyricsCountdownEmpty(),
-                fadeProgress(variant));
-
-        List<String> lines = new ArrayList<>();
-        if (body != null) lines.addAll(body.apply(options));
-        if (body == null && header != null) lines.add(style.trackColor() + header);
-        if (lines.isEmpty()) {
-            dropEntity(variant);
-            return false;
-        }
-
-        String text = String.join("\n", lines);
-        if (!text.equals(variant.lastText)) {
-            variant.entity.setText(text);
-            variant.lastText = text;
-        }
-        return true;
-    }
-
-    private boolean placeFooter(Variant variant, Location at, HologramStyle style,
-                                Config config) {
-        if (!gone(variant.footer)) {
-            if (moved(variant.footer.getLocation(), at)) Tasks.teleport(variant.footer, at);
-            return false;
-        }
-
-        dropFooter(variant);
-        variant.footer = spawn(at, style, config);
-        if (variant.footer == null) return false;
-
-        variant.footer.setLineWidth(FOOTER_LINE_WIDTH);
-        variant.viewersChanged = true;
-        return true;
-    }
-
     private boolean inRange(Player player, Block block) {
         return player.getWorld().equals(block.getWorld())
                 && player.getLocation().distanceSquared(block.getLocation())
@@ -760,22 +916,6 @@ public final class LyricsDisplay {
         if (fadeTicks <= 0 || variant.fadeLeft <= 0) return 1f;
 
         return 1f - (variant.fadeLeft / (float) fadeTicks);
-    }
-
-    private static void advanceSlide(Variant variant) {
-        float scale = scaleFor(variant.style.size());
-
-        if (variant.slidePending) {
-            applyTransform(variant.entity, -LINE_HEIGHT * scale, scale, 0);
-            variant.slidePending = false;
-            variant.pendingRelease = true;
-            return;
-        }
-
-        if (variant.pendingRelease) {
-            applyTransform(variant.entity, 0f, scale, variant.style.fadeTicks());
-            variant.pendingRelease = false;
-        }
     }
 
     private Location hologramLocation(Block block, double height) {
@@ -848,9 +988,8 @@ public final class LyricsDisplay {
         for (Hologram state : states.values()) {
             Variant seat = state.seats.remove(id);
             if (seat != null) leave(seat, id, player);
-
-            state.audienceIn = 0;
         }
+        seatBlocks(HologramStyle.fromConfig(plugin.cdiscConfig()), false);
     }
 
     private static void applyBrightness(TextDisplay display, int brightness) {

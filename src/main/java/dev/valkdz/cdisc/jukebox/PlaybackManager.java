@@ -1168,6 +1168,10 @@ public class PlaybackManager {
         return new java.util.HashSet<>(sessions.keySet());
     }
 
+    public java.util.Set<Block> activeBlockView() {
+        return Collections.unmodifiableSet(sessions.keySet());
+    }
+
     public boolean hasActiveSession(Block block) {
         List<AudioSession> list = sessions.get(block);
         return list != null && !list.isEmpty();
@@ -1716,8 +1720,8 @@ public class PlaybackManager {
                 : (track.getInfo().title != null ? track.getInfo().title : "No name");
 
         return new PlaybackInfo(
-                Normalizer.normalize(rawTitle, Normalizer.Form.NFC),
-                Normalizer.normalize(rawAuthor, Normalizer.Form.NFC),
+                session.nfcTitle(rawTitle),
+                session.nfcAuthor(rawAuthor),
                 session.positionOf(track),
                 track.getDuration(),
                 player.isPaused(),
