@@ -4,9 +4,6 @@
 
 - LavaPlayer, youtube-source and LavaSrc are gone: CDisc reads, decodes and plays every source with code of its own. The jar is 3 MB instead of 41 MB, and no native libraries are unpacked at startup.
 - NBT-API is gone as well. Resuming the jukebox spin and keeping other plugins' block data on a carried jukebox now use a small reader of CDisc's own, which needs no update for a new Minecraft version, so the startup warning about an unsupported server version no longer appears.
-- NBT-API is gone as well. Resuming the jukebox spin and keeping other plugins' block data on a carried jukebox now use a small reader of CDisc's own, which needs no update for a new Minecraft version, so the startup warning about an unsupported server version no longer appears.
-- NBT-API is gone as well. Resuming the jukebox spin and keeping other plugins' block data on a carried jukebox now use a small reader of CDisc's own, which needs no update for a new Minecraft version, so the startup warning about an unsupported server version no longer appears.
-- NBT-API is gone as well. Resuming the jukebox spin and keeping other plugins' block data on a carried jukebox now use a small reader of CDisc's own, which needs no update for a new Minecraft version, so the startup warning about an unsupported server version no longer appears.
 - YouTube searches, playlists of up to 600 videos and mixes, SoundCloud, Twitch, Spotify search, Yandex Music and VK Music with a token, HTTP streams and local files are all read by the plugin itself. MP3, AAC, FLAC, Vorbis, Opus and WAV play from MP4, WebM, Ogg, FLAC, WAV, AIFF, MP3, ADTS and HLS.
 - `youtube.clients` and `youtube.log-client-failures` leave sources.yml: they only set up youtube-source.
 - The crouch progress bar goes away once the player is out of earshot, and a jukebox that is playing, holds a disc or has a queue can no longer be paired as a speaker.
@@ -34,9 +31,7 @@
 - The lyrics over a carried jukebox, in its sidebar and above its carrier, are worked out on a thread of their own too, and the server thread only writes what changed.
 - The crouch progress bar casts its look ray again only when the player moves or turns, and once a second anyway. It sends its hint every two seconds instead of four times a second, moves the bar only when the shown fill changes, and no longer reads the settings of every crouching player on each pass.
 - Seating readers in front of the lyrics reads each online player once per pass instead of once per playing jukebox, and messages are no longer looked up and normalised anew each time they are shown.
-- The lyrics over a carried jukebox, in its sidebar and above its carrier, are worked out on a thread of their own too, and the server thread only writes what changed.
-- The crouch progress bar casts its look ray again only when the player moves or turns, and once a second anyway. It sends its hint every two seconds instead of four times a second, moves the bar only when the shown fill changes, and no longer reads the settings of every crouching player on each pass.
-- The lyrics over a carried jukebox, in its sidebar and above its carrier, are worked out on a thread of their own too, and the server thread only writes what changed.
+- Saving speaker groups and a music-folder track's settings writes the file off the server thread.
 - `/cdisc disc convert` follows its own `disc.convert` rule in permissions.yml, not the one for creating discs, and `/cdisc disc` suggests only the subcommands a player may use.
 
 ## 2.1.2

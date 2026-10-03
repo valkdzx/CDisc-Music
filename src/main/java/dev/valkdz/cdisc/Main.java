@@ -253,6 +253,12 @@ public final class Main extends JavaPlugin {
         if (playbackResume != null) {
             playbackResume.save();
         }
+        if (speakerGroupManager != null) {
+            speakerGroupManager.flush();
+        }
+        if (localMusic != null) {
+            localMusic.flushSettings();
+        }
         if (trackProgressDisplay != null) {
             trackProgressDisplay.stop();
             trackProgressDisplay.clearAll();

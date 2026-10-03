@@ -5,6 +5,7 @@ import dev.valkdz.cdisc.feature.local.LocalMusicLibrary;
 import dev.valkdz.cdisc.feature.local.LocalTrackSettings;
 import dev.valkdz.cdisc.permission.Action;
 import dev.valkdz.cdisc.util.Chat;
+import dev.valkdz.cdisc.util.Tasks;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -93,13 +94,19 @@ public final class LocalConfigGuiManager {
 
     public boolean save(Player player, String file, LocalTrackSettings updated) {
         try {
-            library().saveSettings(file, updated);
+            library().saveSettings(file, updated, failure -> Tasks.entity(plugin, player,
+                    () -> saveFailed(player, file, failure)));
             return true;
         } catch (IOException | RuntimeException e) {
-            player.sendMessage(msg(player, "local_config.save_failed",
-                    file + LocalTrackSettings.EXTENSION, String.valueOf(e.getMessage())));
+            saveFailed(player, file, e);
             return false;
         }
+    }
+
+    private void saveFailed(Player player, String file, Exception e) {
+        if (!player.isOnline()) return;
+        player.sendMessage(msg(player, "local_config.save_failed",
+                file + LocalTrackSettings.EXTENSION, String.valueOf(e.getMessage())));
     }
 
     public int pageCount(LocalTrackSettings settings) {

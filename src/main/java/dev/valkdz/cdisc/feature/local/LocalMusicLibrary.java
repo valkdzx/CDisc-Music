@@ -30,6 +30,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
@@ -78,12 +79,19 @@ public final class LocalMusicLibrary {
 
     private final Map<String, String> aliases = new ConcurrentHashMap<>();
 
+    private record Unwritten(LocalTrackSettings settings, Consumer<IOException> failed) {
+    }
+
+    private final Map<Path, Unwritten> unwritten = new ConcurrentHashMap<>();
+    private final Object writeLock = new Object();
+
     public LocalMusicLibrary(Main plugin) {
         this.plugin = plugin;
         reload();
     }
 
     public void reload() {
+        flushSettings();
         if (!plugin.cdiscConfig().isLocalEnabled()) {
             root = null;
             scan = Scan.EMPTY;
@@ -280,7 +288,10 @@ public final class LocalMusicLibrary {
         return own == null ? null : own.lyrics(track.getDuration());
     }
 
-    public void saveSettings(String relative, LocalTrackSettings updated) throws IOException {
+    // The library takes the change at once and the file follows on another thread; a write
+    // still queued for the same file is replaced, so an older edit never lands after a newer one.
+    public void saveSettings(String relative, LocalTrackSettings updated,
+                             Consumer<IOException> failed) throws IOException {
         Path base = root;
         if (base == null) throw new IOException("the local music folder is off");
 
@@ -291,19 +302,38 @@ public final class LocalMusicLibrary {
 
         Path file = settingsPathOf(audio);
         if (file == null) throw new IOException("no file name");
-        Path temp = Files.createTempFile(file.getParent(), ".cdisc-", ".part");
-        try {
-            Files.writeString(temp, updated.write(), StandardCharsets.UTF_8);
-            Files.move(temp, file, StandardCopyOption.REPLACE_EXISTING);
-        } finally {
-            Files.deleteIfExists(temp);
-        }
 
         synchronized (settingsLock) {
             savedDuringScan.put(real, updated);
             Map<String, LocalTrackSettings> byFile = new HashMap<>(settings.byFile());
             byFile.put(real, updated);
             settings = Settings.of(byFile);
+        }
+
+        if (unwritten.put(file, new Unwritten(updated, failed)) != null) return;
+        if (plugin.isEnabled()) Tasks.async(plugin, () -> writeOut(file));
+        else writeOut(file);
+    }
+
+    public void flushSettings() {
+        for (Path file : List.copyOf(unwritten.keySet())) writeOut(file);
+    }
+
+    private void writeOut(Path file) {
+        synchronized (writeLock) {
+            Unwritten next = unwritten.remove(file);
+            if (next == null) return;
+            try {
+                Path temp = Files.createTempFile(file.getParent(), ".cdisc-", ".part");
+                try {
+                    Files.writeString(temp, next.settings().write(), StandardCharsets.UTF_8);
+                    Files.move(temp, file, StandardCopyOption.REPLACE_EXISTING);
+                } finally {
+                    Files.deleteIfExists(temp);
+                }
+            } catch (IOException e) {
+                next.failed().accept(e);
+            }
         }
     }
 

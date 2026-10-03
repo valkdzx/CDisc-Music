@@ -1,6 +1,7 @@
 package dev.valkdz.cdisc.feature.speaker;
 
 import dev.valkdz.cdisc.Main;
+import dev.valkdz.cdisc.util.Tasks;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -18,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicReference;
 
 public final class SpeakerGroupManager {
 
@@ -27,6 +29,10 @@ public final class SpeakerGroupManager {
     private final Map<UUID, SpeakerGroup> groups = new ConcurrentHashMap<>();
 
     private final Map<String, SpeakerGroup> byBlock = new ConcurrentHashMap<>();
+
+    private final AtomicReference<FileConfiguration> unsaved = new AtomicReference<>();
+
+    private final Object saveLock = new Object();
 
     public SpeakerGroupManager(Main plugin) {
         this.plugin = plugin;
@@ -174,6 +180,7 @@ public final class SpeakerGroupManager {
     }
 
     private void load() {
+        flush();
         groups.clear();
         byBlock.clear();
         if (!file.exists()) return;
@@ -223,7 +230,25 @@ public final class SpeakerGroupManager {
         }
     }
 
+    // The snapshot is taken here and written on another thread; a writer that is already
+    // queued picks up the newest snapshot, so an older one never lands after a newer one.
     public void save() {
+        if (unsaved.getAndSet(snapshot()) != null) return;
+        if (!plugin.isEnabled()) {
+            flush();
+            return;
+        }
+        Tasks.async(plugin, this::flush);
+    }
+
+    public void flush() {
+        synchronized (saveLock) {
+            FileConfiguration yaml = unsaved.getAndSet(null);
+            if (yaml != null) write(yaml);
+        }
+    }
+
+    private FileConfiguration snapshot() {
         FileConfiguration yaml = new YamlConfiguration();
         for (SpeakerGroup group : groups.values()) {
             String path = "groups." + group.id();
@@ -237,7 +262,10 @@ public final class SpeakerGroupManager {
             }
             yaml.set(path + ".speakers", speakers);
         }
+        return yaml;
+    }
 
+    private void write(FileConfiguration yaml) {
         try {
             if (!plugin.getDataFolder().exists() && !plugin.getDataFolder().mkdirs()) {
                 plugin.getLogger().warning("Could not create the plugin folder, speaker groups not saved");
