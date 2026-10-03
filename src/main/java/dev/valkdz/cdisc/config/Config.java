@@ -183,14 +183,6 @@ public final class Config {
         return sources.youtubeWebClientVersion();
     }
 
-    public boolean isYoutubeFastCreate() {
-        return sources.youtubeFastCreate();
-    }
-
-    public int getYoutubeProbeTimeoutSeconds() {
-        return sources.youtubeProbeTimeoutSeconds();
-    }
-
     public String getLanguage() {
         String value = cfg().getString("language");
         return value == null ? "auto" : value.trim();

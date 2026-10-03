@@ -1,7 +1,6 @@
 package dev.valkdz.cdisc.audio.source;
 
 import dev.valkdz.cdisc.Main;
-import dev.valkdz.cdisc.audio.player.AudioEventAdapter;
 import dev.valkdz.cdisc.audio.player.AudioItem;
 import dev.valkdz.cdisc.audio.player.AudioLoadResultHandler;
 import dev.valkdz.cdisc.audio.player.AudioPlayer;
@@ -529,6 +528,39 @@ public class TrackLoader {
                 : "https://www.youtube.com/playlist?list=" + list;
     }
 
+    // A Spotify disc is written from Spotify's own names; the YouTube match is found
+    // meanwhile, so the first play does not wait for it either.
+    public void loadForDisc(String resolved, AudioLoadResultHandler handler) {
+        String trackId = dev.valkdz.cdisc.audio.source.spotify.SpotifyBridge.trackIdOf(resolved);
+        if (trackId == null || spotifyBridge == null || !spotifyBridge.isUsable()) {
+            loadItem(resolved, handler);
+            return;
+        }
+
+        resolveExecutor.submit(() -> {
+            dev.valkdz.cdisc.audio.source.spotify.SpotifyBridge.Entry entry;
+            try {
+                entry = spotifyBridge.entry(trackId);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
+            } catch (Exception e) {
+                loadItem(resolved, handler);
+                return;
+            }
+            handler.trackLoaded(new dev.valkdz.cdisc.audio.source.spotify.SpotifyEntryTrack(entry,
+                    info -> spotifyNow(info.identifier)));
+            try {
+                spotifyBridge.resolve(trackId);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } catch (Exception e) {
+                Bukkit.getLogger().warning("[CDisc] \"" + entry.title() + "\" has no match on YouTube yet ("
+                        + e.getMessage() + "); the disc will look again when it plays.");
+            }
+        });
+    }
+
     private boolean interceptSpotify(String resolved, AudioLoadResultHandler handler) {
         String trackId = dev.valkdz.cdisc.audio.source.spotify.SpotifyBridge.trackIdOf(resolved);
         if (trackId == null || spotifyBridge == null || !spotifyBridge.isUsable()) return false;
@@ -721,38 +753,6 @@ public class TrackLoader {
         }
     }
 
-    public CompletableFuture<Boolean> probePlayability(AudioTrack track) {
-        CompletableFuture<Boolean> result = new CompletableFuture<>();
-        AudioPlayer probePlayer = new AudioPlayer();
-
-        probePlayer.addListener(new AudioEventAdapter() {
-            @Override
-            public void onTrackException(AudioPlayer p, AudioTrack t, LoadException exception) {
-                result.complete(false);
-            }
-        });
-
-        probePlayer.playTrack(track.makeClone());
-
-        int timeoutSeconds = plugin.cdiscConfig().getYoutubeProbeTimeoutSeconds();
-        resolveExecutor.submit(() -> {
-            try {
-                boolean gotFrame = probePlayer.provide(timeoutSeconds, TimeUnit.SECONDS) != null;
-                result.complete(gotFrame);
-            } catch (Exception e) {
-                result.complete(false);
-            } finally {
-                probePlayer.destroy();
-            }
-        });
-
-        return result;
-    }
-
-    public AudioTrack resolveViaBackend(String resolved) {
-        return customApiResolver == null ? null : customApiResolver.resolve(resolved);
-    }
-
     public boolean hasNextSource(AudioTrack failed, String resolved) {
         return customApiResolver != null
                 && !"Custom API (Backend)".equals(failed.getUserData())
@@ -781,10 +781,6 @@ public class TrackLoader {
     private String youtubeUrlOf(String resolved) {
         String videoId = backendForAgeGate().extractIdFromOwnStreamUrl(resolved);
         return videoId == null ? resolved : "https://www.youtube.com/watch?v=" + videoId;
-    }
-
-    public String backendStreamUrlFor(String videoId) {
-        return customApiResolver == null ? null : customApiResolver.streamUrlFor(videoId);
     }
 
     public String backendDownloadUrlFor(String identifier) {

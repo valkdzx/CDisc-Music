@@ -159,14 +159,6 @@ public final class SourcesConfig {
         return version == null || version.isBlank() ? "2.20260828.01.00" : version.trim();
     }
 
-    public boolean youtubeFastCreate() {
-        return cfg.getBoolean("youtube.fast-create", true);
-    }
-
-    public int youtubeProbeTimeoutSeconds() {
-        return Math.max(1, cfg.getInt("youtube.probe-timeout-seconds", 4));
-    }
-
     public String proxyAddress() {
         String address = cfg.getString("proxy.address");
         return address == null ? "" : address.trim();

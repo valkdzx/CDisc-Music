@@ -69,6 +69,7 @@ public final class SpotifyBridge {
     private final Supplier<String> visitorData;
 
     private final Map<String, Match> matches = new ConcurrentHashMap<>();
+    private final Map<String, Json> fetched = new ConcurrentHashMap<>();
 
     private volatile String appToken;
     private volatile long appTokenUntil;
@@ -224,11 +225,23 @@ public final class SpotifyBridge {
         return new Collection(entity.path("name").asText("Spotify"), entries);
     }
 
+    // What a disc needs is known before any YouTube search; the track is kept for the match.
+    public Entry entry(String trackId) throws IOException, InterruptedException {
+        Match known = matches.get(trackId);
+        if (known != null) return new Entry(trackId, known.title(), known.artist(), known.durationMs());
+
+        Json track = hasCredentials() ? spotifyTrack(trackId) : backendTrack(trackId);
+        fetched.put(trackId, track);
+        Wanted wanted = wantedOf(track);
+        return new Entry(trackId, wanted.title(), wanted.artist(), wanted.durationMs());
+    }
+
     public Match resolve(String trackId) throws IOException, InterruptedException {
         Match cached = matches.get(trackId);
         if (cached != null) return cached;
 
-        Json track = hasCredentials() ? spotifyTrack(trackId) : backendTrack(trackId);
+        Json track = fetched.remove(trackId);
+        if (track == null) track = hasCredentials() ? spotifyTrack(trackId) : backendTrack(trackId);
         Match found = matchOnYouTube(trackId, track);
         matches.put(trackId, found);
         return found;

@@ -487,7 +487,7 @@ public class PlaybackManager {
     }
 
     private void loadForDisc(Player player, ItemStack item, String query, String resolved) {
-        trackLoader.loadItem(resolved, new AudioLoadResultHandler() {
+        trackLoader.loadForDisc(resolved, new AudioLoadResultHandler() {
             @Override public void trackLoaded(AudioTrack track) {
                 writeToDisc(player, item, track, query, resolved);
             }
@@ -747,32 +747,7 @@ public class PlaybackManager {
         }
         String authorN = Normalizer.normalize(author, Normalizer.Form.NFC);
         String titleN = Normalizer.normalize(title, Normalizer.Form.NFC);
-        String videoId = track.getInfo().identifier;
-        boolean isYoutube = trackLoader.isYoutubeIdentifier(resolved);
-
-        if (!isYoutube || !trackLoader.hasCustomApi() || plugin.cdiscConfig().isYoutubeFastCreate()) {
-            storeLater(player, item, track, query, null, titleN, authorN, null, resolved);
-            return;
-        }
-
-        trackLoader.probePlayability(track).whenComplete((playable, ex) -> {
-            if (playable) {
-                storeLater(player, item, track, query, null, titleN, authorN, "lavaplayer", resolved);
-                return;
-            }
-
-            Bukkit.getLogger().warning("[CDisc] youtube-source couldn't decode '" + videoId + "'");
-
-            AudioTrack backendTrack = trackLoader.resolveViaBackend(resolved);
-            if (backendTrack == null) {
-                Tasks.entity(plugin, player, () ->
-                        player.sendMessage("§c" + plugin.getMessageManager()
-                                .get(player, "lavaplayer.track.notfound")));
-                return;
-            }
-            String backendUrl = trackLoader.backendStreamUrlFor(videoId);
-            storeLater(player, item, track, backendUrl, query, titleN, authorN, "backend", resolved);
-        });
+        storeLater(player, item, track, query, null, titleN, authorN, null, resolved);
     }
 
     private void storeLater(Player player, ItemStack item, AudioTrack track, String query,

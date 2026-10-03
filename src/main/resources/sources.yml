@@ -121,14 +121,6 @@ youtube:
   # change it together with web-client-version.
   signature-timestamp: 20684
 
-  # Skip the playability probe when creating a disc and choose the fetch strategy on first
-  # playback instead. Several times faster; set false to check playability up front.
-  fast-create: true
-
-  # Seconds to wait for the first decoded frame during that probe. Only used when
-  # fast-create is false.
-  probe-timeout-seconds: 4
-
   # CDisc solves YouTube signatures itself; this server is asked only when that fails.
   # Its password, if it needs one, goes in tokens.yml. Blank the URL to never ask it.
   remote-cipher:

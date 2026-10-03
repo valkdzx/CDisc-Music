@@ -94,9 +94,6 @@ final class ConfigSplitMigration {
 
         copyIfSet(old, "sources-config.youtube.fallback-api", sources, "youtube.fallback-api");
         copyIfSet(old, "sources-config.youtube.proxy", sources, "youtube.proxy");
-        copyIfSet(old, "sources-config.youtube.fast-create", sources, "youtube.fast-create");
-        copyIfSet(old, "sources-config.youtube.probe-timeout-seconds", sources,
-                "youtube.probe-timeout-seconds");
         copyIfSet(old, "remote-cipher-server.url", sources, "youtube.remote-cipher.url");
     }
 

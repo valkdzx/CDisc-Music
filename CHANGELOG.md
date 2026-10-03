@@ -5,7 +5,8 @@
 - LavaPlayer, youtube-source and LavaSrc are gone: CDisc reads, decodes and plays every source with code of its own. The jar is 3 MB instead of 41 MB, and no native libraries are unpacked at startup.
 - NBT-API is gone as well. Resuming the jukebox spin and keeping other plugins' block data on a carried jukebox now use a small reader of CDisc's own, which needs no update for a new Minecraft version, so the startup warning about an unsupported server version no longer appears.
 - YouTube searches, playlists of up to 600 videos and mixes, SoundCloud, Twitch, Spotify search, Yandex Music and VK Music with a token, HTTP streams and local files are all read by the plugin itself. MP3, AAC, FLAC, Vorbis, Opus and WAV play from MP4, WebM, Ogg, FLAC, WAV, AIFF, MP3, ADTS and HLS.
-- `youtube.clients` and `youtube.log-client-failures` leave sources.yml: they only set up youtube-source.
+- `youtube.clients` and `youtube.log-client-failures` leave sources.yml: they only set up youtube-source. So do `youtube.fast-create` and `youtube.probe-timeout-seconds`: every format YouTube serves now plays, so a disc is never tried out before it is written.
+- Spotify discs are written as soon as Spotify names the track, about half a second, instead of after the YouTube match and a read of the video, which took one to three seconds. The match is found meanwhile, so the first play does not wait for it either.
 - The crouch progress bar goes away once the player is out of earshot, and a jukebox that is playing, holds a disc or has a queue can no longer be paired as a speaker.
 - Parrots within three blocks of a jukebox dance to CDisc discs as they do to vanilla ones, and stop when playback ends.
 - Players given a server hologram preset without force keep their own look: the Return my own look button in `/cdisc preset` brings it back, and editing the preset turns it into their own. `/cdisc admin presets unset` also returns it.
