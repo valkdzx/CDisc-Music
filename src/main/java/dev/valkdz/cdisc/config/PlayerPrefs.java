@@ -6,6 +6,10 @@ import org.bukkit.entity.Player;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+
 public final class PlayerPrefs {
 
     private static final NamespacedKey TRACK_MESSAGES =
@@ -21,6 +25,10 @@ public final class PlayerPrefs {
             new NamespacedKey(Main.getInstance(), "cdisc_sneak_mode");
 
     public static final int VOLUME_FOLLOWS_JUKEBOX = -1;
+
+    private static final String NO_SNEAK_MODE = "";
+
+    private static final Map<UUID, String> sneakModes = new ConcurrentHashMap<>();
 
     private PlayerPrefs() {
     }
@@ -83,14 +91,22 @@ public final class PlayerPrefs {
     }
 
     public static SneakMode sneakMode(Player player, SneakMode byDefault) {
-        String stored = container(player).get(SNEAK_MODE, PersistentDataType.STRING);
-        return stored == null ? byDefault : SneakMode.parse(stored, byDefault);
+        String stored = sneakModes.computeIfAbsent(player.getUniqueId(), id -> {
+            String read = container(player).get(SNEAK_MODE, PersistentDataType.STRING);
+            return read == null ? NO_SNEAK_MODE : read;
+        });
+        return stored.equals(NO_SNEAK_MODE) ? byDefault : SneakMode.parse(stored, byDefault);
     }
 
     public static void setSneakMode(Player player, SneakMode mode) {
         // Written for every mode, never removed: a player's own choice has to survive
         // the server changing sneak-mode under them.
         container(player).set(SNEAK_MODE, PersistentDataType.STRING, mode.key());
+        sneakModes.put(player.getUniqueId(), mode.key());
+    }
+
+    public static void forget(UUID player) {
+        sneakModes.remove(player);
     }
 
     public static boolean toggleTrackMessages(Player player) {

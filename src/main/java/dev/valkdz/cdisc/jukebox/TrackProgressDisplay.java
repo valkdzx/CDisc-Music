@@ -8,7 +8,9 @@ import dev.valkdz.cdisc.util.Chat;
 import dev.valkdz.cdisc.util.Tasks;
 import dev.valkdz.cdisc.util.TimeUtils;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.Jukebox;
 import org.bukkit.boss.BarColor;
@@ -17,6 +19,7 @@ import org.bukkit.boss.BossBar;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerToggleSneakEvent;
 
 import java.util.Map;
@@ -28,23 +31,87 @@ public class TrackProgressDisplay implements Listener {
 
     private static final int MAX_TARGET_DISTANCE = 6;
 
+    private static final int SIGHT_REFRESH_PASSES = 4;
+
+    private static final int HINT_RESEND_PASSES = 8;
+
+    private static final double PROGRESS_STEPS = 200;
+
     private static final int HINT_RED = 0xFF;
     private static final int HINT_GREEN = 0xD9;
     private static final int HINT_BLUE = 0x66;
 
     private final Set<UUID> watching = ConcurrentHashMap.newKeySet();
-    private final Map<UUID, BossBar> bossBars = new ConcurrentHashMap<>();
 
-    private record BarText(String author, String title, long second, long duration, boolean live, String text) {
+    private static final class Bar {
+
+        final BossBar boss;
+
+        String author;
+        String title;
+        long second;
+        long duration;
+        boolean live;
+        double progress = -1;
+
+        Bar(BossBar boss) {
+            this.boss = boss;
+        }
+
+        boolean differs(PlaybackManager.PlaybackInfo info, long second) {
+            return this.second != second || duration != info.duration() || live != info.live()
+                    || !info.title().equals(title) || !info.author().equals(author);
+        }
+
+        void remember(PlaybackManager.PlaybackInfo info, long second) {
+            this.author = info.author();
+            this.title = info.title();
+            this.second = second;
+            this.duration = info.duration();
+            this.live = info.live();
+        }
     }
 
-    private final Map<UUID, BarText> barTexts = new ConcurrentHashMap<>();
+    private final Map<UUID, Bar> bars = new ConcurrentHashMap<>();
 
     private final Map<UUID, Block> watchedBlocks = new ConcurrentHashMap<>();
 
-    private final Set<UUID> showingHint = ConcurrentHashMap.newKeySet();
+    private final Map<UUID, Integer> hintAge = new ConcurrentHashMap<>();
 
     private final Set<UUID> sneakHeld = ConcurrentHashMap.newKeySet();
+
+    private final Set<UUID> crouching = ConcurrentHashMap.newKeySet();
+
+    private static final class Sight {
+
+        World world;
+        double x;
+        double y;
+        double z;
+        float yaw;
+        float pitch;
+        Block block;
+        int age;
+
+        boolean sees(Location eye) {
+            return eye.getWorld() == world && eye.getX() == x && eye.getY() == y && eye.getZ() == z
+                    && eye.getYaw() == yaw && eye.getPitch() == pitch;
+        }
+
+        void remember(Location eye, Block found) {
+            world = eye.getWorld();
+            x = eye.getX();
+            y = eye.getY();
+            z = eye.getZ();
+            yaw = eye.getYaw();
+            pitch = eye.getPitch();
+            block = found;
+            age = 1;
+        }
+    }
+
+    private final Map<UUID, Sight> sights = new ConcurrentHashMap<>();
+
     private final Main plugin;
 
     private Tasks.Handle task;
@@ -83,14 +150,16 @@ public class TrackProgressDisplay implements Listener {
         UUID id = player.getUniqueId();
 
         if (!e.isSneaking()) {
+            crouching.remove(id);
             if (sneakHeld.contains(id)) stopWatching(player);
             return;
         }
+        crouching.add(id);
 
         SneakMode mode = sneakMode(player);
         if (mode == SneakMode.OFF) return;
 
-        Block target = targetBlock(player);
+        Block target = raycast(player);
         if (!isPlayableJukebox(target)) return;
 
         if (mode == SneakMode.RELEASE) {
@@ -106,13 +175,23 @@ public class TrackProgressDisplay implements Listener {
         }
     }
 
+    @EventHandler
+    public void onQuit(PlayerQuitEvent e) {
+        Player player = e.getPlayer();
+        UUID id = player.getUniqueId();
+        stopWatching(player);
+        crouching.remove(id);
+        sights.remove(id);
+        PlayerPrefs.forget(id);
+    }
+
     private void hold(UUID id, Block block) {
         watching.add(id);
         watchedBlocks.put(id, block);
         sneakHeld.add(id);
     }
 
-    private Block targetBlock(Player player) {
+    private Block raycast(Player player) {
         try {
             return player.getTargetBlockExact(MAX_TARGET_DISTANCE);
         } catch (Exception e) {
@@ -120,24 +199,47 @@ public class TrackProgressDisplay implements Listener {
         }
     }
 
+    // A player standing still keeps the block they looked at, but the ray is cast again
+    // every SIGHT_REFRESH_PASSES anyway, or a jukebox placed in front of them stays unseen.
+    private Block look(Player player) {
+        Location eye = player.getEyeLocation();
+        Sight sight = sights.computeIfAbsent(player.getUniqueId(), id -> new Sight());
+        if (sight.age > 0 && sight.age < SIGHT_REFRESH_PASSES && sight.sees(eye)) {
+            sight.age++;
+            return sight.block;
+        }
+        sight.remember(eye, raycast(player));
+        return sight.block;
+    }
+
     // A release-mode player can be crouching before they look at the jukebox, and
     // the sneak event has already been and gone by then.
     private void pickUpHeldSneaks() {
-        for (Player player : plugin.getServer().getOnlinePlayers()) {
-            if (!player.isSneaking() || watching.contains(player.getUniqueId())) continue;
+        for (UUID id : crouching) {
+            if (watching.contains(id)) continue;
+
+            Player player = plugin.getServer().getPlayer(id);
+            if (player == null) {
+                crouching.remove(id);
+                continue;
+            }
             if (sneakMode(player) != SneakMode.RELEASE) continue;
 
             Tasks.onEntity(plugin, player, () -> {
-                Block target = targetBlock(player);
+                if (!player.isSneaking()) {
+                    crouching.remove(id);
+                    return;
+                }
+                Block target = look(player);
                 if (isPlayingJukebox(plugin.getAudioPlayerManager(), target)) {
-                    hold(player.getUniqueId(), target);
+                    hold(id, target);
                 }
             });
         }
     }
 
     private void run() {
-        pickUpHeldSneaks();
+        if (!crouching.isEmpty()) pickUpHeldSneaks();
         if (watching.isEmpty()) return;
 
         PlaybackManager apm = plugin.getAudioPlayerManager();
@@ -160,7 +262,7 @@ public class TrackProgressDisplay implements Listener {
             return;
         }
 
-        Block target = targetBlock(player);
+        Block target = look(player);
         boolean lookingAtPlayer = isPlayingJukebox(apm, target);
         if (lookingAtPlayer) {
             watchedBlocks.put(id, target);
@@ -212,50 +314,55 @@ public class TrackProgressDisplay implements Listener {
 
     private void updateBossBar(Player player, PlaybackManager.PlaybackInfo info) {
         UUID id = player.getUniqueId();
-
         long second = info.position() / 1000;
-        BarText last = barTexts.get(id);
-        boolean same = last != null && last.second() == second && last.duration() == info.duration()
-                && last.live() == info.live() && last.title().equals(info.title())
-                && last.author().equals(info.author());
+        BarColor color = info.live() ? BarColor.RED : BarColor.WHITE;
 
-        String title;
-        if (same) {
-            title = last.text();
-        } else if (info.live()) {
-            title = plugin.getMessageManager().track(player, "bossbar.title_live", 0,
-                    info.author(), info.title());
+        Bar bar = bars.get(id);
+        boolean changed = bar == null || bar.differs(info, second);
+        String title = changed ? title(player, info) : null;
+
+        if (bar == null) {
+            bar = new Bar(Bukkit.createBossBar(title, color, BarStyle.SOLID));
+            bars.put(id, bar);
+            bar.boss.addPlayer(player);
         } else {
-            String progress = TimeUtils.formatProgress(info.position(), info.duration());
-            title = plugin.getMessageManager().track(player, "bossbar.title", 0,
-                    info.author(), info.title(), progress);
+            if (changed) bar.boss.setTitle(title);
+            if (bar.boss.getColor() != color) bar.boss.setColor(color);
         }
+        if (changed) bar.remember(info, second);
 
-        BossBar bar = bossBars.computeIfAbsent(id, key ->
-                Bukkit.createBossBar(title, BarColor.WHITE, BarStyle.SOLID));
-
-        if (!same) {
-            bar.setTitle(title);
-            barTexts.put(id, new BarText(info.author(), info.title(), second, info.duration(), info.live(), title));
+        double progress = info.live() ? 1.0
+                : Math.rint(progressRatio(info.position(), info.duration()) * PROGRESS_STEPS) / PROGRESS_STEPS;
+        if (progress != bar.progress) {
+            bar.boss.setProgress(progress);
+            bar.progress = progress;
         }
-
-        bar.setColor(info.live() ? BarColor.RED : BarColor.WHITE);
-        bar.setProgress(info.live() ? 1.0 : progressRatio(info.position(), info.duration()));
-
-        if (!bar.getPlayers().contains(player)) {
-            bar.addPlayer(player);
-        }
-        bar.setVisible(true);
     }
 
+    private String title(Player player, PlaybackManager.PlaybackInfo info) {
+        if (info.live()) {
+            return plugin.getMessageManager().track(player, "bossbar.title_live", 0,
+                    info.author(), info.title());
+        }
+        String progress = TimeUtils.formatProgress(info.position(), info.duration());
+        return plugin.getMessageManager().track(player, "bossbar.title", 0,
+                info.author(), info.title(), progress);
+    }
+
+    // The client keeps an action bar line about 3 s, so it is only resent before it fades.
     private void showHint(UUID id, Player player) {
+        Integer age = hintAge.get(id);
+        if (age != null && age < HINT_RESEND_PASSES) {
+            hintAge.put(id, age + 1);
+            return;
+        }
         String hint = plugin.getMessageManager().get(player, "actionbar.open_hint");
         Chat.actionBar(player, hint, HINT_RED, HINT_GREEN, HINT_BLUE);
-        showingHint.add(id);
+        hintAge.put(id, 1);
     }
 
     private void clearHint(UUID id, Player player) {
-        if (showingHint.remove(id)) {
+        if (hintAge.remove(id) != null) {
             Chat.clearActionBar(player);
         }
     }
@@ -267,27 +374,30 @@ public class TrackProgressDisplay implements Listener {
     }
 
     private void dropState(UUID id) {
-        BossBar bar = bossBars.remove(id);
-        if (bar != null) bar.removeAll();
-        barTexts.remove(id);
+        Bar bar = bars.remove(id);
+        if (bar != null) bar.boss.removeAll();
         watchedBlocks.remove(id);
-        showingHint.remove(id);
+        hintAge.remove(id);
         sneakHeld.remove(id);
     }
 
     public void clearAll() {
-        for (BossBar bar : bossBars.values()) {
-            bar.removeAll();
+        for (Bar bar : bars.values()) {
+            bar.boss.removeAll();
         }
-        bossBars.clear();
-        barTexts.clear();
+        bars.clear();
         watchedBlocks.clear();
-        showingHint.clear();
+        hintAge.clear();
         sneakHeld.clear();
         watching.clear();
+        crouching.clear();
+        sights.clear();
     }
 
     public void start() {
+        for (Player player : plugin.getServer().getOnlinePlayers()) {
+            if (player.isSneaking()) crouching.add(player.getUniqueId());
+        }
         task = Tasks.globalTimer(plugin, this::run, 1L, 5L);
     }
 
