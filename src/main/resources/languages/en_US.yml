@@ -631,6 +631,12 @@ gui:
   view:
     to_dialog: "&b&lThe new window"
     to_dialog_lore: "&7The player as a dialog. Your choice is remembered"
+  theme:
+    name: "&6Theme"
+    dark: "Dark"
+    legacy: "Legacy"
+    hint: "&7Click to switch"
+    set: "Theme: %s"
   exit:
     name: "&c&lExit"
   seek:
@@ -759,3 +765,12 @@ broadcast:
     to_handheld_lore: "&7The block lets go and the lever is yours"
     to_block: "&6&lMake it a block"
     to_block_lore: "&7Pick a block within %s blocks; the lever goes away"
+disc:
+  # Lore written onto a disc when it is made. Author, track, length and the
+  # live marker are baked in the maker's language, not re-read per viewer.
+  lore:
+    author: "&7Author: &f%s"
+    track: "&7Track: &f%s"
+    title_only: "&f%s"
+    length: "&7Length: &f%s"
+    live: "&c● Live stream"

@@ -785,7 +785,7 @@ public class PlaybackManager {
         Bukkit.getPluginManager().callEvent(event);
         if (event.isCancelled()) return;
 
-        ItemUtils.saveTrackToDisc(item, query, fallback, title, author, fetch, hint);
+        ItemUtils.saveTrackToDisc(player, item, query, fallback, title, author, fetch, hint);
         long length = track.getInfo().length;
         if (!GoatHorns.isHorn(item)) {
             player.sendMessage("§a" + plugin.getMessageManager()
@@ -793,7 +793,7 @@ public class PlaybackManager {
             return;
         }
 
-        long clip = GoatHorns.record(plugin, item, length);
+        long clip = GoatHorns.record(plugin, player, item, length);
         if (plugin.getHornPlayer() != null) plugin.getHornPlayer().prefetch(item);
         player.sendMessage("§a" + plugin.getMessageManager()
                 .track(player, "horn.recorded", 1, title, author, TimeUtils.format(clip)));

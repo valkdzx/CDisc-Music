@@ -56,7 +56,7 @@ public final class GoatHorns {
         return null;
     }
 
-    public static long record(Main plugin, ItemStack item, long lengthMs) {
+    public static long record(Main plugin, Player player, ItemStack item, long lengthMs) {
         long max = maxClipMs(plugin);
         long clip = known(lengthMs) ? Math.min(lengthMs, max) : max;
 
@@ -65,7 +65,7 @@ public final class GoatHorns {
         meta.getPersistentDataContainer().set(CLIP_KEY, PersistentDataType.LONG, clip);
 
         List<String> lore = meta.getLore() == null ? new ArrayList<>() : new ArrayList<>(meta.getLore());
-        lore.add("§7Length: §f" + TimeUtils.format(clip));
+        lore.add(plugin.getMessageManager().get(player, "disc.lore.length", TimeUtils.format(clip)));
         meta.setLore(lore);
         item.setItemMeta(meta);
         return clip;

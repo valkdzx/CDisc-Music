@@ -262,7 +262,7 @@ public class LyricsGuiManager {
                     List.of("§7" + plugin.getMessageManager().get(player, "gui.lyrics_look.restore_own_lore"))));
         }
         inventory.setItem(SLOT_PAGE, pageItem(player, holder));
-        inventory.setItem(SLOT_BACK, simple(Material.ARROW,
+        inventory.setItem(SLOT_BACK, simple(Icons.pick(player, GuiHeads.BACK, Material.ARROW),
                 plugin.getMessageManager().get(player, "gui.lyrics_look.close"), List.of()));
     }
 
@@ -495,7 +495,10 @@ public class LyricsGuiManager {
     }
 
     private static ItemStack simple(Material material, String name, List<String> lore) {
-        ItemStack item = new ItemStack(material);
+        return simple(new ItemStack(material), name, lore);
+    }
+
+    private static ItemStack simple(ItemStack item, String name, List<String> lore) {
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
             meta.setDisplayName(name);

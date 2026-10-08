@@ -429,7 +429,7 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
             item.setItemMeta(meta);
         }
 
-        ItemUtils.saveTrackToDisc(item, identifier, title, author);
+        ItemUtils.saveTrackToDisc(player, item, identifier, title, author);
         player.sendMessage("§a" + plugin.getMessageManager().get(player, "convert.done", title));
     }
 

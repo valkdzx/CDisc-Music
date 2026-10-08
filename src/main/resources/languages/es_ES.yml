@@ -631,6 +631,12 @@ gui:
   view:
     to_dialog: "&b&lLa ventana nueva"
     to_dialog_lore: "&7El reproductor como diálogo. Se recuerda tu elección"
+  theme:
+    name: "&6Tema"
+    dark: "Oscuro"
+    legacy: "Legacy"
+    hint: "&7Haz clic para cambiar"
+    set: "Tema: %s"
   exit:
     name: "&c&lSalir"
   seek:
@@ -759,3 +765,12 @@ broadcast:
     to_handheld_lore: "&7El bloque lo suelta y la palanca es tuya"
     to_block: "&6&lHacerlo de bloque"
     to_block_lore: "&7Elige un bloque a menos de %s bloques; la palanca desaparece"
+disc:
+  # Lore written onto a disc when it is made. Author, track, length and the
+  # live marker are baked in the maker's language, not re-read per viewer.
+  lore:
+    author: "&7Autor: &f%s"
+    track: "&7Pista: &f%s"
+    title_only: "&f%s"
+    length: "&7Duración: &f%s"
+    live: "&c● Emisión en directo"

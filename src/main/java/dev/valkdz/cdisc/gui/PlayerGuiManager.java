@@ -2,6 +2,7 @@ package dev.valkdz.cdisc.gui;
 
 import dev.valkdz.cdisc.Main;
 import dev.valkdz.cdisc.config.Config;
+import dev.valkdz.cdisc.config.GuiTheme;
 import dev.valkdz.cdisc.feature.lyrics.LyricsMode;
 import dev.valkdz.cdisc.feature.lyrics.LyricsPrefs;
 import dev.valkdz.cdisc.feature.lyrics.LyricsRenderer;
@@ -13,7 +14,6 @@ import dev.valkdz.cdisc.jukebox.PlaybackManager;
 import dev.valkdz.cdisc.jukebox.queue.DiscQueue;
 import dev.valkdz.cdisc.jukebox.queue.RepeatMode;
 import dev.valkdz.cdisc.permission.Action;
-import dev.valkdz.cdisc.util.HeadUtils;
 import dev.valkdz.cdisc.util.Tasks;
 import dev.valkdz.cdisc.util.TimeUtils;
 import org.bukkit.Bukkit;
@@ -67,6 +67,7 @@ public class PlayerGuiManager {
     public static final int ADV_TRACK_MESSAGES = 7;
     public static final int ADV_VIEW = 8;
     public static final int ADV_BACK = 9;
+    public static final int ADV_THEME = 13;
 
     public static final int LOCAL_TRACK_MESSAGES = 11;
     public static final int LOCAL_VOLUME = 15;
@@ -372,6 +373,7 @@ public class PlayerGuiManager {
             inventory.setItem(slot, filler);
         }
         advancedItems(player, block).forEach(inventory::setItem);
+        inventory.setItem(ADV_THEME, buildThemeItem(player));
         inventory.setItem(ADV_BACK, buildBackItem(player));
         inventory.setItem(SLOT_EXIT, buildExitItem(player));
     }
@@ -399,7 +401,7 @@ public class PlayerGuiManager {
     }
 
     private ItemStack buildAdvancedItem(Player player) {
-        ItemStack item = new ItemStack(Material.COMPARATOR);
+        ItemStack item = Icons.pick(player, GuiHeads.SETTINGS, Material.COMPARATOR);
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return item;
 
@@ -421,7 +423,7 @@ public class PlayerGuiManager {
     }
 
     private ItemStack buildBackItem(Player player) {
-        ItemStack item = new ItemStack(Material.ARROW);
+        ItemStack item = Icons.pick(player, GuiHeads.BACK, Material.ARROW);
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return item;
 
@@ -434,7 +436,8 @@ public class PlayerGuiManager {
         int seconds = plugin.getAudioPlayerManager().crossfadeSeconds();
         DiscQueue queue = plugin.getAudioPlayerManager().getQueue(block);
         boolean on = seconds > 0 && (queue == null || queue.isCrossfade());
-        ItemStack item = new ItemStack(on ? Material.AMETHYST_SHARD : Material.GRAY_DYE);
+        ItemStack item = on ? Icons.pick(player, GuiHeads.CROSSFADE_ON, Material.AMETHYST_SHARD)
+                : Icons.pick(player, GuiHeads.CROSSFADE_OFF, Material.GRAY_DYE);
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return item;
 
@@ -469,7 +472,10 @@ public class PlayerGuiManager {
     private ItemStack buildVolumeItem(Player player, Block block) {
         SpeakerSettings settings = SpeakerSettings.of(block);
 
-        ItemStack item = lightFor(settings.volume());
+        int volume = settings.isMuted() ? 0 : settings.volume();
+        ItemStack item = Icons.pick(player, volume <= 0 ? GuiHeads.VOLUME_MUTE
+                : volume * 2 < SpeakerSettings.MAX_VOLUME ? GuiHeads.VOLUME_LOW : GuiHeads.VOLUME_HIGH,
+                lightFor(settings.volume()));
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return item;
 
@@ -491,7 +497,9 @@ public class PlayerGuiManager {
         int jukebox = SpeakerSettings.of(block).volume();
         boolean following = own == PlayerPrefs.VOLUME_FOLLOWS_JUKEBOX;
 
-        ItemStack item = lightFor(following ? jukebox : own);
+        int level = following ? jukebox : own;
+        int bars = level <= 0 ? 0 : Math.min(4, (level * 4 + SpeakerSettings.MAX_VOLUME - 1) / SpeakerSettings.MAX_VOLUME);
+        ItemStack item = Icons.pick(player, GuiHeads.LOCAL_VOLUME.get(bars), lightFor(level));
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return item;
 
@@ -507,30 +515,10 @@ public class PlayerGuiManager {
         return item;
     }
 
-    private static ItemStack lightFor(int volume) {
-        ItemStack item = new ItemStack(Material.LIGHT);
-
-        int level = Math.max(0, Math.min(15, Math.round(
-                SpeakerSettings.clampVolume(volume) * 15f / SpeakerSettings.MAX_VOLUME)));
-
-        if (item.getItemMeta() instanceof BlockDataMeta meta) {
-            BlockData data = Bukkit.createBlockData(Material.LIGHT);
-            if (data instanceof Levelled levelled) {
-                levelled.setLevel(level);
-                meta.setBlockData(levelled);
-                item.setItemMeta(meta);
-            }
-        }
-        return item;
-    }
-
     private ItemStack buildShuffleItem(Player player, Block block) {
         boolean on = plugin.getAudioPlayerManager().isShuffle(block);
-        String texture = on ? GuiHeads.SHUFFLE_ON : GuiHeads.SHUFFLE_OFF;
-
-        ItemStack item = texture.isEmpty()
-                ? new ItemStack(on ? Material.LIME_DYE : Material.GRAY_DYE)
-                : HeadUtils.createHead(texture);
+        ItemStack item = on ? Icons.head(player, GuiHeads.SHUFFLE_ON, GuiHeads.Legacy.SHUFFLE_ON)
+                : Icons.head(player, GuiHeads.SHUFFLE_OFF, GuiHeads.Legacy.SHUFFLE_OFF);
 
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return item;
@@ -656,7 +644,7 @@ public class PlayerGuiManager {
     private ItemStack buildTrackMessagesItem(Player player) {
         boolean on = PlayerPrefs.showsTrackMessages(player);
 
-        ItemStack item = new ItemStack(Material.BELL);
+        ItemStack item = Icons.pick(player, on ? GuiHeads.MESSAGES_ON : GuiHeads.MESSAGES_OFF, Material.BELL);
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return item;
 
@@ -671,7 +659,7 @@ public class PlayerGuiManager {
         if (!plugin.cdiscConfig().isSpeakerGroupEnabled()) return null;
 
         SpeakerGroup group = plugin.getSpeakerGroupManager().groupAt(block);
-        ItemStack item = new ItemStack(Material.JUKEBOX);
+        ItemStack item = Icons.pick(player, GuiHeads.PAIR, Material.JUKEBOX);
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return item;
 
@@ -697,7 +685,7 @@ public class PlayerGuiManager {
 
         SpeakerSettings settings = SpeakerSettings.of(block);
 
-        ItemStack item = new ItemStack(Material.BREWING_STAND);
+        ItemStack item = Icons.pick(player, GuiHeads.CHANNELS, Material.BREWING_STAND);
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return item;
 
@@ -725,7 +713,8 @@ public class PlayerGuiManager {
         boolean room = plugin.getPortableJukeboxManager().hasRoom(player);
         boolean allowed = room && !paired;
 
-        ItemStack item = new ItemStack(allowed ? Material.NOTE_BLOCK : Material.BARRIER);
+        ItemStack item = allowed ? Icons.pick(player, GuiHeads.PORTABLE, Material.NOTE_BLOCK)
+                : Icons.pick(player, GuiHeads.PORTABLE_OFF, Material.BARRIER);
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return item;
 
@@ -737,7 +726,7 @@ public class PlayerGuiManager {
     }
 
     private ItemStack buildViewItem(Player player) {
-        ItemStack item = new ItemStack(Material.PAINTING);
+        ItemStack item = Icons.pick(player, GuiHeads.VIEW, Material.PAINTING);
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return item;
 
@@ -745,6 +734,41 @@ public class PlayerGuiManager {
         meta.setLore(List.of(
                 plugin.getMessageManager().get(player, "gui.view.to_dialog_lore")));
         item.setItemMeta(meta);
+        return item;
+    }
+
+    private ItemStack buildThemeItem(Player player) {
+        GuiTheme current = Icons.theme(player);
+        ItemStack item = Icons.pick(player, GuiHeads.THEME, Material.BRUSH);
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) return item;
+
+        meta.setDisplayName(plugin.getMessageManager().get(player, "gui.theme.name"));
+        List<String> lore = new ArrayList<>();
+        for (GuiTheme theme : GuiTheme.values()) {
+            lore.add((theme == current ? "\u00a7a\u25b6 \u00a7f" : "\u00a78\u2022 \u00a77")
+                    + plugin.getMessageManager().get(player, "gui.theme." + theme.key()));
+        }
+        lore.add(plugin.getMessageManager().get(player, "gui.theme.hint"));
+        meta.setLore(lore);
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    private static ItemStack lightFor(int volume) {
+        ItemStack item = new ItemStack(Material.LIGHT);
+
+        int level = Math.max(0, Math.min(15, Math.round(
+                SpeakerSettings.clampVolume(volume) * 15f / SpeakerSettings.MAX_VOLUME)));
+
+        if (item.getItemMeta() instanceof BlockDataMeta meta) {
+            BlockData data = Bukkit.createBlockData(Material.LIGHT);
+            if (data instanceof Levelled levelled) {
+                levelled.setLevel(level);
+                meta.setBlockData(levelled);
+                item.setItemMeta(meta);
+            }
+        }
         return item;
     }
 
@@ -759,8 +783,8 @@ public class PlayerGuiManager {
     }
 
     private ItemStack buildTrackNavItem(Player player, boolean forward) {
-        String texture = forward ? GuiHeads.NEXT_TRACK : GuiHeads.PREV_TRACK;
-        ItemStack item = HeadUtils.createHead(texture);
+        ItemStack item = forward ? Icons.head(player, GuiHeads.NEXT_TRACK, GuiHeads.Legacy.NEXT_TRACK)
+                : Icons.head(player, GuiHeads.PREV_TRACK, GuiHeads.Legacy.PREV_TRACK);
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return item;
 
@@ -771,9 +795,7 @@ public class PlayerGuiManager {
     }
 
     private ItemStack buildQueueButton(Player player) {
-        ItemStack item = GuiHeads.QUEUE.isEmpty()
-                ? new ItemStack(Material.PAPER)
-                : HeadUtils.createHead(GuiHeads.QUEUE);
+        ItemStack item = Icons.head(player, GuiHeads.QUEUE, GuiHeads.Legacy.QUEUE);
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return item;
 
@@ -795,7 +817,8 @@ public class PlayerGuiManager {
             level = maxLevel;
         }
 
-        ItemStack item = new ItemStack(Material.BEACON);
+        ItemStack item = Icons.pick(player,
+                GuiHeads.BEACON.get(Math.max(0, Math.min(level, GuiHeads.BEACON.size() - 1))), Material.BEACON);
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return item;
 
@@ -833,7 +856,7 @@ public class PlayerGuiManager {
     }
 
     private ItemStack buildInfoItem(Player player, PlaybackManager.PlaybackInfo info) {
-        ItemStack item = HeadUtils.createHead(GuiHeads.INFO);
+        ItemStack item = Icons.head(player, GuiHeads.INFO, GuiHeads.Legacy.INFO);
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return item;
 
@@ -852,7 +875,8 @@ public class PlayerGuiManager {
     }
 
     private ItemStack buildSeekItem(Player player, boolean forward) {
-        ItemStack item = HeadUtils.createHead(forward ? GuiHeads.SEEK_FORWARD : GuiHeads.SEEK_BACK);
+        ItemStack item = forward ? Icons.head(player, GuiHeads.SEEK_FORWARD, GuiHeads.Legacy.SEEK_FORWARD)
+                : Icons.head(player, GuiHeads.SEEK_BACK, GuiHeads.Legacy.SEEK_BACK);
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return item;
 
@@ -865,7 +889,8 @@ public class PlayerGuiManager {
 
         boolean stopped = info == null || info.paused();
 
-        ItemStack item = HeadUtils.createHead(stopped ? GuiHeads.PLAY : GuiHeads.PAUSE);
+        ItemStack item = stopped ? Icons.head(player, GuiHeads.PLAY, GuiHeads.Legacy.PLAY)
+                : Icons.head(player, GuiHeads.PAUSE, GuiHeads.Legacy.PAUSE);
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return item;
 
@@ -880,12 +905,11 @@ public class PlayerGuiManager {
 
         RepeatMode mode = info != null ? info.repeatMode()
                 : plugin.getAudioPlayerManager().getRepeatMode(block);
-        String texture = switch (mode) {
-            case OFF -> GuiHeads.REPEAT_OFF;
-            case QUEUE -> GuiHeads.REPEAT_ON;
-            case TRACK -> GuiHeads.REPEAT_TRACK.isEmpty() ? GuiHeads.REPEAT_ON : GuiHeads.REPEAT_TRACK;
+        ItemStack item = switch (mode) {
+            case OFF -> Icons.head(player, GuiHeads.REPEAT_OFF, GuiHeads.Legacy.REPEAT_OFF);
+            case QUEUE -> Icons.head(player, GuiHeads.REPEAT_ON, GuiHeads.Legacy.REPEAT_ON);
+            case TRACK -> Icons.head(player, GuiHeads.REPEAT_TRACK, GuiHeads.Legacy.REPEAT_TRACK);
         };
-        ItemStack item = HeadUtils.createHead(texture);
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return item;
 
@@ -905,7 +929,7 @@ public class PlayerGuiManager {
     }
 
     private ItemStack buildExitItem(Player player) {
-        ItemStack item = HeadUtils.createHead(GuiHeads.EXIT);
+        ItemStack item = Icons.head(player, GuiHeads.EXIT, GuiHeads.Legacy.EXIT);
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return item;
 

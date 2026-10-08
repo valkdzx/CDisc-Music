@@ -1,6 +1,13 @@
 # Changelog
 
-## 2.2 (Unreleased)
+## 2.2.1
+
+- New graphite player heads: Advanced settings, speakers, the queue and every Back button are heads too
+- Player screen themes: Dark or Legacy (the old heads and vanilla items), switched in Advanced; `gui-theme` sets the default
+- CDisc discs no longer show the vanilla song name under their own lore
+- Disc lore is translated into the maker's language and shows track length and a live-stream marker
+
+## 2.2
 
 - Own audio engine: LavaPlayer, youtube-source and LavaSrc removed, jar 41 MB to 3 MB
 - NBT-API removed
@@ -13,10 +20,7 @@
 - Files saved off the server thread
 - Parrots dance to CDisc discs
 - Lyrics button: next and previous view, shift opens the look
-- Hologram presets keep players' own look
 - Busy jukeboxes can't become speakers
-- YouTube backend asked first after repeated direct failures
-- SoundCloud previews refused
 - `/cdisc disc convert` has its own permission
 - Fixed: duplicated carried jukeboxes
 - Fixed: Folia queue saving
@@ -31,6 +35,7 @@
 - Fixed: seeking through the YouTube backend
 - Fixed: seek jumping back
 - Fixed: Spotify tracks matched to another song by the same artist
+- Fixed: startup error in the console when no voice plugin is installed
 
 ## 2.1.2
 

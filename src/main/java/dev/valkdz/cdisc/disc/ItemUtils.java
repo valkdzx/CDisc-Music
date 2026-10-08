@@ -1,8 +1,11 @@
 package dev.valkdz.cdisc.disc;
 
 import dev.valkdz.cdisc.Main;
+import dev.valkdz.cdisc.config.MessageManager;
+import dev.valkdz.cdisc.util.TimeUtils;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataContainer;
@@ -52,21 +55,17 @@ public class ItemUtils {
         return isDisc(off) ? off : null;
     }
 
-    public static void saveTrackToDisc(ItemStack item, String query, String title, String author) {
-        saveTrackToDisc(item, query, null, title, author, null);
+    public static void saveTrackToDisc(Player player, ItemStack item, String query, String title, String author) {
+        saveTrackToDisc(player, item, query, null, title, author, null, null);
     }
 
-    public static void saveTrackToDisc(ItemStack item, String query, String fallbackQuery, String title, String author) {
-        saveTrackToDisc(item, query, fallbackQuery, title, author, null);
+    public static void saveTrackToDisc(Player player, ItemStack item, String query, String fallbackQuery,
+                                       String title, String author, String musicFetch) {
+        saveTrackToDisc(player, item, query, fallbackQuery, title, author, musicFetch, null);
     }
 
-    public static void saveTrackToDisc(ItemStack item, String query, String fallbackQuery, String title,
-                                       String author, String musicFetch) {
-        saveTrackToDisc(item, query, fallbackQuery, title, author, musicFetch, null);
-    }
-
-    public static void saveTrackToDisc(ItemStack item, String query, String fallbackQuery, String title,
-                                       String author, String musicFetch, Hint hint) {
+    public static void saveTrackToDisc(Player player, ItemStack item, String query, String fallbackQuery,
+                                       String title, String author, String musicFetch, Hint hint) {
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return;
 
@@ -86,16 +85,49 @@ public class ItemUtils {
             pdc.remove(MUSIC_FETCH_KEY);
         }
 
+        meta.setLore(discLore(player, title, author, isDisc(item) ? hint : null));
+        meta.addItemFlags(ItemFlag.HIDE_POTION_EFFECTS);
+        if (isDisc(item)) songLine(meta, item, false);
+        item.setItemMeta(meta);
+    }
+
+    private static volatile boolean songLineReported;
+
+    // 1.21 to 1.21.4 print the song from the jukebox component, which the flag above does not reach.
+    // getJukeboxPlayable() hands back song 13 for an unpatched disc, so the disc's own song is set back.
+    private static void songLine(ItemMeta meta, ItemStack item, boolean show) {
+        try {
+            Class<?> type = Class.forName("org.bukkit.inventory.meta.components.JukeboxPlayableComponent");
+            Object song = ItemMeta.class.getMethod("getJukeboxPlayable").invoke(meta);
+            String key = item.getType().name().substring("MUSIC_DISC_".length()).toLowerCase(java.util.Locale.ROOT);
+            type.getMethod("setSongKey", NamespacedKey.class).invoke(song, NamespacedKey.minecraft(key));
+            type.getMethod("setShowInTooltip", boolean.class).invoke(song, show);
+            ItemMeta.class.getMethod("setJukeboxPlayable", type).invoke(meta, song);
+        } catch (ClassNotFoundException | NoSuchMethodException ignored) {
+        } catch (ReflectiveOperationException | RuntimeException e) {
+            Main plugin = Main.getInstance();
+            if (songLineReported || !plugin.cdiscConfig().isDebug()) return;
+            songLineReported = true;
+            Throwable cause = e instanceof java.lang.reflect.InvocationTargetException ite ? ite.getCause() : e;
+            plugin.getLogger().warning("Could not change the vanilla song line on a disc: " + cause);
+        }
+    }
+
+    private static List<String> discLore(Player player, String title, String author, Hint hint) {
+        MessageManager messages = Main.getInstance().getMessageManager();
         List<String> lore = new ArrayList<>();
         if (author == null || author.isBlank()) {
-            lore.add("§f" + title);
+            lore.add(messages.get(player, "disc.lore.title_only", title));
         } else {
-            lore.add("§7Author: §f" + author);
-            lore.add("§7Track: §f" + title);
+            lore.add(messages.get(player, "disc.lore.author", author));
+            lore.add(messages.get(player, "disc.lore.track", title));
         }
-        meta.setLore(lore);
-
-        item.setItemMeta(meta);
+        if (hint != null && hint.live()) {
+            lore.add(messages.get(player, "disc.lore.live"));
+        } else if (hint != null && hint.lengthMs() > 0) {
+            lore.add(messages.get(player, "disc.lore.length", TimeUtils.format(hint.lengthMs())));
+        }
+        return lore;
     }
 
     private static final long HINT_TTL_MS = 14L * 24 * 60 * 60 * 1000;
@@ -191,6 +223,8 @@ public class ItemUtils {
         meta.getPersistentDataContainer().remove(MUSIC_FETCH_KEY);
         writeHint(meta.getPersistentDataContainer(), null);
         meta.setLore(null);
+        meta.removeItemFlags(ItemFlag.HIDE_POTION_EFFECTS);
+        if (isDisc(item)) songLine(meta, item, true);
 
         item.setItemMeta(meta);
     }

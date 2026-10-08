@@ -631,6 +631,12 @@ gui:
   view:
     to_dialog: "&b&lНове вікно"
     to_dialog_lore: "&7Програвач як діалог. Твій вибір запам'ятається"
+  theme:
+    name: "&6Тема"
+    dark: "Темна"
+    legacy: "Legacy"
+    hint: "&7Натисни, щоб змінити"
+    set: "Тема: %s"
   exit:
     name: "&c&lВихід"
   seek:
@@ -759,3 +765,12 @@ broadcast:
     to_handheld_lore: "&7Блок відпустить мікрофон, важіль дістанеться тобі"
     to_block: "&6&lЗробити блоком"
     to_block_lore: "&7Обери блок у радіусі %s блоків, важіль зникне"
+disc:
+  # Lore written onto a disc when it is made. Author, track, length and the
+  # live marker are baked in the maker's language, not re-read per viewer.
+  lore:
+    author: "&7Автор: &f%s"
+    track: "&7Трек: &f%s"
+    title_only: "&f%s"
+    length: "&7Тривалість: &f%s"
+    live: "&c● Трансляція наживо"

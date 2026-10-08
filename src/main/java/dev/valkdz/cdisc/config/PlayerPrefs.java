@@ -24,11 +24,15 @@ public final class PlayerPrefs {
     private static final NamespacedKey SNEAK_MODE =
             new NamespacedKey(Main.getInstance(), "cdisc_sneak_mode");
 
+    private static final NamespacedKey THEME =
+            new NamespacedKey(Main.getInstance(), "cdisc_theme");
+
     public static final int VOLUME_FOLLOWS_JUKEBOX = -1;
 
-    private static final String NO_SNEAK_MODE = "";
+    private static final String UNSET = "";
 
     private static final Map<UUID, String> sneakModes = new ConcurrentHashMap<>();
+    private static final Map<UUID, String> themes = new ConcurrentHashMap<>();
 
     private PlayerPrefs() {
     }
@@ -93,9 +97,9 @@ public final class PlayerPrefs {
     public static SneakMode sneakMode(Player player, SneakMode byDefault) {
         String stored = sneakModes.computeIfAbsent(player.getUniqueId(), id -> {
             String read = container(player).get(SNEAK_MODE, PersistentDataType.STRING);
-            return read == null ? NO_SNEAK_MODE : read;
+            return read == null ? UNSET : read;
         });
-        return stored.equals(NO_SNEAK_MODE) ? byDefault : SneakMode.parse(stored, byDefault);
+        return stored.equals(UNSET) ? byDefault : SneakMode.parse(stored, byDefault);
     }
 
     public static void setSneakMode(Player player, SneakMode mode) {
@@ -105,8 +109,22 @@ public final class PlayerPrefs {
         sneakModes.put(player.getUniqueId(), mode.key());
     }
 
+    public static GuiTheme theme(Player player, GuiTheme byDefault) {
+        String stored = themes.computeIfAbsent(player.getUniqueId(), id -> {
+            String read = container(player).get(THEME, PersistentDataType.STRING);
+            return read == null ? UNSET : read;
+        });
+        return stored.equals(UNSET) ? byDefault : GuiTheme.parse(stored, byDefault);
+    }
+
+    public static void setTheme(Player player, GuiTheme theme) {
+        container(player).set(THEME, PersistentDataType.STRING, theme.key());
+        themes.put(player.getUniqueId(), theme.key());
+    }
+
     public static void forget(UUID player) {
         sneakModes.remove(player);
+        themes.remove(player);
     }
 
     public static boolean toggleTrackMessages(Player player) {

@@ -191,7 +191,7 @@ public final class PlaylistGuiManager {
 
             String uri = track.getInfo().uri == null ? holder.getQuery() : track.getInfo().uri;
 
-            ItemUtils.saveTrackToDisc(disc, uri, null,
+            ItemUtils.saveTrackToDisc(player, disc, uri, null,
                     Normalizer.normalize(title, Normalizer.Form.NFC),
                     Normalizer.normalize(author, Normalizer.Form.NFC),
                     null);

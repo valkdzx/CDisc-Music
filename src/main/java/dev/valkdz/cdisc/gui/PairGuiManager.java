@@ -146,7 +146,7 @@ public final class PairGuiManager {
         holder.setTargets(candidates);
 
         if (candidates.isEmpty()) {
-            inventory.setItem(ROW_START + 4, placeholder(Material.BARRIER,
+            inventory.setItem(ROW_START + 4, placeholder(Icons.pick(player, GuiHeads.NONE, Material.BARRIER),
                     plugin.getMessageManager().get(player, "gui.pair.picker_empty")));
         }
 
@@ -191,7 +191,7 @@ public final class PairGuiManager {
     }
 
     private ItemStack nameItem(Player player, Block block, SpeakerSettings settings, String roleKey) {
-        ItemStack item = new ItemStack(Material.NAME_TAG);
+        ItemStack item = Icons.pick(player, GuiHeads.RENAME, Material.NAME_TAG);
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return item;
 
@@ -206,7 +206,7 @@ public final class PairGuiManager {
 
     private ItemStack channelItem(Player player, SpeakerSettings settings) {
 
-        ItemStack item = new ItemStack(Material.BREWING_STAND);
+        ItemStack item = Icons.pick(player, GuiHeads.CHANNELS, Material.BREWING_STAND);
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return item;
 
@@ -225,9 +225,10 @@ public final class PairGuiManager {
     private ItemStack volumeItem(Player player, SpeakerSettings settings) {
         boolean muted = settings.isMuted();
 
-        ItemStack item = new ItemStack(
-                muted ? Material.BARRIER : Material.NOTE_BLOCK,
-                muted ? 1 : Math.max(1, settings.volume() / SpeakerSettings.VOLUME_STEP));
+        ItemStack item = Icons.pick(player, muted ? GuiHeads.VOLUME_MUTE
+                        : settings.volume() * 2 < SpeakerSettings.MAX_VOLUME ? GuiHeads.VOLUME_LOW : GuiHeads.VOLUME_HIGH,
+                muted ? Material.BARRIER : Material.NOTE_BLOCK);
+        item.setAmount(muted ? 1 : Math.max(1, settings.volume() / SpeakerSettings.VOLUME_STEP));
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return item;
 
@@ -241,7 +242,8 @@ public final class PairGuiManager {
     }
 
     private ItemStack particlesItem(Player player, SpeakerSettings settings) {
-        ItemStack item = new ItemStack(settings.particles() ? Material.LIME_WOOL : Material.GRAY_WOOL);
+        ItemStack item = settings.particles() ? Icons.pick(player, GuiHeads.PARTICLES_ON, Material.LIME_WOOL)
+                : Icons.pick(player, GuiHeads.PARTICLES_OFF, Material.GRAY_WOOL);
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return item;
 
@@ -253,7 +255,7 @@ public final class PairGuiManager {
     }
 
     private ItemStack promoteItem(Player player) {
-        ItemStack item = new ItemStack(Material.JUKEBOX);
+        ItemStack item = Icons.pick(player, GuiHeads.PROMOTE, Material.JUKEBOX);
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return item;
         meta.setDisplayName(plugin.getMessageManager().get(player, "gui.speaker.promote"));
@@ -263,7 +265,7 @@ public final class PairGuiManager {
     }
 
     private ItemStack unlinkItem(Player player) {
-        ItemStack item = new ItemStack(Material.RED_WOOL);
+        ItemStack item = Icons.pick(player, GuiHeads.UNLINK, Material.RED_WOOL);
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return item;
         meta.setDisplayName(plugin.getMessageManager().get(player, "gui.speaker.unlink"));
@@ -309,7 +311,7 @@ public final class PairGuiManager {
     }
 
     private ItemStack infoItem(Player player, SpeakerGroup group) {
-        ItemStack item = new ItemStack(Material.NOTE_BLOCK);
+        ItemStack item = Icons.pick(player, GuiHeads.PAIR, Material.NOTE_BLOCK);
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return item;
 
@@ -325,7 +327,8 @@ public final class PairGuiManager {
 
     private ItemStack addItem(Player player, SpeakerGroup group) {
         boolean full = group.size() >= plugin.cdiscConfig().getSpeakerMaxPerGroup();
-        ItemStack item = new ItemStack(full ? Material.BARRIER : Material.LIME_WOOL);
+        ItemStack item = full ? Icons.pick(player, GuiHeads.ADD_FULL, Material.BARRIER)
+                : Icons.pick(player, GuiHeads.ADD, Material.LIME_WOOL);
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return item;
 
@@ -338,7 +341,7 @@ public final class PairGuiManager {
     }
 
     private ItemStack dissolveItem(Player player) {
-        ItemStack item = new ItemStack(Material.RED_WOOL);
+        ItemStack item = Icons.pick(player, GuiHeads.DISSOLVE, Material.RED_WOOL);
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return item;
         meta.setDisplayName(plugin.getMessageManager().get(player, "gui.pair.dissolve.name"));
@@ -400,7 +403,7 @@ public final class PairGuiManager {
     }
 
     private ItemStack backItem(Player player) {
-        return placeholder(Material.ARROW, plugin.getMessageManager().get(player, "gui.pair.back"));
+        return placeholder(Icons.pick(player, GuiHeads.BACK, Material.ARROW), plugin.getMessageManager().get(player, "gui.pair.back"));
     }
 
     private ItemStack filler() {
@@ -408,7 +411,10 @@ public final class PairGuiManager {
     }
 
     private ItemStack placeholder(Material material, String name) {
-        ItemStack item = new ItemStack(material);
+        return placeholder(new ItemStack(material), name);
+    }
+
+    private ItemStack placeholder(ItemStack item, String name) {
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
             meta.setDisplayName(name);

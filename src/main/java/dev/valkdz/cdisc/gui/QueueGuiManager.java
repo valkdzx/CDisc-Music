@@ -7,7 +7,6 @@ import dev.valkdz.cdisc.jukebox.PlaybackManager;
 import dev.valkdz.cdisc.jukebox.queue.DiscQueue;
 import dev.valkdz.cdisc.jukebox.queue.PlayedPolicy;
 import dev.valkdz.cdisc.permission.Action;
-import dev.valkdz.cdisc.util.HeadUtils;
 import dev.valkdz.cdisc.util.Tasks;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -268,7 +267,7 @@ public class QueueGuiManager {
         if (!plugin.cdiscConfig().isSpeakerGroupEnabled()) return filler();
 
         SpeakerGroup group = plugin.getSpeakerGroupManager().groupAt(block);
-        ItemStack item = new ItemStack(Material.JUKEBOX);
+        ItemStack item = Icons.pick(player, GuiHeads.PAIR, Material.JUKEBOX);
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return item;
 
@@ -289,7 +288,7 @@ public class QueueGuiManager {
     }
 
     private ItemStack exitItem(Player player) {
-        ItemStack item = HeadUtils.createHead(GuiHeads.EXIT);
+        ItemStack item = Icons.head(player, GuiHeads.BACK, GuiHeads.Legacy.EXIT);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
             meta.setDisplayName(plugin.getMessageManager().get(player, "gui.queue.exit.name"));
@@ -301,7 +300,7 @@ public class QueueGuiManager {
     private ItemStack currentItem(Player player, DiscQueue queue) {
         ItemStack disc = queue.getCurrent();
         if (disc == null) {
-            return placeholder(Material.RED_STAINED_GLASS_PANE,
+            return placeholder(Icons.pick(player, GuiHeads.NONE, Material.RED_STAINED_GLASS_PANE),
                     plugin.getMessageManager().get(player, "gui.queue.current.none"));
         }
         return discDisplay(player, disc, "gui.queue.current.name", queue.getCurrentIndex());
@@ -311,7 +310,7 @@ public class QueueGuiManager {
         int cur = queue.getCurrentIndex();
         int next = cur >= 0 ? queue.nextFilledAfter(cur) : queue.firstFilled();
         if (next < 0) {
-            return placeholder(Material.LIME_STAINED_GLASS_PANE,
+            return placeholder(Icons.pick(player, GuiHeads.NONE, Material.LIME_STAINED_GLASS_PANE),
                     plugin.getMessageManager().get(player, "gui.queue.next.none"));
         }
         return discDisplay(player, queue.getSlot(next), "gui.queue.next.name", next);
@@ -319,7 +318,11 @@ public class QueueGuiManager {
 
     private ItemStack policyItem(Player player, DiscQueue queue) {
         PlayedPolicy policy = queue.getPolicy();
-        ItemStack item = new ItemStack(Material.COMPARATOR);
+        ItemStack item = Icons.pick(player, switch (policy) {
+            case NOTHING -> GuiHeads.POLICY_KEEP;
+            case EJECT -> GuiHeads.POLICY_EJECT;
+            case MOVE_TO_END -> GuiHeads.POLICY_MOVE;
+        }, Material.COMPARATOR);
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return item;
 
@@ -359,7 +362,10 @@ public class QueueGuiManager {
     }
 
     private ItemStack placeholder(Material material, String name) {
-        ItemStack item = new ItemStack(material);
+        return placeholder(new ItemStack(material), name);
+    }
+
+    private ItemStack placeholder(ItemStack item, String name) {
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
             meta.setDisplayName(name);

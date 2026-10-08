@@ -214,6 +214,12 @@ player-dialog: true
 # resends the whole screen — which is why this is not 1.
 player-dialog-refresh-ticks: 10
 
+### Player screen theme
+# The icons of the player screen and the screens it opens, for players who never picked one.
+# dark (grey heads) | legacy (the coloured heads and vanilla items from before 2.2.1).
+# Each player switches their own from Advanced in the player screen.
+gui-theme: dark
+
 ### Settings window
 # /cdisc admin config: config.yml, sources.yml, permissions.yml and tokens.yml as a dialog,
 # one tab per file. Paper 1.21.7+ only. Saving rewrites the file and reloads the plugin.

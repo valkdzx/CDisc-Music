@@ -1,6 +1,8 @@
 package dev.valkdz.cdisc.feature.broadcast;
 
 import dev.valkdz.cdisc.Main;
+import dev.valkdz.cdisc.gui.GuiHeads;
+import dev.valkdz.cdisc.gui.Icons;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -94,7 +96,7 @@ public final class BroadcastGui implements Listener {
                     : item(Material.LIGHT_GRAY_STAINED_GLASS_PANE, msg(player, "broadcast.gui.free_slot")));
         }
 
-        inventory.setItem(STATION_BACK, item(Material.ARROW, msg(player, "broadcast.gui.back")));
+        inventory.setItem(STATION_BACK, item(Icons.pick(player, GuiHeads.BACK, Material.ARROW), msg(player, "broadcast.gui.back")));
         inventory.setItem(STATION_NEW_HANDHELD, item(Material.LEVER, msg(player, "broadcast.gui.new_handheld"),
                 msg(player, "broadcast.gui.new_handheld_lore")));
         inventory.setItem(STATION_NEW_BLOCK, item(Material.NOTE_BLOCK, msg(player, "broadcast.gui.new_block"),
@@ -131,7 +133,7 @@ public final class BroadcastGui implements Listener {
                     msg(player, "broadcast.gui.to_handheld_lore")));
         }
         inventory.setItem(MIC_REMOVE, item(Material.RED_CONCRETE, msg(player, "broadcast.gui.remove")));
-        inventory.setItem(MIC_BACK, item(Material.ARROW, msg(player, "broadcast.gui.back")));
+        inventory.setItem(MIC_BACK, item(Icons.pick(player, GuiHeads.BACK, Material.ARROW), msg(player, "broadcast.gui.back")));
         inventory.setItem(EXIT, exit(player));
         player.openInventory(inventory);
     }
@@ -194,7 +196,7 @@ public final class BroadcastGui implements Listener {
         if (ids.isEmpty()) {
             inventory.setItem(22, item(Material.BARRIER, msg(player, "broadcast.gui.pass_nobody")));
         }
-        inventory.setItem(PASS_BACK, item(Material.ARROW, msg(player, "broadcast.gui.back")));
+        inventory.setItem(PASS_BACK, item(Icons.pick(player, GuiHeads.BACK, Material.ARROW), msg(player, "broadcast.gui.back")));
         inventory.setItem(PASS_EXIT, exit(player));
         player.openInventory(inventory);
     }
@@ -460,7 +462,10 @@ public final class BroadcastGui implements Listener {
     }
 
     private static ItemStack item(Material material, String name, String... lore) {
-        ItemStack item = new ItemStack(material);
+        return item(new ItemStack(material), name, lore);
+    }
+
+    private static ItemStack item(ItemStack item, String name, String... lore) {
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return item;
         meta.setDisplayName(name);

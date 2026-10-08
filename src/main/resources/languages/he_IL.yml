@@ -631,6 +631,12 @@ gui:
   view:
     to_dialog: "&b&lהחלון החדש"
     to_dialog_lore: "&7הנגן כדיאלוג. הבחירה שלך נשמרת"
+  theme:
+    name: "&6ערכת נושא"
+    dark: "כהה"
+    legacy: "Legacy"
+    hint: "&7לחץ כדי להחליף"
+    set: "ערכת נושא: %s"
   exit:
     name: "&c&lיציאה"
   seek:
@@ -759,3 +765,12 @@ broadcast:
     to_handheld_lore: "&7הבלוק משחרר אותו והידית שלך"
     to_block: "&6&lהפוך לבלוק"
     to_block_lore: "&7בחר בלוק בטווח %s בלוקים; הידית תיעלם"
+disc:
+  # Lore written onto a disc when it is made. Author, track, length and the
+  # live marker are baked in the maker's language, not re-read per viewer.
+  lore:
+    author: "&7אמן: &f%s"
+    track: "&7רצועה: &f%s"
+    title_only: "&f%s"
+    length: "&7משך: &f%s"
+    live: "&c● שידור חי"

@@ -631,6 +631,12 @@ gui:
   view:
     to_dialog: "&b&lالنافذة الجديدة"
     to_dialog_lore: "&7المشغّل كحوار. يُحفظ اختيارك"
+  theme:
+    name: "&6السمة"
+    dark: "داكنة"
+    legacy: "Legacy"
+    hint: "&7انقر للتبديل"
+    set: "السمة: %s"
   exit:
     name: "&c&lخروج"
   seek:
@@ -759,3 +765,12 @@ broadcast:
     to_handheld_lore: "&7تتركه الكتلة ويصبح الذراع لك"
     to_block: "&6&lاجعله كتلة"
     to_block_lore: "&7اختر كتلة في نطاق %s كتل؛ سيختفي الذراع"
+disc:
+  # Lore written onto a disc when it is made. Author, track, length and the
+  # live marker are baked in the maker's language, not re-read per viewer.
+  lore:
+    author: "&7الفنان: &f%s"
+    track: "&7المقطع: &f%s"
+    title_only: "&f%s"
+    length: "&7المدة: &f%s"
+    live: "&c● بث مباشر"

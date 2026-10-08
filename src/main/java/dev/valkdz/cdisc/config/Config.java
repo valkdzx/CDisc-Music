@@ -453,6 +453,10 @@ public final class Config {
         return SneakMode.parse(cfg().getString("sneak-mode", "toggle"), SneakMode.TOGGLE);
     }
 
+    public GuiTheme getGuiTheme() {
+        return GuiTheme.parse(cfg().getString("gui-theme", "dark"), GuiTheme.DARK);
+    }
+
     public boolean isPlayerDialogEnabled() {
         return cfg().getBoolean("player-dialog", true);
     }

@@ -156,7 +156,7 @@ public final class BroadcastManager implements Listener, MicrophoneSink {
         Bukkit.getPluginManager().callEvent(event);
         if (event.isCancelled()) return;
 
-        ItemUtils.saveTrackToDisc(item, BroadcastTrack.PREFIX + name, null, name, player.getName(), null, null);
+        ItemUtils.saveTrackToDisc(player, item, BroadcastTrack.PREFIX + name, null, name, player.getName(), null, null);
         MicrophoneItems.setHost(item, player.getUniqueId());
         player.sendMessage("§a" + msg(player, "broadcast.disc_created", name));
     }

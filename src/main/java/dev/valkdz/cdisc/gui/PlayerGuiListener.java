@@ -1,6 +1,8 @@
 package dev.valkdz.cdisc.gui;
 
 import dev.valkdz.cdisc.Main;
+import dev.valkdz.cdisc.config.GuiTheme;
+import dev.valkdz.cdisc.config.PlayerPrefs;
 import dev.valkdz.cdisc.jukebox.PlaybackManager;
 import dev.valkdz.cdisc.permission.Action;
 import dev.valkdz.cdisc.util.TimeUtils;
@@ -139,6 +141,14 @@ public class PlayerGuiListener implements Listener {
         }
         if (slot == PlayerGuiManager.ADV_BACK) {
             plugin.getPlayerGuiManager().open(player, block);
+            return;
+        }
+        if (slot == PlayerGuiManager.ADV_THEME) {
+            GuiTheme next = Icons.theme(player).next();
+            PlayerPrefs.setTheme(player, next);
+            player.sendMessage(plugin.getMessageManager().get(player, "gui.theme.set",
+                    plugin.getMessageManager().get(player, "gui.theme." + next.key())));
+            plugin.getPlayerGuiManager().refresh(player, block);
             return;
         }
 
