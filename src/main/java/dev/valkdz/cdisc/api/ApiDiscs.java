@@ -96,11 +96,11 @@ final class ApiDiscs {
         if (address == null) address = info.uri != null && !info.uri.isBlank() ? info.uri : query;
         if (address == null) address = info.identifier;
 
-        String shownTitle = title != null ? title : usable(info.title) ? info.title : "No name";
-        String shownAuthor = author != null ? author : usable(info.author) ? info.author : "Unknown";
-        LocalTrackSettings.Shown shown = cdisc.getLocalMusic().shown(address, shownTitle, shownAuthor);
-        if (shown.title() != null) shownTitle = shown.title();
-        if (shown.author() != null) shownAuthor = shown.author();
+        String ownTitle = usable(info.title) ? info.title : "No name";
+        String ownAuthor = usable(info.author) ? info.author : "Unknown";
+        LocalTrackSettings.Shown shown = cdisc.getLocalMusic().shown(address, ownTitle, ownAuthor);
+        String shownTitle = title != null ? title : shown.title() != null ? shown.title() : ownTitle;
+        String shownAuthor = author != null ? author : shown.author() != null ? shown.author() : ownAuthor;
 
         long length = info.isStream || info.length == AudioTrackInfo.UNKNOWN_LENGTH ? 0 : info.length;
         return new Track(address, nfc(shownTitle), nfc(shownAuthor), length, info.isStream);
