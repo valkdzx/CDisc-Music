@@ -6,6 +6,9 @@
 - Player screen themes: Dark or Legacy (the old heads and vanilla items), switched in Advanced; `gui-theme` sets the default
 - CDisc discs no longer show the vanilla song name under their own lore
 - Disc lore is translated into the maker's language and shows track length and a live-stream marker
+- Developer API: control jukeboxes, their queues, screens, discs and player settings from other plugins
+- Developer API on Maven through JitPack
+- Tracks a plugin queues are locked discs that never leave the jukebox as items; `api.allow-discs-in-queue` makes them ordinary discs
 
 ## 2.2
 

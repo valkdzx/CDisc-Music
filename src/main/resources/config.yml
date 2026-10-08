@@ -227,6 +227,16 @@ gui-theme: dark
 # Whoever has it also gets everything cdisc.admin gives.
 config-dialog: true
 
+### Developer API
+# Tracks another plugin puts into a jukebox queue through dev.valkdz.cdisc.api or CDisc-API.
+# false: locked discs. They play like any disc but never leave the jukebox as an item: they
+# are not dropped, ejected, pulled by hoppers or taken from the queue screen. Nothing to dupe.
+# true: ordinary discs that players can take out and keep.
+api:
+  allow-discs-in-queue: false
+  # Disc item for those tracks and for discs a plugin makes. Any MUSIC_DISC_ item.
+  disc-material: MUSIC_DISC_13
+
 ### Log upload
 # /cdisc admin logs: uploads the server log to mclo.gs with a public link, for a GitHub issue.
 # false turns the command off for everyone, operators and the console included.

@@ -1,0 +1,5 @@
+# JitPack builds the developer artifact from a tag or commit of this repository.
+jdk:
+  - openjdk21
+install:
+  - mvn -B -ntp -DskipTests install

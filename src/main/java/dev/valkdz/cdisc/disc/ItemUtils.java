@@ -26,6 +26,7 @@ public class ItemUtils {
     public static final NamespacedKey GEO_KEY = new NamespacedKey(Main.getInstance(), "cdisc_geo");
     public static final NamespacedKey HINT_AT_KEY = new NamespacedKey(Main.getInstance(), "cdisc_hint_at");
     public static final NamespacedKey PLAN_KEY = new NamespacedKey(Main.getInstance(), "cdisc_plan");
+    public static final NamespacedKey LOCKED_KEY = new NamespacedKey(Main.getInstance(), "cdisc_locked");
 
     public static boolean isDisc(ItemStack item) {
         return item != null && item.getType().toString().startsWith("MUSIC_DISC_");
@@ -46,6 +47,24 @@ public class ItemUtils {
             if ("cdisc".equals(key.getNamespace())) return true;
         }
         return false;
+    }
+
+    // A locked disc exists only inside a jukebox queue: it is never dropped, handed out or
+    // hopper-pulled, so a plugin that queues one creates no item.
+    public static boolean isLocked(ItemStack item) {
+        if (item == null || !item.hasItemMeta()) return false;
+        ItemMeta meta = item.getItemMeta();
+        return meta != null && meta.getPersistentDataContainer().has(LOCKED_KEY, PersistentDataType.BYTE);
+    }
+
+    public static void lock(ItemStack item) {
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) return;
+        meta.getPersistentDataContainer().set(LOCKED_KEY, PersistentDataType.BYTE, (byte) 1);
+        List<String> lore = meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
+        lore.add(Main.getInstance().getMessageManager().get(null, "disc.lore.locked"));
+        meta.setLore(lore);
+        item.setItemMeta(meta);
     }
 
     public static ItemStack getDiscInHand(Player p) {

@@ -45,6 +45,7 @@ import dev.valkdz.cdisc.integration.metrics.CDiscMetrics;
 import dev.valkdz.cdisc.integration.placeholder.PlaceholderHook;
 import dev.valkdz.cdisc.integration.worldguard.RegionGuard;
 import dev.valkdz.cdisc.jukebox.JukeboxListener;
+import dev.valkdz.cdisc.jukebox.LockedDiscGuard;
 import dev.valkdz.cdisc.jukebox.PlaybackManager;
 import dev.valkdz.cdisc.jukebox.PlaybackResume;
 import dev.valkdz.cdisc.jukebox.TrackProgressDisplay;
@@ -192,7 +193,7 @@ public final class Main extends JavaPlugin {
         listen(new LyricsGuiListener(this));
 
         queueGuiManager = new QueueGuiManager(this);
-        listen(new QueueGuiListener(this));
+        listen(new QueueGuiListener(this), new LockedDiscGuard(this));
 
         pairGuiManager = new PairGuiManager(this);
         listen(new PairGuiListener(this));

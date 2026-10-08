@@ -465,6 +465,14 @@ public final class Config {
         return cfg().getBoolean("config-dialog", true);
     }
 
+    public boolean isApiDiscsReal() {
+        return cfg().getBoolean("api.allow-discs-in-queue", false);
+    }
+
+    public String getApiDiscMaterial() {
+        return cfg().getString("api.disc-material", "MUSIC_DISC_13");
+    }
+
     public boolean isLogUploadEnabled() {
         return cfg().getBoolean("log-upload", true);
     }

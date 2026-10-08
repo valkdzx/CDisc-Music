@@ -137,10 +137,89 @@ describe the nearest jukebox the player can hear (paired speakers count):
 | `%cdisc_uri%` | the link the track came from |
 | `%cdisc_jukeboxes%` | how many jukeboxes are playing on the server |
 
-Other plugins can listen for `TrackStartEvent` (a disc, the next in the queue, a
-crossfade or a repeat began), `PlaybackStopEvent` (a jukebox fell silent) and the
-cancellable `DiscCreateEvent`, all in `dev.valkdz.cdisc.api.event`, and ask
-`dev.valkdz.cdisc.api.CDiscApi` what a jukebox or a player is hearing.
+## Developer API
+
+Other plugins drive CDisc through `dev.valkdz.cdisc.api`: jukeboxes, their queues, the
+screens, discs and player settings. Everything else in the jar is internal and may change
+in any release.
+
+### Maven
+
+CDisc is built by [JitPack](https://jitpack.io/#valkdzx/CDisc-Music) straight from this
+repository. Use a release tag, or a commit hash for an unreleased build.
+
+```xml
+<repositories>
+    <repository>
+        <id>jitpack.io</id>
+        <url>https://jitpack.io</url>
+    </repository>
+</repositories>
+
+<dependency>
+    <groupId>com.github.valkdzx</groupId>
+    <artifactId>CDisc-Music</artifactId>
+    <version>2.2.1</version>
+    <scope>provided</scope>
+</dependency>
+```
+
+Gradle: `maven("https://jitpack.io")` and `compileOnly("com.github.valkdzx:CDisc-Music:2.2.1")`.
+Always `provided` / `compileOnly`: the server already has CDisc. In `plugin.yml`:
+`depend: [CDisc]` or `softdepend: [CDisc]`.
+
+### Usage
+
+```java
+// Jukeboxes
+JukeboxControl jukebox = CDiscApi.jukebox(block);
+jukebox.play("yt:never gonna give you up");
+jukebox.skip();
+jukebox.repeat(JukeboxControl.Repeat.QUEUE);
+jukebox.nowPlaying().ifPresent(np -> player.sendMessage(np.title()));
+
+// The queue: 42 slots, numbered from 0
+QueueControl queue = jukebox.queue();
+queue.add("https://www.youtube.com/playlist?list=...")      // a playlist fills free slots
+        .thenAccept(added -> getLogger().info(added.size() + " queued"));
+queue.move(3, 0);
+queue.remove(5);
+queue.play(0);
+queue.afterPlay(QueueControl.AfterPlay.MOVE_TO_END);
+for (QueueEntry entry : queue.entries()) { ... }
+
+// Screens, opened for the player with CDisc's own permission checks
+CDiscApi.gui().open(player, GuiControl.Screen.QUEUE, block);
+CDiscApi.gui().open(player, GuiControl.Screen.LYRICS_LOOK);
+CDiscApi.gui().close(player);
+
+// Discs and player settings
+CDiscApi.createDisc("local:intro.ogg").thenAccept(disc -> ...);   // a real disc item
+CDiscApi.readDisc(item).ifPresent(info -> ...);
+CDiscApi.player(player).lyrics("track_lyrics");
+CDiscApi.player(player).trackMessages(false);
+```
+
+Methods that change something can be called from any thread; CDisc moves the work to the
+jukebox's or the player's own thread (Folia included). `add`, `remove`, `move` and `clear`
+return a `CompletableFuture` that finishes once it is done; `add` fails with a
+`QueueException` (`NO_MATCH`, `FULL`, ...) when nothing could be queued.
+
+**Queued discs are locked by default.** A track a plugin queues plays like any disc but
+never exists as an item: it is not dropped, ejected, pulled out by a hopper or taken from
+the queue screen, so a plugin can fill queues without creating items to dupe. Whoever `permissions.yml`
+allows `queue.remove` can still delete one from the queue screen. Set
+`api.allow-discs-in-queue: true` in `config.yml` to queue ordinary discs instead. Removing a
+player's own disc through the API drops it at the jukebox, never deletes it.
+
+### Events
+
+`TrackStartEvent` (a disc, the next in the queue, a crossfade or a repeat began),
+`PlaybackStopEvent` (a jukebox fell silent) and the cancellable `DiscCreateEvent`, all in
+`dev.valkdz.cdisc.api.event`.
+
+For commands, and sounds that play anywhere rather than from a jukebox, there is the
+separate CDisc-API add-on.
 
 ## Configuration
 

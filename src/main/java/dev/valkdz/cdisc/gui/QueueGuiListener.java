@@ -69,6 +69,19 @@ public class QueueGuiListener implements Listener {
             ItemStack cursor = e.getCursor();
             ItemStack cell = e.getCurrentItem();
 
+            if (ItemUtils.isLocked(cell)) {
+                e.setCancelled(true);
+                boolean emptyCursor = cursor == null || cursor.getType().isAir();
+                if (e.getClick() == ClickType.LEFT && emptyCursor) {
+                    if (qIndex >= 0) plugin.getQueueGuiManager().openPlayConfirm(player, block, qIndex);
+                } else if (((e.getClick() == ClickType.RIGHT && emptyCursor) || e.getClick().isShiftClick())
+                        && may(player, Action.QUEUE_REMOVE)) {
+                    e.getView().getTopInventory().setItem(raw, null);
+                    plugin.getQueueGuiManager().schedulePersist(block, e.getView().getTopInventory());
+                }
+                return;
+            }
+
             if (ItemUtils.isCdiscDisc(cursor)) {
                 if (isPlaceAction(e.getAction()) && may(player, Action.QUEUE_ADD)) {
                     plugin.getQueueGuiManager().schedulePersist(block, e.getView().getTopInventory());

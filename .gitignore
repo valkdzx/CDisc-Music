@@ -10,6 +10,7 @@
 !/CHANGELOG.md
 !/modrinth-description-en.md
 !/pom.xml
+!/jitpack.yml
 !/src/
 
 # Never publish, wherever it turns up.

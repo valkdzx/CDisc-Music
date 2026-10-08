@@ -774,3 +774,4 @@ disc:
     title_only: "&f%s"
     length: "&7Dauer: &f%s"
     live: "&c● Livestream"
+    locked: "&8Von einem Plugin eingereiht; bleibt in der Jukebox"

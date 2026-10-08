@@ -774,3 +774,4 @@ disc:
     title_only: "&f%s"
     length: "&7Duración: &f%s"
     live: "&c● Emisión en directo"
+    locked: "&8Añadido por un plugin; no sale de la gramola"

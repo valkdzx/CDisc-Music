@@ -76,7 +76,7 @@ actions:
     open: true
     # Putting a disc into the queue
     add: true
-    # Taking one back out
+    # Taking one back out. A locked disc another plugin queued is deleted instead
     remove: true
     # Clicking a disc in the queue to play it now
     play: true

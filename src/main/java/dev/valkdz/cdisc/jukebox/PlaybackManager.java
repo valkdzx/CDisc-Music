@@ -1255,6 +1255,10 @@ public class PlaybackManager {
         return restored;
     }
 
+    public DiscQueue liveQueue(Block block) {
+        return queues.get(block);
+    }
+
     public DiscQueue getOrCreateQueue(Block block) {
         DiscQueue queue = getQueue(block);
         return queue != null ? queue : queues.computeIfAbsent(block, b -> new DiscQueue());
@@ -1560,7 +1564,7 @@ public class PlaybackManager {
     }
 
     private void dropDisc(Block block, ItemStack disc) {
-        if (disc == null) return;
+        if (disc == null || ItemUtils.isLocked(disc)) return;
         org.bukkit.Location loc = block.getLocation().add(0.5, 1.1, 0.5);
         block.getWorld().dropItemNaturally(loc, disc);
     }
