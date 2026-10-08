@@ -1,9 +1,8 @@
 # JitPack builds the developer artifact from a tag or commit of this repository.
-# Its image ships a broken mvn, so Maven comes from SDKMAN instead.
+# Its image ships a broken mvn, so the SDKMAN one is called by its full path.
 jdk:
   - openjdk21
 before_install:
   - sdk install maven 3.9.9
-  - sdk use maven 3.9.9
 install:
-  - mvn -B -ntp -DskipTests install
+  - $HOME/.sdkman/candidates/maven/3.9.9/bin/mvn -B -ntp -DskipTests install
