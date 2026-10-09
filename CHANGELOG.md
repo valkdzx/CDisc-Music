@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.2.2
+
+- The dialog player screen is removed: the player screen is the chest screen on every version; `player-dialog`, `player-dialog-refresh-ticks` and `cdisc.player.screen` are gone. `/cdisc admin config` stays a dialog
+
 ## 2.2.1
 
 - New graphite player heads: Advanced settings, speakers, the queue and every Back button are heads too
@@ -9,7 +13,6 @@
 - Developer API: control jukeboxes, their queues, screens, discs and player settings from other plugins
 - Developer API on Maven through JitPack
 - Tracks a plugin queues are locked discs that never leave the jukebox as items; `api.allow-discs-in-queue` makes them ordinary discs
-- The dialog player screen is removed: the player screen is the chest screen on every version; `player-dialog`, `player-dialog-refresh-ticks` and `cdisc.player.screen` are gone. `/cdisc admin config` stays a dialog
 
 ## 2.2
 

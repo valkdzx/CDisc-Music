@@ -159,12 +159,12 @@ repository. Use a release tag, or a commit hash for an unreleased build.
 <dependency>
     <groupId>com.github.valkdzx</groupId>
     <artifactId>CDisc-Music</artifactId>
-    <version>2.2.1</version>
+    <version>2.2.2</version>
     <scope>provided</scope>
 </dependency>
 ```
 
-Gradle: `maven("https://jitpack.io")` and `compileOnly("com.github.valkdzx:CDisc-Music:2.2.1")`.
+Gradle: `maven("https://jitpack.io")` and `compileOnly("com.github.valkdzx:CDisc-Music:2.2.2")`.
 Always `provided` / `compileOnly`: the server already has CDisc. In `plugin.yml`:
 `depend: [CDisc]` or `softdepend: [CDisc]`.
 
