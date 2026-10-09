@@ -136,7 +136,7 @@ public final class PermissionsConfig {
                 Action.PLAYER_GUI, Action.PLAYER_PLAY, Action.PLAYER_PAUSE, Action.PLAYER_NEXT,
                 Action.PLAYER_PREVIOUS, Action.PLAYER_SEEK, Action.PLAYER_REPEAT,
                 Action.PLAYER_SHUFFLE, Action.PLAYER_VOLUME, Action.PLAYER_LOCAL_VOLUME,
-                Action.PLAYER_BEACON, Action.PLAYER_CHANNELS, Action.PLAYER_SCREEN,
+                Action.PLAYER_BEACON, Action.PLAYER_CHANNELS,
                 Action.PLAYER_INFO, Action.QUEUE_OPEN, Action.QUEUE_ADD, Action.QUEUE_REMOVE,
                 Action.QUEUE_PLAY, Action.QUEUE_POLICY, Action.QUEUE_CROSSFADE, Action.LYRICS_TOGGLE,
                 Action.LYRICS_PRESET, Action.LYRICS_SCOREBOARD));

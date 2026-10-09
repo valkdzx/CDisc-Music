@@ -65,7 +65,6 @@ public class PlayerGuiManager {
     public static final int ADV_CROSSFADE = 5;
     public static final int ADV_PORTABLE = 6;
     public static final int ADV_TRACK_MESSAGES = 7;
-    public static final int ADV_VIEW = 8;
     public static final int ADV_BACK = 9;
     public static final int ADV_THEME = 13;
 
@@ -162,11 +161,6 @@ public class PlayerGuiManager {
         }
 
         if (!local) plugin.getScreenPreferences().setLast(player.getUniqueId(), ScreenPreferences.Screen.PLAYER);
-
-        if (!local && dev.valkdz.cdisc.gui.dialog.Dialogs.playerScreenWanted(plugin, player)
-                && dev.valkdz.cdisc.gui.dialog.Dialogs.openPlayer(plugin, player, block)) {
-            return;
-        }
 
         show(player, block, new PlayerGuiHolder(block, apm.getGeneration(block), local, false));
     }
@@ -390,9 +384,6 @@ public class PlayerGuiManager {
         if (may(player, Action.QUEUE_CROSSFADE)) put(items, ADV_CROSSFADE, buildCrossfadeItem(player, block));
         if (may(player, Action.PLAYER_PORTABLE)) put(items, ADV_PORTABLE, buildPortableItem(player, block));
         if (may(player, Action.PLAYER_MESSAGES)) put(items, ADV_TRACK_MESSAGES, buildTrackMessagesItem(player));
-        if (dev.valkdz.cdisc.gui.dialog.Dialogs.switchable(plugin) && may(player, Action.PLAYER_SCREEN)) {
-            put(items, ADV_VIEW, buildViewItem(player));
-        }
         return items;
     }
 
@@ -721,18 +712,6 @@ public class PlayerGuiManager {
         meta.setDisplayName(plugin.getMessageManager().get(player, "gui.portable.name"));
         String lore = paired ? "gui.portable.paired" : (room ? "gui.portable.lore" : "gui.portable.no_room");
         meta.setLore(List.of(plugin.getMessageManager().get(player, lore)));
-        item.setItemMeta(meta);
-        return item;
-    }
-
-    private ItemStack buildViewItem(Player player) {
-        ItemStack item = Icons.pick(player, GuiHeads.VIEW, Material.PAINTING);
-        ItemMeta meta = item.getItemMeta();
-        if (meta == null) return item;
-
-        meta.setDisplayName(plugin.getMessageManager().get(player, "gui.view.to_dialog"));
-        meta.setLore(List.of(
-                plugin.getMessageManager().get(player, "gui.view.to_dialog_lore")));
         item.setItemMeta(meta);
         return item;
     }

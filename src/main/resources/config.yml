@@ -38,7 +38,7 @@ volume: 80
 # Seconds over which a jukebox blends the end of one queued disc into the next.
 # The next disc is loaded ten seconds before the end, so the switch has no gap.
 # 0 turns it off, 15 is the most. Live streams, repeat-one and a lone disc never blend.
-# Each jukebox can also switch it off: Advanced in the player screen, or Options in the dialog.
+# Each jukebox can also switch it off from Advanced in the player screen.
 crossfade: 5
 
 ### Broadcast
@@ -204,15 +204,6 @@ resume-playback: true
 # Each player picks their own with /cdisc sneak toggle|release|off; this is what a player
 # who never did gets. Walking out of earshot of the jukebox takes the progress bar away.
 sneak-mode: toggle
-
-### Player screen as a dialog
-# 1.21.6+ only, ignored on Spigot. Buttons say what they do in words, but the
-# progress bar stops being live: a dialog is a snapshot, redrawn on each press.
-player-dialog: true
-
-# Ticks between redraws. A dialog cannot be edited, so each refresh rebuilds and
-# resends the whole screen — which is why this is not 1.
-player-dialog-refresh-ticks: 10
 
 ### Player screen theme
 # The icons of the player screen and the screens it opens, for players who never picked one.

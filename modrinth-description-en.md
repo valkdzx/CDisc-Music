@@ -46,7 +46,7 @@ A disc is an ordinary item from then on: carry it, trade it, store it in a chest
 ### 💿 Jukeboxes and the player screen
 
 - **Crouch at a playing jukebox** to see a progress bar with the track and its time, then **right-click** it to open the player. Without crouching, a right-click takes the disc out as usual. `/cdisc sneak` lets each player choose how crouching works.
-- **The player screen**: play / pause, seek ±5 s or type an exact timecode, previous / next, repeat (off, whole queue, one track) and shuffle. On 1.21.6+ it opens as a real window with sliders and buttons; older versions and Spigot get the chest screen.
+- **The player screen**: play / pause, seek ±5 s or type an exact timecode, previous / next, repeat (off, whole queue, one track) and shuffle.
 - **A queue of 42 discs** per jukebox, played one after another. Choose what happens to a finished disc: it stays, it is ejected, or it moves to the end.
 - **Crossfade**: the end of one disc blends into the next, with no gap between tracks.
 - **Nothing is lost**: queues survive restarts and crashes, a playing jukebox resumes where it stopped, and breaking or burning a jukebox drops a jukebox that still holds every disc. Placing it again puts the queue back.

@@ -25,7 +25,6 @@ public enum Action {
     PLAYER_PORTABLE("player.portable", "true"),
     PLAYER_CHANNELS("player.channels", "true"),
     PLAYER_MESSAGES("player.messages", "true"),
-    PLAYER_SCREEN("player.screen", "true"),
     PLAYER_INFO("player.info", "true"),
 
     QUEUE_OPEN("queue.open", "true"),

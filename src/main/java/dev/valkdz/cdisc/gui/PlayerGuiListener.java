@@ -160,7 +160,6 @@ public class PlayerGuiListener implements Listener {
             case PlayerGuiManager.ADV_CROSSFADE -> Action.QUEUE_CROSSFADE;
             case PlayerGuiManager.ADV_PORTABLE -> Action.PLAYER_PORTABLE;
             case PlayerGuiManager.ADV_TRACK_MESSAGES -> Action.PLAYER_MESSAGES;
-            case PlayerGuiManager.ADV_VIEW -> Action.PLAYER_SCREEN;
 
             // The pair button is judged by the screen it opens.
             default -> null;
@@ -172,11 +171,6 @@ public class PlayerGuiListener implements Listener {
             case PlayerGuiManager.ADV_CHANNELS -> actions.openSpeakerSettings(player, block);
             case PlayerGuiManager.ADV_PORTABLE -> {
                 if (actions.pickUp(player, block)) player.closeInventory();
-            }
-            case PlayerGuiManager.ADV_VIEW -> {
-                dev.valkdz.cdisc.gui.dialog.Dialogs.choose(plugin, player, true);
-                player.closeInventory();
-                plugin.getPlayerGuiManager().open(player, block);
             }
             case PlayerGuiManager.ADV_BEACON -> {
                 if (!e.isLeftClick()) return;

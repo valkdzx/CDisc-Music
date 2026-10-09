@@ -40,7 +40,6 @@ public final class ScreenPreferences {
         ADVANCED
     }
 
-    private final Map<UUID, Boolean> chosen = new ConcurrentHashMap<>();
     private final Map<UUID, Screen> lastScreens = new ConcurrentHashMap<>();
 
     private final Object saveLock = new Object();
@@ -51,20 +50,6 @@ public final class ScreenPreferences {
         load();
     }
 
-    public boolean has(UUID player) {
-        return chosen.containsKey(player);
-    }
-
-    public boolean wantsDialog(UUID player, boolean fallback) {
-        Boolean said = chosen.get(player);
-        return said == null ? fallback : said;
-    }
-
-    public void set(UUID player, boolean dialog) {
-        Boolean before = chosen.put(player, dialog);
-        if (before == null || before != dialog) saveLater();
-    }
-
     public Screen last(UUID player) {
         return lastScreens.get(player);
     }
@@ -73,12 +58,7 @@ public final class ScreenPreferences {
         if (lastScreens.put(player, screen) != screen) saveLater();
     }
 
-    public void clear(UUID player) {
-        if (chosen.remove(player) != null) saveLater();
-    }
-
     public void load() {
-        chosen.clear();
         lastScreens.clear();
         if (!file.isFile()) return;
 
@@ -91,18 +71,6 @@ public final class ScreenPreferences {
             }
 
             Json root = Json.parse(new String(json, java.nio.charset.StandardCharsets.UTF_8));
-            Json all = root.path("screens");
-            if (all.isObject()) {
-                for (Iterator<Map.Entry<String, Json>> it = all.fields(); it.hasNext(); ) {
-                    Map.Entry<String, Json> entry = it.next();
-                    try {
-                        chosen.put(UUID.fromString(entry.getKey()), entry.getValue().asBoolean());
-                    } catch (IllegalArgumentException ignored) {
-
-                    }
-                }
-            }
-
             Json last = root.path("last");
             if (last.isObject()) {
                 for (Iterator<Map.Entry<String, Json>> it = last.fields(); it.hasNext(); ) {
@@ -131,10 +99,6 @@ public final class ScreenPreferences {
     public void saveNow() {
         synchronized (saveLock) {
             Json root = Json.object();
-            Json all = root.putObject("screens");
-            for (Map.Entry<UUID, Boolean> entry : chosen.entrySet()) {
-                all.put(entry.getKey().toString(), entry.getValue());
-            }
             Json last = root.putObject("last");
             for (Map.Entry<UUID, Screen> entry : lastScreens.entrySet()) {
                 last.put(entry.getKey().toString(), entry.getValue().name());

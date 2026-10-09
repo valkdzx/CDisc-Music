@@ -457,10 +457,6 @@ public final class Config {
         return GuiTheme.parse(cfg().getString("gui-theme", "dark"), GuiTheme.DARK);
     }
 
-    public boolean isPlayerDialogEnabled() {
-        return cfg().getBoolean("player-dialog", true);
-    }
-
     public boolean isConfigDialogEnabled() {
         return cfg().getBoolean("config-dialog", true);
     }
@@ -479,10 +475,6 @@ public final class Config {
 
     public boolean isDebug() {
         return cfg().getBoolean("debug", false);
-    }
-
-    public int getPlayerDialogRefreshTicks() {
-        return Math.max(1, cfg().getInt("player-dialog-refresh-ticks", 10));
     }
 
     public boolean isLyricsInGui() {

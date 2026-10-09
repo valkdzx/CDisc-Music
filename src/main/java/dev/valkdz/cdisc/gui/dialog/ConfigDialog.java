@@ -5,6 +5,7 @@ import dev.valkdz.cdisc.config.ConfigEditor.Field;
 import dev.valkdz.cdisc.config.ConfigEditor.Kind;
 import dev.valkdz.cdisc.config.ConfigEditor;
 import dev.valkdz.cdisc.permission.Perms;
+import dev.valkdz.cdisc.util.Tasks;
 import io.papermc.paper.dialog.Dialog;
 import io.papermc.paper.dialog.DialogResponseView;
 import io.papermc.paper.registry.data.dialog.ActionButton;
@@ -16,6 +17,7 @@ import io.papermc.paper.registry.data.dialog.type.DialogType;
 import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickCallback;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.entity.Player;
 
 import java.time.Duration;
@@ -114,7 +116,7 @@ final class ConfigDialog {
         List<ActionButton> buttons = new ArrayList<>();
         for (String file : ConfigEditor.FILES) {
             String color = file.equals(session.file) ? "§a§n" : "§7";
-            buttons.add(button(plugin, session, generation, shown, PlayerDialog.legacy(color + file),
+            buttons.add(button(plugin, session, generation, shown, legacy(color + file),
                     TAB_WIDTH, (p, s) -> {
                         s.file = file;
                         s.page = 0;
@@ -153,14 +155,14 @@ final class ConfigDialog {
                 .inputs(inputs)
                 .build();
 
-        PlayerDialog.audience(player).showDialog(Dialog.create(factory -> factory.empty()
+        audience(player).showDialog(Dialog.create(factory -> factory.empty()
                 .base(base)
                 .type(DialogType.multiAction(buttons).exitAction(close).columns(4).build())));
     }
 
     private static DialogInput input(Main plugin, Player player, String key, Field field, Object pending,
                                      boolean revealed) {
-        Component label = PlayerDialog.legacy("§f" + field.label());
+        Component label = legacy("§f" + field.label());
 
         if (field.kind() == Kind.BOOL) {
             boolean initial = pending instanceof Boolean b ? b : Boolean.TRUE.equals(field.value());
@@ -222,7 +224,7 @@ final class ConfigDialog {
         Player owner = org.bukkit.Bukkit.getPlayer(session.owner);
         if (owner == null) return;
 
-        PlayerDialog.onMainThread(plugin, owner, () -> {
+        Tasks.onEntity(plugin, owner, () -> {
             if (!(audience instanceof Player player) || !player.getUniqueId().equals(session.owner)) {
                 return;
             }
@@ -230,15 +232,15 @@ final class ConfigDialog {
             boolean current = SESSIONS.get(session.owner) == session && session.generation == generation;
             if (!current || System.currentTimeMillis() - session.touched > IDLE_MS) {
                 SESSIONS.remove(session.owner, session);
-                PlayerDialog.audience(player).sendMessage(text(plugin, player, "config_dialog.expired"));
+                audience(player).sendMessage(text(plugin, player, "config_dialog.expired"));
                 return;
             }
             if (!permitted(plugin, player)) {
                 SESSIONS.remove(session.owner, session);
-                PlayerDialog.audience(player).closeDialog();
+                audience(player).closeDialog();
                 plugin.getLogger().warning(player.getName() + " used the settings window without "
                         + Perms.CONFIG + " or while it is switched off; nothing was changed.");
-                PlayerDialog.audience(player).sendMessage(text(plugin, player, "perms.denied", Perms.CONFIG));
+                audience(player).sendMessage(text(plugin, player, "perms.denied", Perms.CONFIG));
                 return;
             }
 
@@ -327,6 +329,14 @@ final class ConfigDialog {
     }
 
     private static Component text(Main plugin, Player player, String key, Object... args) {
-        return PlayerDialog.legacy(plugin.getMessageManager().get(player, key, args));
+        return legacy(plugin.getMessageManager().get(player, key, args));
+    }
+
+    private static Audience audience(Player player) {
+        return (Audience) player;
+    }
+
+    private static Component legacy(String text) {
+        return LegacyComponentSerializer.legacySection().deserialize(text == null ? "" : text);
     }
 }
