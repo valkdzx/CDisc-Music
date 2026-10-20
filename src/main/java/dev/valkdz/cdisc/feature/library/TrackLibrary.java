@@ -124,7 +124,19 @@ public final class TrackLibrary {
     }
 
     private List<Track> of(UUID player) {
-        return loaded.computeIfAbsent(player, this::read);
+        return loaded.computeIfAbsent(player, this::readAfterWrites);
+    }
+
+    // Read on the writer's thread: a save still queued from before a quick rejoin would
+    // otherwise be read stale, and the next save would drop what it held.
+    private List<Track> readAfterWrites(UUID player) {
+        try {
+            return writer.submit(() -> read(player)).get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } catch (java.util.concurrent.ExecutionException | java.util.concurrent.RejectedExecutionException ignored) {
+        }
+        return read(player);
     }
 
     private File fileOf(UUID player) {
