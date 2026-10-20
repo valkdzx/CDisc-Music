@@ -22,7 +22,9 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -46,19 +48,23 @@ public class CustomYoutubeApiResolver {
 
     private volatile Consumer<Info> observer;
 
-    private final ExecutorService ioExecutor = Executors.newFixedThreadPool(4, r -> {
-        Thread t = new Thread(r, "cdisc-api-resolver-io");
-        t.setDaemon(true);
-        return t;
-    });
+    private final ExecutorService ioExecutor = idleExiting(4, "cdisc-api-resolver-io");
 
     // Separate from ioExecutor: a container probe blocks there, and the client still
     // needs a thread of its own to hand the response over.
-    private final ExecutorService httpExecutor = Executors.newFixedThreadPool(2, r -> {
-        Thread t = new Thread(r, "cdisc-api-resolver-http");
-        t.setDaemon(true);
-        return t;
-    });
+    private final ExecutorService httpExecutor = idleExiting(2, "cdisc-api-resolver-http");
+
+    // A reload builds a new resolver and drops the old one unclosed, so idle threads must end themselves.
+    private static ExecutorService idleExiting(int threads, String name) {
+        ThreadPoolExecutor pool = new ThreadPoolExecutor(threads, threads, 60, TimeUnit.SECONDS,
+                new LinkedBlockingQueue<>(), r -> {
+                    Thread t = new Thread(r, name);
+                    t.setDaemon(true);
+                    return t;
+                });
+        pool.allowCoreThreadTimeOut(true);
+        return pool;
+    }
 
     public CustomYoutubeApiResolver(String baseUrl, boolean proxy) {
         this.baseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
