@@ -20,6 +20,8 @@ public final class LrcLibProvider implements LyricsProvider {
 
     private static final int MAX_CANDIDATES = 12;
 
+    private static final int MIN_LINES = 3;
+
     private final HttpClient http;
     private final String userAgent;
 
@@ -52,12 +54,20 @@ public final class LrcLibProvider implements LyricsProvider {
 
     private SyncedLyrics attempt(LyricsQuery query) throws Exception {
         if (query == null || !query.isUsable()) return null;
+        if (query.artist().isBlank()) return search(query, "");
 
-        if (!query.artist().isBlank()) {
+        IOException busy = null;
+        try {
             SyncedLyrics exact = fetchExact(query);
             if (exact != null) return exact;
+        } catch (IOException e) {
+            // LRCLIB sheds /get first when overloaded while /search still answers.
+            busy = e;
         }
-        return search(query);
+        SyncedLyrics found = search(query, query.primaryArtist());
+        if (found == null) found = search(query, "");
+        if (found == null && busy != null) throw busy;
+        return found;
     }
 
     private SyncedLyrics fetchExact(LyricsQuery query) throws Exception {
@@ -71,37 +81,35 @@ public final class LrcLibProvider implements LyricsProvider {
         }
 
         Json body = get(url.toString());
-        return body == null ? null : synced(body);
+        return body == null || !query.titleMatches(body.get("trackName").text()) ? null : synced(body);
     }
 
-    private SyncedLyrics search(LyricsQuery query) throws Exception {
+    private SyncedLyrics search(LyricsQuery query, String artist) throws Exception {
         String url = BASE + "search?track_name=" + encode(query.track())
-                + (query.artist().isBlank() ? "" : "&artist_name=" + encode(query.artist()));
+                + (artist.isBlank() ? "" : "&artist_name=" + encode(artist));
 
         Json body = get(url);
         if (body == null) return null;
 
-        Json best = null;
-        long bestGap = Long.MAX_VALUE;
+        SyncedLyrics best = null;
+        long bestRank = Long.MAX_VALUE;
         int seen = 0;
 
         for (Json candidate : body.values()) {
             if (++seen > MAX_CANDIDATES) break;
-            if (candidate.get("syncedLyrics").isNull()) continue;
-            if (candidate.get("instrumental").asBoolean(false)) continue;
 
             long gap = durationGap(query, candidate);
-            if (gap < bestGap) {
-                bestGap = gap;
-                best = candidate;
-            }
+            if (query.durationSeconds() > 0 && gap > DURATION_TOLERANCE) continue;
+            long rank = query.rank(candidate.get("trackName").text(), candidate.get("artistName").text(), gap);
+            if (rank < 0 || rank >= bestRank) continue;
+
+            SyncedLyrics lyrics = synced(candidate);
+            if (lyrics == null) continue;
+            bestRank = rank;
+            best = lyrics;
         }
 
-        if (best == null) return null;
-
-        if (query.durationSeconds() > 0 && bestGap > DURATION_TOLERANCE) return null;
-
-        return synced(best);
+        return best;
     }
 
     private static long durationGap(LyricsQuery query, Json candidate) {
@@ -122,10 +130,17 @@ public final class LrcLibProvider implements LyricsProvider {
         return Math.abs(Math.round(found) - wanted);
     }
 
-    private static SyncedLyrics synced(Json body) {
+    static SyncedLyrics synced(Json body) {
         if (body.get("instrumental").asBoolean(false)) return null;
         String lrc = body.get("syncedLyrics").text();
-        return lrc == null ? null : SyncedLyrics.parse(lrc);
+        SyncedLyrics lyrics = lrc == null ? null : SyncedLyrics.parse(lrc);
+        if (lyrics == null) return null;
+
+        int sung = 0;
+        for (SyncedLyrics.Line line : lyrics.lines()) {
+            if (!line.isBlank() && ++sung >= MIN_LINES) return lyrics;
+        }
+        return null;
     }
 
     private Json get(String url) throws Exception {

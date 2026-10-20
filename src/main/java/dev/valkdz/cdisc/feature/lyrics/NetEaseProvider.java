@@ -23,9 +23,10 @@ public final class NetEaseProvider implements LyricsProvider {
 
     private static final int MAX_CANDIDATES = 8;
 
+    // No \b around the CJK words: since JDK 19 it is ASCII-only and never matches beside them.
     private static final Pattern CREDIT_LINE = Pattern.compile(
-            ".*[：].*|.*\\b(?:作词|作曲|编曲|制作人|"
-                    + "混音|母带|录音|出品|监制)\\b.*");
+            ".*[：].*|.*(?:作词|作曲|编曲|制作人|"
+                    + "混音|母带|录音|出品|监制).*");
 
     private static final String USER_AGENT =
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36";
@@ -60,29 +61,45 @@ public final class NetEaseProvider implements LyricsProvider {
     private SyncedLyrics attempt(LyricsQuery query) throws Exception {
         if (query == null || !query.isUsable()) return null;
 
-        String terms = (query.artist().isBlank() ? "" : query.artist() + " ") + query.track();
+        if (!query.artist().isBlank()) {
+            SyncedLyrics credited = search(query, query.primaryArtist() + " " + query.track());
+            if (credited != null) return credited;
+        }
+        return search(query, query.track());
+    }
+
+    private SyncedLyrics search(LyricsQuery query, String terms) throws Exception {
         Json body = get(SEARCH + "?s=" + encode(terms) + "&type=1&limit=" + MAX_CANDIDATES);
         if (body == null) return null;
 
         long bestId = -1;
-        long bestGap = Long.MAX_VALUE;
+        long bestRank = Long.MAX_VALUE;
 
         for (Json song : body.get("result").get("songs").values()) {
             long id = song.get("id").asLong(-1);
             if (id < 0) continue;
 
             long gap = durationGap(query, song);
-            if (gap < bestGap) {
-                bestGap = gap;
+            if (query.durationSeconds() > 0 && gap > DURATION_TOLERANCE) continue;
+            long rank = query.rank(song.get("name").text(), creditsOf(song), gap);
+            if (rank >= 0 && rank < bestRank) {
+                bestRank = rank;
                 bestId = id;
             }
         }
 
-        if (bestId < 0) return null;
+        return bestId < 0 ? null : lyricsOf(bestId);
+    }
 
-        if (query.durationSeconds() > 0 && bestGap > DURATION_TOLERANCE) return null;
-
-        return lyricsOf(bestId);
+    private static String creditsOf(Json song) {
+        StringBuilder credits = new StringBuilder();
+        for (Json artist : song.get("artists").values()) {
+            String name = artist.get("name").text();
+            if (name == null || name.isBlank()) continue;
+            if (!credits.isEmpty()) credits.append(", ");
+            credits.append(name);
+        }
+        return credits.toString();
     }
 
     private SyncedLyrics lyricsOf(long songId) throws Exception {
@@ -96,7 +113,7 @@ public final class NetEaseProvider implements LyricsProvider {
         return parsed == null ? null : withoutCredits(parsed);
     }
 
-    private static SyncedLyrics withoutCredits(SyncedLyrics lyrics) {
+    static SyncedLyrics withoutCredits(SyncedLyrics lyrics) {
         StringBuilder rebuilt = new StringBuilder();
         int kept = 0;
 
