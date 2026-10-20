@@ -132,7 +132,7 @@ actions:
 # Applied to everyone without cdisc.admin. /cdisc create makes the SERVER fetch a URL
 # a player chose, so without a limit one player can spend your bandwidth as fast as they type.
 limits:
-  # Seconds between two /cdisc create by the same player. 0 turns the wait off.
+  # Seconds between two /cdisc create or /cdisc library add by the same player. 0 turns the wait off.
   create-cooldown-seconds: 5
 
   # Longest track that may be written to a disc, in seconds. 0 means no limit.

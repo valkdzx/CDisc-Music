@@ -177,11 +177,8 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
                     p.sendMessage("§c" + message(p, "library.no_broadcast"));
                     return;
                 }
-                if (!plugin.getPermissions().isHostAllowed(p, parsed.text())) {
-                    String host = dev.valkdz.cdisc.permission.PermissionsConfig.hostOf(parsed.text());
-                    p.sendMessage("§c" + message(p, "perms.host_blocked", host == null ? "?" : host));
-                    return;
-                }
+                if (!creationAllowed(p, parsed.text())) return;
+                plugin.getPermissions().markCreated(p);
                 p.sendMessage("§e" + message(p, "lavaplayer.track.loading"));
                 plugin.getAudioPlayerManager().addToLibrary(p, rest);
             }

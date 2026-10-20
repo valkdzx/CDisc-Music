@@ -215,6 +215,7 @@ public final class LibraryGuiManager {
     }
 
     public void toggleStar(Player player, Block block) {
+        if (!plugin.getPermissions().allows(player, Action.DISC_LIBRARY)) return;
         TrackLibrary library = plugin.getTrackLibrary();
         TrackLibrary.Track track = library == null || !library.isEnabled() ? null : playing(block);
         if (track == null) return;
