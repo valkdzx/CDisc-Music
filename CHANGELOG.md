@@ -1,8 +1,32 @@
 # Changelog
 
+## 2.2.3
+
+> **Warning:** auto-update no longer exists. Every update after this one has to be downloaded by hand from [Modrinth](https://modrinth.com/plugin/cdisc-music).
+
+- Age-restricted YouTube videos play from this server through a linked YouTube account: `/cdisc admin oauth-setup` shows a code to enter at google.com/device. A disc remembers that its video needs the account and asks for it straight away. `account` in sources.yml turns it off, `cdisc.admin.oauth` decides who may link one. Use a spare account: YouTube may restrict one used this way
+- Track library: the star on the player screen saves the playing track, `/cdisc library add <link or search>` saves any other, and `/cdisc library` shows them, each on the record it was starred from, and writes the chosen one onto a disc. `/cdisc library create <track>` and `remove <track>` do the same from chat; `library-size` sets its size, `cdisc.disc.library` who has one
+- Three Halloween themes for the player screens: pumpkin, candle and lantern. `gui-theme: auto`, the new default, turns pumpkin on from 20 October to 3 November for players who never picked a theme
+- Theme picker in Advanced: each player can choose their own theme; `gui-theme` stays the default
+- Song versions: the jukebox finds a song's instrumental and its uncensored cut, and a new button on the player screen switches between them at once, from the same moment. `track-versions` turns the search off, `cdisc.player.versions` hides the button
+- `/cdisc create <search> --version=uncensored` or `--version=instrumental` writes a disc that plays that version
+- `/cdisc create <search> --results=N` sets how many search results to show, 1 to 10
+- Spotify discs credit every artist of a track, not only the first
+- Auto-update is removed because it caused problems: CDisc no longer downloads new releases or replaces its own jar. The console and operators are still told when a new release is out; `update-checker.auto-update` is gone
+- Fixed: a Spotify album or playlist link wrote a disc that would not play
+- Fixed: lyrics could come from another song
+- Fixed: lyrics were not found for a song uploaded under a cluttered title
+- Fixed: a disc could play only the 30-second preview of a SoundCloud track
+
 ## 2.2.2
 
 - The dialog player screen is removed: the player screen is the chest screen on every version; `player-dialog`, `player-dialog-refresh-ticks` and `cdisc.player.screen` are gone. `/cdisc admin config` stays a dialog
+- Direct links and Discord attachments load about twice as fast; a live radio link no longer waits for a 64 KB sample first
+- `/cdisc admin logs` uploads only CDisc's warnings and errors with the doctor report, not the whole server log, and hides more kinds of tokens
+- Fixed: some links slipped past `limits.blocked-hosts` and `limits.allowed-hosts`
+- Fixed: a crafted audio file could hang a loader thread or use up the server's memory
+- Fixed: an HLS link with an endless body could use up the server's memory
+- Fixed: every `/cdisc admin reload` left idle threads behind
 
 ## 2.2.1
 

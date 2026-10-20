@@ -52,6 +52,7 @@ A disc is an ordinary item from then on: carry it, trade it, store it in a chest
 - **Nothing is lost**: queues survive restarts and crashes, a playing jukebox resumes where it stopped, and breaking or burning a jukebox drops a jukebox that still holds every disc. Placing it again puts the queue back.
 - **Live streams** from Twitch and YouTube play for as long as the broadcast runs.
 - **Parrots dance** to CDisc discs just as they do to vanilla ones.
+- **Your own library**: star a track on the player screen, or add one with `/cdisc library add`, and `/cdisc library` lists everything you kept. Pick a track there, put a disc on the disc slot and it comes back written.
 
 ### 📡 Sound
 
@@ -96,8 +97,8 @@ A disc is an ordinary item from then on: carry it, trade it, store it in a chest
 - **A permission for every action**: pause, skip, seek, queue, carrying a jukebox, lyrics and more, all set in `permissions.yml`. Screens hide the buttons a player may not use. Limits for players who are not staff: a cooldown, the longest allowed track, live streams on or off, allowed and blocked hosts.
 - **WorldGuard**: a jukebox inside a region answers only the region's members. The `cdisc-jukebox` flag opens a region's jukeboxes to everyone, or closes them to members too.
 - **A settings window**: `/cdisc admin config` edits every config file in game (Paper 1.21.7+).
-- **Diagnostics**: `/cdisc admin doctor` shows which sources work and which are missing something, and `/cdisc admin logs` uploads the log with that report for a bug report, with keys and tokens hidden.
-- **Updates itself**: new releases from Modrinth or GitHub are downloaded and installed when the server stops. This can be turned off.
+- **Diagnostics**: `/cdisc admin doctor` shows which sources work and which are missing something, and `/cdisc admin logs` uploads CDisc's warnings and errors from the server log with that report for a bug report, with keys and tokens hidden.
+- **Update notice**: the console and operators are told when a new release is out on Modrinth or GitHub.
 - **7 languages**: English, Russian, Ukrainian, German, Spanish, Hebrew and Arabic. Each player reads their client's language, or you pin one for the whole server. Your own translation drops into `languages/`.
 - **PlaceholderAPI**: `%cdisc_track%`, `%cdisc_position%`, `%cdisc_progress%` and more for the nearest jukebox a player can hear.
 - **API**: other plugins can listen to `TrackStartEvent`, `PlaybackStopEvent` and the cancellable `DiscCreateEvent`, and ask `CDiscApi` what a jukebox is playing.
@@ -120,7 +121,7 @@ A disc is an ordinary item from then on: carry it, trade it, store it in a chest
 | Your music folder | `local:` | nothing |
 | Any direct audio link | links | `http: true` in `sources.yml` |
 
-A search shows a list to pick from; add `:10` at the end for more results. Albums and playlists open too.
+A search shows a list to pick from; add `--results=10` for more results. Albums and playlists open too, and an album or playlist link writes its first track. `--version=uncensored` or `--version=instrumental` makes a disc that plays that version of the song once it is found, and the original when there is none.
 
 ### Why no keys are needed
 
@@ -137,6 +138,7 @@ Keys and tokens in `tokens.yml` are still read if you add them: Spotify client k
 | `/cdisc create <link or search>` | Write a track onto the disc or goat horn in your hand |
 | `/cdisc disc clear` | Turn the held disc back into a normal one |
 | `/cdisc disc playlist <link>` | Write a playlist onto blank discs |
+| `/cdisc library` | Your liked tracks; `add <link or search>` keeps one, `create <track>` writes it onto the held disc, `remove <track>` forgets it |
 | `/cdisc disc convert` | Convert a disc made by pv-addon-discs |
 | `/cdisc player <pause \| play \| next \| previous \| seek \| repeat \| queue \| info>` | Control the jukebox you are looking at or carrying |
 | `/cdisc player scoreboard` | Lyrics in your sidebar while you carry a jukebox |
