@@ -179,6 +179,19 @@ public final class Config {
         return sources.youtubeSignatureTimestamp();
     }
 
+    public boolean isYoutubeAccountEnabled() {
+        return sources.youtubeAccount();
+    }
+
+    public String getYoutubeRefreshToken() {
+        return tokens.youtubeRefreshToken();
+    }
+
+    public void setYoutubeRefreshToken(String token) {
+        tokens.setYoutubeRefreshToken(token);
+        tokens.save();
+    }
+
     public String getYoutubeWebClientVersion() {
         return sources.youtubeWebClientVersion();
     }

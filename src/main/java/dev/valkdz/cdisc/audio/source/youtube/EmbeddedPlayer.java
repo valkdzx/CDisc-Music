@@ -89,8 +89,10 @@ final class EmbeddedPlayer {
         String visitor = client.path("visitorData").asText(config.path("VISITOR_DATA").asText(""));
         if (!visitor.isBlank()) request.header("x-goog-visitor-id", visitor);
 
-        Json root = Json.parse(send(request));
+        return answerOf(Json.parse(send(request)), playerId);
+    }
 
+    static Answer answerOf(Json root, String playerId) {
         Map<Integer, String> ciphers = new HashMap<>();
         for (Json format : root.path("streamingData").path("adaptiveFormats")) {
             String scrambled = format.path("signatureCipher").asText(null);

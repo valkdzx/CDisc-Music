@@ -13,6 +13,7 @@ import java.time.Duration;
 import java.util.Comparator;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
@@ -30,11 +31,12 @@ public final class SabrResolver {
     private final boolean sabr;
     public static final String VISION_SOURCE = "youtube-visionos";
     public static final String EMBEDDED_SOURCE = "youtube-embedded";
+    public static final String ACCOUNT_SOURCE = "youtube-account";
 
     private static final int SESSION_ATTEMPTS = 3;
 
     public enum Plan {
-        VISION_THEN_EMBED("visionos"), VISION_ONLY("visionos-only"), EMBED_ONLY("embedded");
+        VISION_THEN_EMBED("visionos"), VISION_ONLY("visionos-only"), EMBED_ONLY("embedded"), ACCOUNT("oauth");
 
         private final String key;
 
@@ -59,9 +61,11 @@ public final class SabrResolver {
     private final SabrSourceManager sourceManager = new SabrSourceManager();
     private final SabrSourceManager visionSource = new SabrSourceManager(VISION_SOURCE);
     private final SabrSourceManager embeddedSource = new SabrSourceManager(EMBEDDED_SOURCE);
+    private final SabrSourceManager accountSource = new SabrSourceManager(ACCOUNT_SOURCE);
     private final YoutubeCipher ownCipher;
     private final EmbeddedPlayer embedded;
     private final Supplier<InnerTubePlayer.ClientIdentity> identity;
+    private final YoutubeAccount account;
 
     private final RemoteCipher remoteCipher;
 
@@ -76,9 +80,10 @@ public final class SabrResolver {
     private volatile String region;
 
     public SabrResolver(Supplier<InnerTubePlayer.ClientIdentity> identity, String remoteCipherUrl,
-                        String remoteCipherPassword, boolean sabr) {
+                        String remoteCipherPassword, boolean sabr, YoutubeAccount account) {
         this.identity = identity;
         this.sabr = sabr;
+        this.account = account;
         this.remoteCipher = isBlank(remoteCipherUrl) ? null : new RemoteCipher(remoteCipherUrl, remoteCipherPassword);
         this.http = dev.valkdz.cdisc.util.NetProxy.apply(HttpClient.newBuilder())
                 .connectTimeout(Duration.ofSeconds(10))
@@ -123,6 +128,13 @@ public final class SabrResolver {
         if (videoId == null) return null;
 
         Plan plan = Plan.of(planKey);
+        boolean accountTried = plan == Plan.ACCOUNT && accountUsable();
+        if (accountTried) {
+            CompletableFuture<InnerTubePlayer.PlayerResponse> names = isBlank(discTitle) || isBlank(discAuthor)
+                    ? CompletableFuture.supplyAsync(() -> visionAnswer(videoId)) : null;
+            AudioTrack viaAccount = resolveAccount(videoId, discTitle, discAuthor, namesWin, false, names);
+            if (viaAccount != null) return viaAccount;
+        }
         if (plan == Plan.EMBED_ONLY) {
             AudioTrack fromEmbed = resolveEmbedded(videoId, discTitle, discAuthor, namesWin);
             if (fromEmbed != null) plans.put(videoId, Plan.EMBED_ONLY);
@@ -139,6 +151,12 @@ public final class SabrResolver {
         }
 
         if (direct != null) return direct;
+
+        if (!accountTried && refused != null && refused.needsAccount() && accountUsable()) {
+            AudioTrack viaAccount = resolveAccount(videoId, pick(discTitle, refused.title(), null),
+                    pick(discAuthor, refused.author(), null), namesWin, true, null);
+            if (viaAccount != null) return viaAccount;
+        }
 
         if (plan != Plan.VISION_ONLY && (refused == null || !refused.regional())) {
             try {
@@ -259,11 +277,7 @@ public final class SabrResolver {
         if (!response.isPlayable()) throw new PlaybackRefused(videoId, response);
         if (response.live()) return null;
 
-        Optional<InnerTubePlayer.AudioFormat> best = response.audioFormats().stream()
-                .filter(format -> format.hasDirectUrl() || answer.ciphers().containsKey(format.itag()))
-                .max(Comparator.comparing(InnerTubePlayer.AudioFormat::mainTrack)
-                        .thenComparing(InnerTubePlayer.AudioFormat::isOpus)
-                        .thenComparingInt(InnerTubePlayer.AudioFormat::bitrate));
+        Optional<InnerTubePlayer.AudioFormat> best = bestLinked(answer);
         if (best.isEmpty()) return null;
 
         InnerTubePlayer.AudioFormat format = best.get();
@@ -286,6 +300,78 @@ public final class SabrResolver {
             if (url != null) return url;
         }
         throw new IOException("the embedded player no longer offers format " + itag + " of " + videoId);
+    }
+
+    private static Optional<InnerTubePlayer.AudioFormat> bestLinked(EmbeddedPlayer.Answer answer) {
+        return answer.response().audioFormats().stream()
+                .filter(format -> format.hasDirectUrl() || answer.ciphers().containsKey(format.itag()))
+                .max(Comparator.comparing(InnerTubePlayer.AudioFormat::mainTrack)
+                        .thenComparing(InnerTubePlayer.AudioFormat::isOpus)
+                        .thenComparingInt(InnerTubePlayer.AudioFormat::bitrate));
+    }
+
+    private boolean accountUsable() {
+        return account != null && account.usable();
+    }
+
+    private EmbeddedPlayer.Answer askAccount(String videoId) throws IOException {
+        String playerId = ownCipher.currentPlayerId();
+        InnerTubePlayer.ClientIdentity who = account.identity(ownCipher.signatureTimestamp(playerId));
+        return EmbeddedPlayer.answerOf(new InnerTubePlayer(http, who).fetchJson(videoId), playerId);
+    }
+
+    // The TV answer carries no title or author, so a load without the disc's names asks VISIONOS
+    // for them meanwhile: it names a video even while refusing to play it.
+    private InnerTubePlayer.PlayerResponse visionAnswer(String videoId) {
+        try {
+            return new InnerTubePlayer(http, visionIdentity()).fetch(videoId);
+        } catch (IOException e) {
+            return null;
+        }
+    }
+
+    // Direct links only: the TV client's SABR stream is not used. A video whose links googlevideo
+    // refuses (it happens to ordinary ones) is checked once, when the plan is not yet known.
+    private AudioTrack resolveAccount(String videoId, String discTitle, String discAuthor, boolean namesWin,
+                                      boolean verify, CompletableFuture<InnerTubePlayer.PlayerResponse> names) {
+        try {
+            EmbeddedPlayer.Answer answer = askAccount(videoId);
+            InnerTubePlayer.PlayerResponse response = answer.response();
+            if (!response.isPlayable() || response.live()) return null;
+
+            Optional<InnerTubePlayer.AudioFormat> best = bestLinked(answer);
+            if (best.isEmpty()) return null;
+
+            InnerTubePlayer.AudioFormat format = best.get();
+            String url = answer.urlOf(format, ownCipher);
+            if (url == null || (verify && !servesMiddle(url, format.contentLength()))) return null;
+
+            plans.put(videoId, Plan.ACCOUNT);
+            InnerTubePlayer.PlayerResponse named = names == null ? null
+                    : names.completeOnTimeout(null, 3, java.util.concurrent.TimeUnit.SECONDS).join();
+            if (named != null) {
+                discTitle = pick(discTitle, named.title(), null);
+                discAuthor = pick(discAuthor, named.author(), null);
+            }
+            long durationMs = response.durationMs() > 0 ? response.durationMs() : format.durationMs();
+            return new DirectAudioTrack(
+                    trackInfo(videoId, response, discTitle, discAuthor, durationMs, namesWin),
+                    accountSource, url, format.mimeType(), format.contentLength(),
+                    () -> freshAccountUrl(videoId, format.itag()));
+        } catch (IOException e) {
+            return null;
+        }
+    }
+
+    private String freshAccountUrl(String videoId, int itag) throws IOException {
+        EmbeddedPlayer.Answer answer = askAccount(videoId);
+
+        for (InnerTubePlayer.AudioFormat format : answer.response().audioFormats()) {
+            if (format.itag() != itag) continue;
+            String url = answer.urlOf(format, ownCipher);
+            if (url != null) return url;
+        }
+        throw new IOException("the YouTube account no longer gets format " + itag + " of " + videoId);
     }
 
     private boolean servesMiddle(String url, long contentLength) {
@@ -370,6 +456,7 @@ public final class SabrResolver {
 
     public void warmUp() {
         ownCipher.warmUp();
+        if (account != null) account.warmUp();
         new dev.valkdz.cdisc.audio.source.youtube.VisitorRenewal().mintPageAsync(15)
                 .thenAccept(page -> accept(page, System.currentTimeMillis()))
                 .exceptionally(ignored -> null);

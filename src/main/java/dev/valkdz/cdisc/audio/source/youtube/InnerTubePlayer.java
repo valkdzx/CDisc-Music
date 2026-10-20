@@ -112,6 +112,10 @@ public final class InnerTubePlayer {
     }
 
     public PlayerResponse fetch(String videoId) throws IOException {
+        return parse(fetchJson(videoId));
+    }
+
+    Json fetchJson(String videoId) throws IOException {
         HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(PLAYER_URL + "?prettyPrint=false"))
                 .timeout(TIMEOUT)
                 .header("content-type", "application/json")
@@ -140,7 +144,7 @@ public final class InnerTubePlayer {
         if (response.statusCode() != 200) {
             throw new IOException("Player endpoint answered " + response.statusCode());
         }
-        return parse(Json.parse(response.body()));
+        return Json.parse(response.body());
     }
 
     private String body(String videoId) {

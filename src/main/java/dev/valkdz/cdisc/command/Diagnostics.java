@@ -109,6 +109,21 @@ final class Diagnostics {
             out.add(line(State.READY, "direct",
                     "always asked first — VISIONOS, then the embedded player; no keys needed"));
 
+            var account = plugin.getAudioPlayerManager() == null ? null
+                    : plugin.getAudioPlayerManager().getTrackLoader().youtubeAccount();
+            if (account == null || !account.linked()) {
+                out.add(line(State.OFF, "account",
+                        "none — age-restricted videos go to the backend; /cdisc admin oauth-setup links one"));
+            } else if (account.signedOut()) {
+                out.add(line(State.FRAGILE, "account",
+                        "signed out by Google — run /cdisc admin oauth-setup again"));
+            } else if (!config.isYoutubeAccountEnabled()) {
+                out.add(line(State.OFF, "account", "linked, but account: false in sources.yml"));
+            } else {
+                out.add(line(State.READY, "account",
+                        "linked — age-restricted videos play through it, asked as a TV"));
+            }
+
             if (config.getYoutubeCustomApi()) {
                 out.add(line(State.READY, "fallback-api",
                         "asking through the backend — no keys needed"));

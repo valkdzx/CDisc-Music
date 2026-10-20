@@ -48,6 +48,8 @@ public class TrackLoader {
 
     private CustomYoutubeApiResolver customApiResolver;
     private dev.valkdz.cdisc.audio.source.youtube.SabrResolver sabrResolver;
+    private final dev.valkdz.cdisc.audio.source.youtube.YoutubeAccount youtubeAccount =
+            new dev.valkdz.cdisc.audio.source.youtube.YoutubeAccount();
     private dev.valkdz.cdisc.audio.source.spotify.SpotifyBridge spotifyBridge;
     private dev.valkdz.cdisc.audio.source.youtube.YouTubeSearch youtubeSearch;
 
@@ -344,6 +346,23 @@ public class TrackLoader {
     public TrackLoader(Main plugin) {
         this.plugin = plugin;
         registerSources();
+        dev.valkdz.cdisc.util.Tasks.asyncTimer(plugin, this::keepAccountFresh, 20 * 60, 20 * 60);
+    }
+
+    private boolean accountLossReported;
+
+    private void keepAccountFresh() {
+        youtubeAccount.renewIfDue();
+        boolean lost = youtubeAccount.signedOut();
+        if (lost && !accountLossReported) {
+            plugin.getLogger().warning("Google signed out the linked YouTube account; age-restricted videos "
+                    + "go to the backend until /cdisc admin oauth-setup links one again.");
+        }
+        accountLossReported = lost;
+    }
+
+    public dev.valkdz.cdisc.audio.source.youtube.YoutubeAccount youtubeAccount() {
+        return youtubeAccount;
     }
 
     private void registerSources() {
@@ -361,8 +380,10 @@ public class TrackLoader {
                 customApiResolver.setObserver(info -> remember(info.videoId(), info));
             }
 
+            youtubeAccount.useToken(config.getYoutubeRefreshToken());
             sabrResolver = new dev.valkdz.cdisc.audio.source.youtube.SabrResolver(
-                    this::sabrIdentity, rcUrl, rcPass, config.isYoutubeSabrEnabled());
+                    this::sabrIdentity, rcUrl, rcPass, config.isYoutubeSabrEnabled(),
+                    config.isYoutubeAccountEnabled() ? youtubeAccount : null);
             sabrResolver.warmUp();
 
             java.net.http.HttpClient bridgeHttp = dev.valkdz.cdisc.util.NetProxy.apply(java.net.http.HttpClient.newBuilder())
@@ -723,8 +744,11 @@ public class TrackLoader {
 
     private static String directLabel(AudioTrack track) {
         if (track instanceof dev.valkdz.cdisc.audio.source.youtube.SabrAudioTrack) return "YouTube SABR";
-        return dev.valkdz.cdisc.audio.source.youtube.SabrResolver.EMBEDDED_SOURCE.equals(
-                track.getSourceManager().getSourceName())
+        String source = track.getSourceManager().getSourceName();
+        if (dev.valkdz.cdisc.audio.source.youtube.SabrResolver.ACCOUNT_SOURCE.equals(source)) {
+            return "YouTube direct (TV, linked account)";
+        }
+        return dev.valkdz.cdisc.audio.source.youtube.SabrResolver.EMBEDDED_SOURCE.equals(source)
                 ? "YouTube direct (embedded player)" : "YouTube direct (VISIONOS)";
     }
 

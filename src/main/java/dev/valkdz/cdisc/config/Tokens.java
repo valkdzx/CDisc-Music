@@ -17,6 +17,7 @@ public final class Tokens {
     private static final String YANDEX = "yandex-music";
     private static final String VK = "vk-music";
     private static final String YOUTUBE = "youtube";
+    private static final String YOUTUBE_ACCOUNT = "youtube-account";
     private static final String CIPHER = "remote-cipher-server";
     private static final String PO_TOKEN_BACKEND = "po-token-backend";
     private static final String PROXY = "proxy";
@@ -68,6 +69,7 @@ public final class Tokens {
 
     public String youtubePoToken() { return string(YOUTUBE, "po-token"); }
     public String youtubeVisitorData() { return string(YOUTUBE, "visitor-data"); }
+    public String youtubeRefreshToken() { return string(YOUTUBE_ACCOUNT, "refresh-token"); }
     public String cipherPassword() { return string(CIPHER, "password"); }
     public String poTokenBackendPassword() { return string(PO_TOKEN_BACKEND, "password"); }
 
@@ -85,6 +87,7 @@ public final class Tokens {
     public void setVkUserToken(String token) { set(VK, "user-token", token); }
     public void setYoutubePoToken(String token) { set(YOUTUBE, "po-token", token); }
     public void setYoutubeVisitorData(String data) { set(YOUTUBE, "visitor-data", data); }
+    public void setYoutubeRefreshToken(String token) { set(YOUTUBE_ACCOUNT, "refresh-token", token); }
     public void setCipherPassword(String password) { set(CIPHER, "password", password); }
 
     private String string(String section, String key) {

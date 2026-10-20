@@ -95,7 +95,7 @@ youtube:
   # A video YouTube does not offer in this server's country skips the direct read and comes
   # straight here. After three direct reads in a row fail for this server's address
   # (YouTube's bot check, no answer), it goes first for ten minutes. Age-restricted tracks
-  # use it even when off.
+  # use it even when off, unless the linked account below plays them.
   # Switched on once at startup if it was off; set it back to false and it stays false.
   fallback-api: true
 
@@ -111,6 +111,13 @@ youtube:
   # This adds a second try when it fails: reading SABR streams, which list formats without
   # direct links. Needs po-token and visitor-data in tokens.yml.
   sabr: true
+
+  # Videos YouTube shows only to signed-in viewers (age-restricted ones) play through the
+  # account linked with /cdisc admin oauth-setup, asked as a Samsung TV for a direct stream.
+  # A disc learns this when it is written, so it skips the VISIONOS try on every play after.
+  # Use a spare Google account: YouTube may restrict one used this way. The sign-in is kept in
+  # tokens.yml; false leaves it there unused. Without one, these videos go to the backend.
+  account: true
 
   # Client version claimed when asking for a player response, which SABR has to do itself.
   # Bump it if SABR starts being refused: read INNERTUBE_CLIENT_VERSION out of youtube.com.

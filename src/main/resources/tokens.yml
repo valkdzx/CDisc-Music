@@ -27,6 +27,11 @@ youtube:
   po-token: ""
   visitor-data: ""
 
+youtube-account:
+  # Written by /cdisc admin oauth-setup: the YouTube account age-restricted videos play
+  # through. Blank it and run /cdisc admin reload to sign the server out.
+  refresh-token: ""
+
 po-token-backend:
   # Repeated from sources.yml so a URL pasted into the wrong file still works.
   # sources.yml wins when both are filled in, so switching the backend off means clearing both.

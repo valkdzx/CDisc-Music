@@ -35,6 +35,7 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
     private final PairSubcommand pairSub;
     private final PresetSubcommand presetSub;
     private final AdminPresetSubcommand adminPresetSub;
+    private final YoutubeAccountSetup youtubeAccountSetup;
 
     public CDiscCommand(Main plugin) {
         this.plugin = plugin;
@@ -42,6 +43,7 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
         this.pairSub = new PairSubcommand(plugin);
         this.presetSub = new PresetSubcommand(plugin);
         this.adminPresetSub = new AdminPresetSubcommand(plugin);
+        this.youtubeAccountSetup = new YoutubeAccountSetup(plugin);
     }
 
     @Override
@@ -246,6 +248,9 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
             }
             case "presets" -> {
                 if (allowed(sender, Action.ADMIN_PRESETS)) adminPresetSub.handle(sender, parts);
+            }
+            case "oauth-setup" -> {
+                if (allowed(sender, Action.ADMIN_OAUTH)) youtubeAccountSetup.start(sender);
             }
             case "config" -> config(sender);
             default -> {
@@ -568,6 +573,7 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
                                     ? entry("local-files-config", Action.ADMIN_LOCAL_FILES, sender) : null,
                             plugin.cdiscConfig().isLyricsEnabled()
                                     ? entry("presets", Action.ADMIN_PRESETS, sender) : null,
+                            entry("oauth-setup", Action.ADMIN_OAUTH, sender),
                             sender instanceof Player && sender.hasPermission(Perms.CONFIG)
                                     && plugin.cdiscConfig().isConfigDialogEnabled() ? "config" : null)
                     .filter(java.util.Objects::nonNull)

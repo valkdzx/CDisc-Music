@@ -51,6 +51,11 @@ public final class PlaybackRefused extends IOException {
         return author;
     }
 
+    public boolean needsAccount() {
+        return !botCheck() && ("LOGIN_REQUIRED".equals(status)
+                || "AGE_VERIFICATION_REQUIRED".equals(status) || "AGE_CHECK_REQUIRED".equals(status));
+    }
+
     public boolean botCheck() {
         return mentionsBot(reason) || mentionsBot(subreason);
     }

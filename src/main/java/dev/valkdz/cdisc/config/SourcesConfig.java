@@ -154,6 +154,10 @@ public final class SourcesConfig {
         return cfg.getBoolean("youtube.sabr", true);
     }
 
+    public boolean youtubeAccount() {
+        return cfg.getBoolean("youtube.account", true);
+    }
+
     public String youtubeWebClientVersion() {
         String version = cfg.getString("youtube.web-client-version");
         return version == null || version.isBlank() ? "2.20260828.01.00" : version.trim();
