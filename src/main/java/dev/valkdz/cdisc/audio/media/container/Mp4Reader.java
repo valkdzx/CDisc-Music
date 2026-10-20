@@ -17,6 +17,9 @@ import java.util.List;
 
 public final class Mp4Reader implements Demuxer {
 
+    private static final int MAX_ENTRIES = 1 << 22;
+    private static final int MAX_BARE_RUN = 1 << 16;
+
     private final MediaReader in;
     private final long length;
 
@@ -87,12 +90,23 @@ public final class Mp4Reader implements Demuxer {
         return (s.charAt(0) << 24) | (s.charAt(1) << 16) | (s.charAt(2) << 8) | s.charAt(3);
     }
 
+    // A box smaller than its own header would send the walk back to where it began, forever,
+    // so it ends the walk like the end of the file does.
     private long[] header() throws IOException {
         if (in.eof()) return null;
+        long start = in.position();
         long size = in.u32();
         int type = in.s32();
         if (size == 1) size = in.u64();
+        if (size != 0 && (size < 8 || start + size < start)) return null;
         return new long[]{size, type};
+    }
+
+    private static int entries(long count, long boxEnd, long position, long bitsEach) throws IOException {
+        if (count < 0 || count > MAX_ENTRIES || (count * bitsEach + 7) / 8 > boxEnd - position) {
+            throw new IOException("Broken MP4 table of " + count + " entries");
+        }
+        return (int) count;
     }
 
     private void parseContainer(long end, String parent) throws IOException {
@@ -184,7 +198,8 @@ public final class Mp4Reader implements Demuxer {
                 int version = in.u8();
                 in.skip(3);
                 long entries = in.u32();
-                for (long i = 0; i < entries; i++) {
+                int each = version == 1 ? 20 : 12;
+                for (long i = 0; i < entries && in.position() + each <= boxEnd; i++) {
                     long segmentDuration = version == 1 ? in.u64() : in.u32();
                     long mediaTime = version == 1 ? in.u64() : in.s32();
                     in.skip(4);
@@ -198,7 +213,7 @@ public final class Mp4Reader implements Demuxer {
                 track.format = parseSampleEntry(boxEnd);
             } else if (type == fourcc("stts")) {
                 in.skip(4);
-                int entries = (int) in.u32();
+                int entries = entries(in.u32(), boxEnd, in.position(), 64);
                 track.sttsCounts = new long[entries];
                 track.sttsDeltas = new long[entries];
                 for (int i = 0; i < entries; i++) {
@@ -207,7 +222,7 @@ public final class Mp4Reader implements Demuxer {
                 }
             } else if (type == fourcc("stsc")) {
                 in.skip(4);
-                int entries = (int) in.u32();
+                int entries = entries(in.u32(), boxEnd, in.position(), 96);
                 track.stscFirst = new long[entries];
                 track.stscPerChunk = new long[entries];
                 for (int i = 0; i < entries; i++) {
@@ -218,7 +233,11 @@ public final class Mp4Reader implements Demuxer {
             } else if (type == fourcc("stsz")) {
                 in.skip(4);
                 track.defaultSize = in.s32();
-                track.sizeCount = (int) in.u32();
+                track.sizeCount = entries(in.u32(), boxEnd, in.position(), track.defaultSize == 0 ? 32 : 0);
+                if (track.defaultSize < 0
+                        || (length > 0 && (long) track.sizeCount * track.defaultSize > length)) {
+                    throw new IOException("Broken MP4 sample sizes");
+                }
                 if (track.defaultSize == 0) {
                     track.sizes = new int[track.sizeCount];
                     for (int i = 0; i < track.sizeCount; i++) track.sizes[i] = in.s32();
@@ -226,7 +245,8 @@ public final class Mp4Reader implements Demuxer {
             } else if (type == fourcc("stz2")) {
                 in.skip(7);
                 int fieldSize = in.u8();
-                track.sizeCount = (int) in.u32();
+                track.sizeCount = entries(in.u32(), boxEnd, in.position(),
+                        fieldSize == 4 ? 4 : fieldSize == 8 ? 8 : 16);
                 track.sizes = new int[track.sizeCount];
                 for (int i = 0; i < track.sizeCount; i++) {
                     if (fieldSize == 4) {
@@ -239,7 +259,7 @@ public final class Mp4Reader implements Demuxer {
                 }
             } else if (type == fourcc("stco") || type == fourcc("co64")) {
                 in.skip(4);
-                int entries = (int) in.u32();
+                int entries = entries(in.u32(), boxEnd, in.position(), type == fourcc("co64") ? 64 : 32);
                 track.chunks = new long[entries];
                 for (int i = 0; i < entries; i++) track.chunks[i] = type == fourcc("co64") ? in.u64() : in.u32();
             }
@@ -370,7 +390,7 @@ public final class Mp4Reader implements Demuxer {
             long start = in.position();
             long[] box = header();
             if (box == null) return;
-            long boxEnd = start + box[0];
+            long boxEnd = box[0] == 0 ? end : start + box[0];
             if ((int) box[1] == fourcc("trex")) {
                 in.skip(4);
                 int id = in.s32();
@@ -410,7 +430,7 @@ public final class Mp4Reader implements Demuxer {
             long start = in.position();
             long[] box = header();
             if (box == null) break;
-            long boxEnd = start + box[0];
+            long boxEnd = box[0] == 0 ? end : start + box[0];
             int type = (int) box[1];
             boolean wantTitle = type == (0xA9 << 24 | fourcc("\0nam"));
             boolean wantArtist = type == (0xA9 << 24 | fourcc("\0ART"));
@@ -518,9 +538,8 @@ public final class Mp4Reader implements Demuxer {
             if (nextSample >= sampleCount) return null;
             int i = nextSample++;
             in.seek(sampleOffsets[i]);
-            byte[] data = new byte[sampleSizes[i]];
-            if (in.readAtMost(data, 0, data.length) < data.length) return null;
-            return new Packet(data, usOf(sampleTimes[i]));
+            byte[] data = sample(sampleSizes[i]);
+            return data == null ? null : new Packet(data, usOf(sampleTimes[i]));
         }
 
         while (pendingAt >= pending.size()) {
@@ -534,9 +553,15 @@ public final class Mp4Reader implements Demuxer {
             if (!in.canSeek()) throw new IOException("MP4 fragment samples run backwards");
             in.seek(sample[0]);
         }
-        byte[] data = new byte[(int) sample[1]];
-        if (in.readAtMost(data, 0, data.length) < data.length) return null;
-        return new Packet(data, usOf(sample[2]));
+        byte[] data = sample(sample[1]);
+        return data == null ? null : new Packet(data, usOf(sample[2]));
+    }
+
+    private byte[] sample(long size) throws IOException {
+        if (size < 0 || size > MediaReader.MAX_BLOCK) throw new IOException("Broken MP4 sample of " + size + " bytes");
+        if (size > in.remaining()) return null;
+        byte[] data = new byte[(int) size];
+        return in.readAtMost(data, 0, data.length) < data.length ? null : data;
     }
 
     private long usOf(long time) {
@@ -573,7 +598,7 @@ public final class Mp4Reader implements Demuxer {
             long start = in.position();
             long[] box = header();
             if (box == null) return;
-            long boxEnd = start + box[0];
+            long boxEnd = box[0] == 0 ? end : start + box[0];
             if ((int) box[1] == fourcc("traf")) parseTraf(moofStart, boxEnd);
             in.seek(boxEnd);
         }
@@ -589,7 +614,7 @@ public final class Mp4Reader implements Demuxer {
             long start = in.position();
             long[] box = header();
             if (box == null) return;
-            long boxEnd = start + box[0];
+            long boxEnd = box[0] == 0 ? end : start + box[0];
             int type = (int) box[1];
             if (type == fourcc("tfhd")) {
                 in.u8();
@@ -606,9 +631,12 @@ public final class Mp4Reader implements Demuxer {
             } else if (type == fourcc("trun") && (trackId < 0 || id == trackId)) {
                 in.u8();
                 int flags = in.u24();
-                int count = (int) in.u32();
+                long declared = in.u32();
                 long offset = (flags & 0x01) != 0 ? base + in.s32() : dataEnd;
                 if ((flags & 0x04) != 0) in.skip(4);
+                int bits = 32 * Integer.bitCount(flags & 0xF00);
+                int count = entries(declared, boxEnd, in.position(), bits);
+                if (bits == 0 && count > MAX_BARE_RUN) throw new IOException("Broken MP4 run of " + count + " samples");
                 long time = fragmentTime;
                 for (int i = 0; i < count; i++) {
                     long duration = (flags & 0x100) != 0 ? in.u32() : defaultDuration;

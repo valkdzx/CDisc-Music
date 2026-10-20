@@ -85,10 +85,10 @@ public final class Mp3Reader implements Demuxer {
 
     private boolean sync(boolean strict) throws IOException {
         for (int scanned = 0; scanned < SYNC_SEARCH; scanned++) {
-            int got = in.peek(look, look.length);
-            if (got < 4) return false;
+            if (in.peek(look, 4) < 4) return false;
             int[] h = header(look);
             if (Mp3Decoder.hdrValid(h) && (first == null || Mp3Decoder.hdrCompare(first, h))) {
+                int got = in.peek(look, look.length);
                 if (Mp3Decoder.frameBytes(h, 0) == 0 && freeFormatBytes == 0) detectFreeFormat(h, got);
                 int length = frameLength(h);
                 if (length > 4) {

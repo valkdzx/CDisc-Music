@@ -104,6 +104,7 @@ public final class MatroskaReader implements Demuxer {
     }
 
     private long uint(long size) throws IOException {
+        if (size > 8) throw new IOException("Bad EBML integer of " + size + " bytes");
         long value = 0;
         for (long i = 0; i < size; i++) value = (value << 8) | in.u8();
         return value;

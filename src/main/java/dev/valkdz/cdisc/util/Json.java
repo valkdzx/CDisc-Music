@@ -433,9 +433,12 @@ public final class Json implements Iterable<Json> {
     }
 
     private static final class Parser {
+        private static final int MAX_DEPTH = 512;
+
         private final String text;
         private final boolean lenient;
         private int at;
+        private int depth;
 
         Parser(String text, boolean lenient) {
             this.text = text == null ? "" : text;
@@ -454,9 +457,13 @@ public final class Json implements Iterable<Json> {
             skip();
             if (at >= text.length()) throw error("unexpected end");
             char c = text.charAt(at);
+            if (c == '{' || c == '[') {
+                if (++depth > MAX_DEPTH) throw error("nested too deeply");
+                Json nested = c == '{' ? object() : array();
+                depth--;
+                return nested;
+            }
             return switch (c) {
-                case '{' -> object();
-                case '[' -> array();
                 case '"' -> new Json(string('"'));
                 case '\'' -> {
                     if (!lenient) throw error("single quotes");

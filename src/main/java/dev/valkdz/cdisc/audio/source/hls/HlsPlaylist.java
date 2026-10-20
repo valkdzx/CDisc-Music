@@ -25,6 +25,7 @@ import java.util.regex.Pattern;
 public final class HlsPlaylist {
 
     private static final Pattern ATTRIBUTE = Pattern.compile("([A-Z0-9-]+)=(\"([^\"]*)\"|[^,]*)");
+    private static final int MAX_BODY = 32 * 1024 * 1024;
 
     public record Key(String uri, byte[] iv) {}
 
@@ -78,11 +79,12 @@ public final class HlsPlaylist {
     }
 
     private static byte[] load(String url, Http.Guard guard, String[] headers) throws IOException {
-        if (guard == null) return Http.bytes(url, headers);
         HttpResponse<InputStream> response = Http.open(url, 0, -1, guard, headers);
         try (InputStream body = response.body()) {
             Http.expectOk(response, url);
-            return body.readAllBytes();
+            byte[] data = body.readNBytes(MAX_BODY + 1);
+            if (data.length > MAX_BODY) throw new IOException("An HLS part is over " + (MAX_BODY >> 20) + " MB");
+            return data;
         }
     }
 

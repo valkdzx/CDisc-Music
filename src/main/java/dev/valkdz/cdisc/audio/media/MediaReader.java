@@ -5,6 +5,8 @@ import java.io.IOException;
 
 public final class MediaReader {
 
+    public static final int MAX_BLOCK = 64 * 1024 * 1024;
+
     private final MediaInput input;
     private final byte[] buffer;
     private long bufferStart;
@@ -102,9 +104,15 @@ public final class MediaReader {
     }
 
     public byte[] bytes(int count) throws IOException {
+        checkSize(count);
         byte[] out = new byte[count];
         readFully(out, 0, count);
         return out;
+    }
+
+    private void checkSize(long count) throws IOException {
+        if (count < 0 || count > MAX_BLOCK) throw new IOException("Implausible block size " + count);
+        if (count > remaining()) throw new EOFException("A block of " + count + " bytes runs past the end");
     }
 
     public int readAtMost(byte[] out, int offset, int length) throws IOException {

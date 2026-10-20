@@ -60,4 +60,10 @@ class JsonTest {
         assertThrows(IOException.class, () -> Json.parse("{\"a\":"));
         assertThrows(IOException.class, () -> Json.parse("[1] 2"));
     }
+
+    @Test
+    void deepNestingIsRefusedNotAStackOverflow() throws IOException {
+        assertThrows(IOException.class, () -> Json.parse("[".repeat(100_000)));
+        assertEquals(1, Json.parse("[".repeat(200) + "1" + "]".repeat(200)).size());
+    }
 }

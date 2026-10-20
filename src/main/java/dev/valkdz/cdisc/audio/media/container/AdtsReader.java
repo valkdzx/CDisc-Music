@@ -52,10 +52,10 @@ public final class AdtsReader implements Demuxer {
     private boolean sync() throws IOException {
         byte[] look = new byte[8192 + 7];
         for (int scanned = 0; scanned < SYNC_SEARCH; scanned++) {
-            int got = in.peek(look, look.length);
-            if (got < 7) return false;
+            if (in.peek(look, 7) < 7) return false;
             if (isHeader(look)) {
                 int length = frameLength(look);
+                int got = in.peek(look, look.length);
                 if (length >= 7) {
                     if (got < length + 7) return true;
                     byte[] next = new byte[3];

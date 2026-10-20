@@ -34,6 +34,7 @@ public final class WavReader implements Demuxer {
             throw new IOException("Not a WAV or AIFF file");
         }
         if (format == null || dataStart < 0) throw new IOException("The file has no audio data");
+        if (blockAlign <= 0 || sampleRate <= 0) throw new IOException("The file declares no sample size or rate");
         in.seek(dataStart);
     }
 
