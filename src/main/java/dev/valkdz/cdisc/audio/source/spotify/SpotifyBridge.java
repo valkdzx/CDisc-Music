@@ -251,12 +251,18 @@ public final class SpotifyBridge {
     }
 
     static Wanted wantedOf(Json track) {
-        Json artists = track.path("artists");
+        StringBuilder artists = new StringBuilder();
+        for (Json artist : track.path("artists")) {
+            String name = artist.path("name").asText("");
+            if (name.isBlank()) continue;
+            if (!artists.isEmpty()) artists.append(", ");
+            artists.append(name);
+        }
         String isrc = track.path("external_ids").path("isrc").asText("");
 
         return new Wanted(isrc.isBlank() ? null : isrc,
                 track.path("name").asText(""),
-                artists.isArray() && !artists.isEmpty() ? artists.get(0).path("name").asText("") : "",
+                artists.toString(),
                 track.path("duration_ms").asLong(0));
     }
 
@@ -450,9 +456,13 @@ public final class SpotifyBridge {
         if (wanted.isEmpty() || !videoTitle.contains(wanted)) return false;
         if (wanted.length() > 3) return true;
 
-        String performer = normalise(artist);
-        return result.isArtTrack() || performer.isEmpty() || videoTitle.contains(performer)
-                || normalise(result.channel()).contains(performer);
+        if (result.isArtTrack() || normalise(artist).isEmpty()) return true;
+        String channel = normalise(result.channel());
+        for (String name : artist.split(", ")) {
+            String performer = normalise(name);
+            if (!performer.isEmpty() && (videoTitle.contains(performer) || channel.contains(performer))) return true;
+        }
+        return false;
     }
 
     private static String coreOf(String title) {

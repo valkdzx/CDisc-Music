@@ -26,6 +26,24 @@ class SpotifyTrackTest {
     }
 
     @Test
+    void everyArtistOfATrackIsCredited() throws Exception {
+        SpotifyBridge.Wanted wanted = SpotifyBridge.wantedOf(Json.parse("{\"name\":\"ДИНАСТИЯ\",\"duration_ms\":151000,"
+                + "\"artists\":[{\"name\":\"VILLIAN\"},{\"name\":\"madk1d\"}],\"external_ids\":{}}"));
+
+        assertEquals("VILLIAN, madk1d", wanted.artist());
+    }
+
+    @Test
+    void aShortTitleIsMatchedUnderAnyOfItsArtists() {
+        SpotifyBridge.Wanted wanted = new SpotifyBridge.Wanted(null, "Да", "VILLIAN, madk1d", 150_000);
+
+        assertEquals("upload", SpotifyBridge.pick(List.of(
+                new YouTubeSearch.Result("upload", "Да", "madk1d", 151)), wanted));
+        assertNull(SpotifyBridge.pick(List.of(
+                new YouTubeSearch.Result("other", "Да", "Someone", 151)), wanted));
+    }
+
+    @Test
     void aTrackWithoutIsrcIsSearchedByNameOnly() throws Exception {
         SpotifyBridge.Wanted wanted = SpotifyBridge.wantedOf(Json.parse(
                 "{\"name\":\"x\",\"artists\":[],\"external_ids\":{}}"));
