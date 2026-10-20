@@ -10,6 +10,7 @@ import java.net.ServerSocket;
 import java.net.SocketTimeoutException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -32,6 +33,18 @@ class ScopedHttpGuardTest {
 
         ScopedHttpAudioSourceManager scoped = new ScopedHttpAudioSourceManager("https://cdn.example.com/");
         assertNull(scoped.loadItem("http://127.0.0.1:1/a.mp3"));
+    }
+
+    @Test
+    void onlyPlainAudioSkipsThePlaylistSniff() {
+        assertTrue(ScopedHttpAudioSourceManager.plainAudio("audio/mpeg"));
+        assertTrue(ScopedHttpAudioSourceManager.plainAudio("Audio/OGG; codecs=opus"));
+        assertTrue(ScopedHttpAudioSourceManager.plainAudio("video/mp4"));
+        assertFalse(ScopedHttpAudioSourceManager.plainAudio("audio/x-mpegurl"));
+        assertFalse(ScopedHttpAudioSourceManager.plainAudio("application/vnd.apple.mpegurl"));
+        assertFalse(ScopedHttpAudioSourceManager.plainAudio("audio/x-scpls"));
+        assertFalse(ScopedHttpAudioSourceManager.plainAudio("application/octet-stream"));
+        assertFalse(ScopedHttpAudioSourceManager.plainAudio(null));
     }
 
     @Test

@@ -61,10 +61,23 @@ final class ScopedHttpAudioSourceManager implements AudioSourceManager {
 
     private AudioItem probe(String url, boolean mayFollowList) throws IOException {
         String contentType;
-        byte[] head;
+        byte[] head = null;
         try (HttpStream stream = new HttpStream(url, -1).guard(PUBLIC_ONLY)) {
             contentType = stream.contentType();
-            head = stream.readNBytes(LIST_PROBE);
+            // Sniffing a live radio for a playlist first costs seconds: its 64 KB arrive in real time.
+            if (!plainAudio(contentType)) {
+                head = stream.readNBytes(LIST_PROBE);
+            } else {
+                try (Demuxer demuxer = Media.open(stream, contentType)) {
+                    return track(url, contentType, demuxer);
+                } catch (IOException mislabelled) {
+                }
+            }
+        }
+        if (head == null) {
+            try (HttpStream stream = new HttpStream(url, -1).guard(PUBLIC_ONLY)) {
+                head = stream.readNBytes(LIST_PROBE);
+            }
         }
         String text = new String(head, StandardCharsets.UTF_8).trim();
         String type = contentType == null ? "" : contentType.toLowerCase(Locale.ROOT);
@@ -80,15 +93,25 @@ final class ScopedHttpAudioSourceManager implements AudioSourceManager {
 
         try (HttpStream stream = new HttpStream(url, -1).guard(PUBLIC_ONLY);
              Demuxer demuxer = Media.open(stream, contentType)) {
-            long duration = demuxer.durationMs();
-            boolean live = duration <= 0;
-            Tags tags = demuxer.tags();
-            AudioTrackInfo info = new AudioTrackInfo(
-                    tags.title() != null ? tags.title() : AudioTrackInfo.UNKNOWN_TITLE,
-                    tags.artist() != null ? tags.artist() : AudioTrackInfo.UNKNOWN_ARTIST,
-                    live ? AudioTrackInfo.UNKNOWN_LENGTH : duration, url, live, url);
-            return new HttpAudioTrack(info, this, url, contentType, -1, null, PUBLIC_ONLY);
+            return track(url, contentType, demuxer);
         }
+    }
+
+    private AudioItem track(String url, String contentType, Demuxer demuxer) {
+        long duration = demuxer.durationMs();
+        boolean live = duration <= 0;
+        Tags tags = demuxer.tags();
+        AudioTrackInfo info = new AudioTrackInfo(
+                tags.title() != null ? tags.title() : AudioTrackInfo.UNKNOWN_TITLE,
+                tags.artist() != null ? tags.artist() : AudioTrackInfo.UNKNOWN_ARTIST,
+                live ? AudioTrackInfo.UNKNOWN_LENGTH : duration, url, live, url);
+        return new HttpAudioTrack(info, this, url, contentType, -1, null, PUBLIC_ONLY);
+    }
+
+    static boolean plainAudio(String contentType) {
+        String type = contentType == null ? "" : contentType.toLowerCase(Locale.ROOT);
+        return (type.startsWith("audio/") || type.startsWith("video/") || type.startsWith("application/ogg"))
+                && !type.contains("mpegurl") && !type.contains("scpls");
     }
 
     private AudioItem hls(String url) throws IOException {
