@@ -110,16 +110,29 @@ public final class PlayerPrefs {
     }
 
     public static GuiTheme theme(Player player, GuiTheme byDefault) {
-        String stored = themes.computeIfAbsent(player.getUniqueId(), id -> {
+        String stored = storedTheme(player);
+        return stored.equals(UNSET) ? byDefault : GuiTheme.parse(stored, byDefault);
+    }
+
+    public static boolean picksOwnTheme(Player player) {
+        return !storedTheme(player).equals(UNSET);
+    }
+
+    private static String storedTheme(Player player) {
+        return themes.computeIfAbsent(player.getUniqueId(), id -> {
             String read = container(player).get(THEME, PersistentDataType.STRING);
             return read == null ? UNSET : read;
         });
-        return stored.equals(UNSET) ? byDefault : GuiTheme.parse(stored, byDefault);
     }
 
     public static void setTheme(Player player, GuiTheme theme) {
         container(player).set(THEME, PersistentDataType.STRING, theme.key());
         themes.put(player.getUniqueId(), theme.key());
+    }
+
+    public static void followServerTheme(Player player) {
+        container(player).remove(THEME);
+        themes.put(player.getUniqueId(), UNSET);
     }
 
     public static void forget(UUID player) {

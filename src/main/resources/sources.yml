@@ -30,7 +30,7 @@ enabled:
 
 ### Search
 # A search query opens a list to choose from; a link is written straight to the disc.
-# Ask for a different count with a trailing :N — /cdisc create yt:some song:10
+# Ask for a different count with --results=N — /cdisc create yt:some song --results=10
 search:
   default-results: 5
   # 10 is the hard ceiling.

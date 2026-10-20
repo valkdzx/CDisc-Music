@@ -3,6 +3,7 @@ package dev.valkdz.cdisc.gui;
 import dev.valkdz.cdisc.Main;
 import dev.valkdz.cdisc.config.Config;
 import dev.valkdz.cdisc.config.GuiTheme;
+import dev.valkdz.cdisc.feature.karaoke.TrackVersions;
 import dev.valkdz.cdisc.feature.lyrics.LyricsMode;
 import dev.valkdz.cdisc.feature.lyrics.LyricsPrefs;
 import dev.valkdz.cdisc.feature.lyrics.LyricsRenderer;
@@ -14,6 +15,7 @@ import dev.valkdz.cdisc.jukebox.PlaybackManager;
 import dev.valkdz.cdisc.jukebox.queue.DiscQueue;
 import dev.valkdz.cdisc.jukebox.queue.RepeatMode;
 import dev.valkdz.cdisc.permission.Action;
+import dev.valkdz.cdisc.util.HeadUtils;
 import dev.valkdz.cdisc.util.Tasks;
 import dev.valkdz.cdisc.util.TimeUtils;
 import org.bukkit.Bukkit;
@@ -54,7 +56,9 @@ public class PlayerGuiManager {
     public static final int SLOT_SHUFFLE = 8;
     public static final int SLOT_ADVANCED = 9;
     public static final int SLOT_BROADCAST = 10;
+    public static final int SLOT_STAR = 12;
     public static final int SLOT_LYRICS = 13;
+    public static final int SLOT_VERSION = 14;
     public static final int SLOT_EXIT = 17;
 
     public static final int ADV_PAIR = 0;
@@ -67,6 +71,9 @@ public class PlayerGuiManager {
     public static final int ADV_TRACK_MESSAGES = 7;
     public static final int ADV_BACK = 9;
     public static final int ADV_THEME = 13;
+
+    public static final int THEME_AUTO = 2;
+    public static final int THEME_FIRST = 3;
 
     public static final int LOCAL_TRACK_MESSAGES = 11;
     public static final int LOCAL_VOLUME = 15;
@@ -95,6 +102,8 @@ public class PlayerGuiManager {
     }
 
     private void refreshOpenScreens() {
+        TrackVersions versions = plugin.getTrackVersions();
+        if (versions != null) versions.keepWarm(versionWatchers());
         if (openViewers.isEmpty()) return;
 
         for (Map.Entry<Block, Set<Player>> entry : openViewers.entrySet()) {
@@ -110,7 +119,7 @@ public class PlayerGuiManager {
                 Tasks.onEntity(plugin, player, () -> {
                     InventoryView view = player.getOpenInventory();
                     if (!(view.getTopInventory().getHolder() instanceof PlayerGuiHolder holder)
-                            || !holder.getBlock().equals(block) || holder.isAdvanced()) {
+                            || !holder.getBlock().equals(block) || holder.getView() != PlayerGuiHolder.View.MAIN) {
                         return;
                     }
 
@@ -124,6 +133,19 @@ public class PlayerGuiManager {
                 });
             }
         }
+    }
+
+    private Set<Block> versionWatchers() {
+        Set<Block> watched = new java.util.HashSet<>();
+        for (Map.Entry<Block, Set<Player>> entry : openViewers.entrySet()) {
+            for (Player player : entry.getValue()) {
+                if (player.isOnline() && plugin.getPermissions().allows(player, Action.PLAYER_VERSIONS)) {
+                    watched.add(entry.getKey());
+                    break;
+                }
+            }
+        }
+        return watched;
     }
 
     private void refreshLyricsItem(Player player, Inventory inventory, Block block,
@@ -162,7 +184,7 @@ public class PlayerGuiManager {
 
         if (!local) plugin.getScreenPreferences().setLast(player.getUniqueId(), ScreenPreferences.Screen.PLAYER);
 
-        show(player, block, new PlayerGuiHolder(block, apm.getGeneration(block), local, false));
+        show(player, block, new PlayerGuiHolder(block, apm.getGeneration(block), local, PlayerGuiHolder.View.MAIN));
     }
 
     public void openAdvanced(Player player, Block block) {
@@ -176,7 +198,19 @@ public class PlayerGuiManager {
         }
 
         plugin.getScreenPreferences().setLast(player.getUniqueId(), ScreenPreferences.Screen.ADVANCED);
-        show(player, block, new PlayerGuiHolder(block, apm.getGeneration(block), false, true));
+        show(player, block, new PlayerGuiHolder(block, apm.getGeneration(block), false, PlayerGuiHolder.View.ADVANCED));
+    }
+
+    public void openThemes(Player player, Block block) {
+        if (!plugin.getPermissions().allows(player, Action.PLAYER_GUI)) return;
+        if (!plugin.getRegionGuard().require(player, block)) return;
+
+        PlaybackManager apm = plugin.getAudioPlayerManager();
+        if (!canOpen(apm, block) || plugin.getJukeboxViewers().heldByOther(block, player)) {
+            open(player, block);
+            return;
+        }
+        show(player, block, new PlayerGuiHolder(block, apm.getGeneration(block), false, PlayerGuiHolder.View.THEMES));
     }
 
     public void openRemembered(Player player, Block block) {
@@ -201,8 +235,11 @@ public class PlayerGuiManager {
 
     private void show(Player player, Block block, PlayerGuiHolder holder) {
         boolean local = holder.isLocal();
-        String title = plugin.getMessageManager().get(player,
-                holder.isAdvanced() ? "gui.advanced.title" : "gui.title");
+        String title = plugin.getMessageManager().get(player, switch (holder.getView()) {
+            case ADVANCED -> "gui.advanced.title";
+            case THEMES -> "gui.theme.title";
+            default -> "gui.title";
+        });
         Inventory inventory = Bukkit.createInventory(holder, GUI_SIZE, title);
         holder.setInventory(inventory);
 
@@ -265,7 +302,7 @@ public class PlayerGuiManager {
 
     private void refreshLocal(Player player, Inventory inventory, Block block,
                               PlaybackManager.PlaybackInfo info) {
-        ItemStack filler = fillerPane();
+        ItemStack filler = fillerPane(player);
         for (int slot = 0; slot < inventory.getSize(); slot++) {
             inventory.setItem(slot, filler);
         }
@@ -280,6 +317,7 @@ public class PlayerGuiManager {
 
         inventory.setItem(LOCAL_TRACK_MESSAGES, may(player, Action.PLAYER_MESSAGES)
                 ? buildTrackMessagesItem(player) : filler);
+        inventory.setItem(SLOT_STAR, starOrFiller(player, block, filler));
 
         ItemStack local = may(player, Action.PLAYER_LOCAL_VOLUME)
                 ? buildLocalVolumeItem(player, block) : null;
@@ -317,9 +355,13 @@ public class PlayerGuiManager {
                 refreshAdvanced(player, inventory, block);
                 return;
             }
+            if (holder.getView() == PlayerGuiHolder.View.THEMES) {
+                refreshThemes(player, inventory);
+                return;
+            }
         }
 
-        ItemStack filler = fillerPane();
+        ItemStack filler = fillerPane(player);
         for (int slot = 9; slot < inventory.getSize(); slot++) {
             inventory.setItem(slot, filler);
         }
@@ -358,11 +400,71 @@ public class PlayerGuiManager {
         inventory.setItem(SLOT_LYRICS, lyrics != null ? lyrics : filler);
         rememberLyrics(player, lyrics);
 
+        ItemStack version = playing && may(player, Action.PLAYER_VERSIONS) ? buildVersionItem(player, block) : null;
+        inventory.setItem(SLOT_VERSION, version != null ? version : filler);
+        inventory.setItem(SLOT_STAR, starOrFiller(player, block, filler));
+
         inventory.setItem(SLOT_EXIT, buildExitItem(player));
     }
 
+    private ItemStack starOrFiller(Player player, Block block, ItemStack filler) {
+        if (!may(player, Action.DISC_LIBRARY)) return filler;
+        ItemStack star = plugin.getLibraryGuiManager().starItem(player, block);
+        return star != null ? star : filler;
+    }
+
+    public void refreshViewers(Block block) {
+        Set<Player> viewers = openViewers.get(block);
+        if (viewers == null) return;
+        for (Player player : viewers) {
+            if (player.isOnline()) Tasks.onEntity(plugin, player, () -> refresh(player, block));
+        }
+    }
+
+    private ItemStack buildVersionItem(Player player, Block block) {
+        TrackVersions versions = plugin.getTrackVersions();
+        if (versions == null || !versions.isEnabled()) return null;
+        TrackVersions.View view = versions.view(block);
+        if (view == null) return null;
+
+        boolean searching = view.status() == TrackVersions.Status.SEARCHING;
+        boolean choice = view.available().size() > 1;
+        ItemStack item = !choice ? Icons.pick(player, GuiHeads.VERSION_WAIT, Material.SPYGLASS)
+                : switch (view.active()) {
+                    case ORIGINAL -> Icons.pick(player, GuiHeads.VERSION_ORIGINAL, Material.MUSIC_DISC_CAT);
+                    case UNCENSORED -> Icons.pick(player, GuiHeads.VERSION_UNCENSORED, Material.WRITTEN_BOOK);
+                    case MINUS -> Icons.pick(player, GuiHeads.VERSION_MINUS, Material.NOTE_BLOCK);
+                };
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) return item;
+
+        meta.setDisplayName(plugin.getMessageManager().get(player, "gui.versions.name"));
+        List<String> lore = new ArrayList<>();
+        if (!choice) {
+            lore.add(plugin.getMessageManager().get(player, searching ? "gui.versions.searching" : "gui.versions.none"));
+        } else {
+            PlayerActions actions = plugin.getPlayerActions();
+            for (TrackVersions.Kind kind : view.available()) {
+                lore.add((kind == view.active() ? "§a▸ " : "§8  ") + actions.versionName(player, kind));
+            }
+            if (view.switching() != null) {
+                lore.add(plugin.getMessageManager().get(player, "gui.versions.switching",
+                        actions.versionName(player, view.switching())));
+            } else if (searching) {
+                lore.add(plugin.getMessageManager().get(player, "gui.versions.still_searching"));
+            }
+        }
+        if (view.words() > 0) {
+            lore.add(plugin.getMessageManager().get(player, "gui.versions.censored", view.words()));
+        }
+        if (choice) lore.add(plugin.getMessageManager().get(player, "gui.versions.hint"));
+        meta.setLore(lore);
+        item.setItemMeta(meta);
+        return item;
+    }
+
     private void refreshAdvanced(Player player, Inventory inventory, Block block) {
-        ItemStack filler = fillerPane();
+        ItemStack filler = fillerPane(player);
         for (int slot = 0; slot < inventory.getSize(); slot++) {
             inventory.setItem(slot, filler);
         }
@@ -414,11 +516,15 @@ public class PlayerGuiManager {
     }
 
     private ItemStack buildBackItem(Player player) {
+        return buildBackItem(player, "gui.advanced.back");
+    }
+
+    private ItemStack buildBackItem(Player player, String key) {
         ItemStack item = Icons.pick(player, GuiHeads.BACK, Material.ARROW);
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return item;
 
-        meta.setDisplayName(plugin.getMessageManager().get(player, "gui.advanced.back"));
+        meta.setDisplayName(plugin.getMessageManager().get(player, key));
         item.setItemMeta(meta);
         return item;
     }
@@ -539,7 +645,7 @@ public class PlayerGuiManager {
     }
 
     private ItemStack inert(Player player) {
-        ItemStack item = new ItemStack(Material.LIGHT_GRAY_STAINED_GLASS_PANE);
+        ItemStack item = new ItemStack(Icons.pane(player, Material.LIGHT_GRAY_STAINED_GLASS_PANE));
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
             meta.setDisplayName("§8" + plugin.getMessageManager()
@@ -717,18 +823,60 @@ public class PlayerGuiManager {
     }
 
     private ItemStack buildThemeItem(Player player) {
-        GuiTheme current = Icons.theme(player);
         ItemStack item = Icons.pick(player, GuiHeads.THEME, Material.BRUSH);
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return item;
 
         meta.setDisplayName(plugin.getMessageManager().get(player, "gui.theme.name"));
-        List<String> lore = new ArrayList<>();
-        for (GuiTheme theme : GuiTheme.values()) {
-            lore.add((theme == current ? "\u00a7a\u25b6 \u00a7f" : "\u00a78\u2022 \u00a77")
-                    + plugin.getMessageManager().get(player, "gui.theme." + theme.key()));
+        meta.setLore(List.of(
+                plugin.getMessageManager().get(player, "gui.theme.current", chosenThemeName(player)),
+                plugin.getMessageManager().get(player, "gui.theme.hint")));
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    public String chosenThemeName(Player player) {
+        if (PlayerPrefs.picksOwnTheme(player)) return themeName(player, Icons.theme(player));
+        return plugin.getMessageManager().get(player, "gui.theme.auto")
+                + " (" + themeName(player, plugin.cdiscConfig().getGuiTheme()) + ")";
+    }
+
+    private String themeName(Player player, GuiTheme theme) {
+        return plugin.getMessageManager().get(player, "gui.theme." + theme.key());
+    }
+
+    private void refreshThemes(Player player, Inventory inventory) {
+        ItemStack filler = fillerPane(player);
+        for (int slot = 0; slot < inventory.getSize(); slot++) {
+            inventory.setItem(slot, filler);
         }
-        lore.add(plugin.getMessageManager().get(player, "gui.theme.hint"));
+
+        boolean own = PlayerPrefs.picksOwnTheme(player);
+        GuiTheme current = Icons.theme(player);
+        inventory.setItem(THEME_AUTO, themeChoice(player, new ItemStack(Material.CLOCK),
+                plugin.getMessageManager().get(player, "gui.theme.auto"), !own,
+                plugin.getMessageManager().get(player, "gui.theme.current",
+                        themeName(player, plugin.cdiscConfig().getGuiTheme()))));
+        GuiTheme[] themes = GuiTheme.values();
+        for (int i = 0; i < themes.length; i++) {
+            GuiTheme theme = themes[i];
+            ItemStack icon = theme == GuiTheme.LEGACY ? new ItemStack(Material.BRUSH)
+                    : HeadUtils.createHead(GuiHeads.THEME.texture(theme));
+            inventory.setItem(THEME_FIRST + i, themeChoice(player, icon, themeName(player, theme),
+                    own && theme == current, null));
+        }
+        inventory.setItem(ADV_BACK, buildBackItem(player, "gui.theme.back"));
+        inventory.setItem(SLOT_EXIT, buildExitItem(player));
+    }
+
+    private ItemStack themeChoice(Player player, ItemStack item, String name, boolean chosen, String detail) {
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) return item;
+
+        meta.setDisplayName((chosen ? "\u00a7a\u25b6 " : "\u00a7f") + name);
+        List<String> lore = new ArrayList<>();
+        if (detail != null) lore.add(detail);
+        lore.add(plugin.getMessageManager().get(player, chosen ? "gui.theme.chosen" : "gui.theme.hint"));
         meta.setLore(lore);
         item.setItemMeta(meta);
         return item;
@@ -751,8 +899,8 @@ public class PlayerGuiManager {
         return item;
     }
 
-    private ItemStack fillerPane() {
-        ItemStack item = new ItemStack(Material.BLACK_STAINED_GLASS_PANE);
+    private ItemStack fillerPane(Player player) {
+        ItemStack item = new ItemStack(Icons.pane(player, Material.BLACK_STAINED_GLASS_PANE));
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
             meta.setDisplayName(" ");

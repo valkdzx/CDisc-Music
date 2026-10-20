@@ -83,7 +83,7 @@ public final class BroadcastGui implements Listener {
         }
 
         BroadcastGuiHolder holder = new BroadcastGuiHolder(BroadcastGuiHolder.View.STATION, jukebox, null, null);
-        Inventory inventory = create(holder, 18, msg(player, "broadcast.gui.title", station.name()));
+        Inventory inventory = create(player, holder, 18, msg(player, "broadcast.gui.title", station.name()));
 
         inventory.setItem(STATION_INFO, item(Material.LECTERN, msg(player, "broadcast.gui.info", station.name()),
                 msg(player, "broadcast.gui.info_host", station.hostName()),
@@ -93,7 +93,7 @@ public final class BroadcastGui implements Listener {
         for (int i = 0; i < BroadcastStation.MAX_MICS; i++) {
             inventory.setItem(STATION_FIRST_MIC + i, i < mics.size()
                     ? micItem(player, mics.get(i), msg(player, "broadcast.gui.open_hint"))
-                    : item(Material.LIGHT_GRAY_STAINED_GLASS_PANE, msg(player, "broadcast.gui.free_slot")));
+                    : item(Icons.pane(player, Material.LIGHT_GRAY_STAINED_GLASS_PANE), msg(player, "broadcast.gui.free_slot")));
         }
 
         inventory.setItem(STATION_BACK, item(Icons.pick(player, GuiHeads.BACK, Material.ARROW), msg(player, "broadcast.gui.back")));
@@ -112,7 +112,7 @@ public final class BroadcastGui implements Listener {
         }
 
         BroadcastGuiHolder holder = new BroadcastGuiHolder(BroadcastGuiHolder.View.MIC, station.jukebox(), mic.id(), null);
-        Inventory inventory = create(holder, 18, micName(player, mic));
+        Inventory inventory = create(player, holder, 18, micName(player, mic));
 
         inventory.setItem(MIC_INFO, micItem(player, mic, null));
         inventory.setItem(MIC_VOLUME, volumeItem(player, mic));
@@ -140,7 +140,7 @@ public final class BroadcastGui implements Listener {
 
     public void openLever(Player player, BroadcastStation station, Microphone mic) {
         BroadcastGuiHolder holder = new BroadcastGuiHolder(BroadcastGuiHolder.View.LEVER, station.jukebox(), mic.id(), null);
-        Inventory inventory = create(holder, 9, msg(player, "broadcast.gui.lever_title"));
+        Inventory inventory = create(player, holder, 9, msg(player, "broadcast.gui.lever_title"));
 
         ItemStack giveBack = item(Material.JUKEBOX, msg(player, "broadcast.gui.give_back"),
                 msg(player, "broadcast.gui.give_back_lore"));
@@ -163,7 +163,7 @@ public final class BroadcastGui implements Listener {
 
     public void openBlock(Player player, BroadcastStation station, Microphone mic) {
         BroadcastGuiHolder holder = new BroadcastGuiHolder(BroadcastGuiHolder.View.BLOCK, station.jukebox(), mic.id(), null);
-        Inventory inventory = create(holder, 9, micName(player, mic));
+        Inventory inventory = create(player, holder, 9, micName(player, mic));
 
         inventory.setItem(BLOCK_INFO, micItem(player, mic, null));
         if (manager().canControl(player, station)) {
@@ -188,7 +188,7 @@ public final class BroadcastGui implements Listener {
         }
 
         BroadcastGuiHolder holder = new BroadcastGuiHolder(BroadcastGuiHolder.View.PASS, station.jukebox(), mic.id(), ids);
-        Inventory inventory = create(holder, PASS_SIZE, msg(player, "broadcast.gui.pass_title"));
+        Inventory inventory = create(player, holder, PASS_SIZE, msg(player, "broadcast.gui.pass_title"));
         for (int i = 0; i < ids.size(); i++) {
             Player target = Bukkit.getPlayer(ids.get(i));
             if (target != null) inventory.setItem(i, head(target));
@@ -401,10 +401,10 @@ public final class BroadcastGui implements Listener {
         manager().pass(player, station, mic, target);
     }
 
-    private Inventory create(BroadcastGuiHolder holder, int size, String title) {
+    private Inventory create(Player player, BroadcastGuiHolder holder, int size, String title) {
         Inventory inventory = Bukkit.createInventory(holder, size, title);
         holder.setInventory(inventory);
-        ItemStack filler = item(Material.BLACK_STAINED_GLASS_PANE, " ");
+        ItemStack filler = item(Icons.pane(player, Material.BLACK_STAINED_GLASS_PANE), " ");
         for (int slot = 0; slot < size; slot++) inventory.setItem(slot, filler);
         return inventory;
     }

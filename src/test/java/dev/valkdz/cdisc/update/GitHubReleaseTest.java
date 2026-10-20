@@ -14,32 +14,14 @@ class GitHubReleaseTest {
     }
 
     @Test
-    void readsTheJarAndItsDigest() throws Exception {
+    void readsTheVersion() throws Exception {
         UpdateChecker.Release release = parse("""
                 {"tag_name": "v2.2", "draft": false, "prerelease": false,
                  "html_url": "https://github.com/valkdzx/CDisc-Music/releases/tag/v2.2",
-                 "assets": [
-                   {"name": "sources.zip", "digest": "sha256:00",
-                    "browser_download_url": "https://github.com/x/sources.zip"},
-                   {"name": "cdisc-2.2.jar", "digest": "sha256:ABCDEF",
-                    "browser_download_url": "https://github.com/x/cdisc-2.2.jar"}
-                 ]}""");
+                 "assets": [{"name": "cdisc-2.2.jar", "browser_download_url": "https://github.com/x/cdisc-2.2.jar"}]}""");
 
         assertEquals("2.2", release.version());
-        assertEquals("https://github.com/valkdzx/CDisc-Music/releases/tag/v2.2", release.page());
         assertTrue(release.supports("26.2"));
-        assertEquals("cdisc-2.2.jar", release.download().fileName());
-        assertEquals("SHA-256", release.download().hashAlgorithm());
-        assertEquals("ABCDEF", release.download().hash());
-    }
-
-    @Test
-    void aJarWithoutADigestIsNotDownloaded() throws Exception {
-        UpdateChecker.Release release = parse("""
-                {"tag_name": "2.2", "html_url": "https://github.com/x",
-                 "assets": [{"name": "cdisc-2.2.jar", "browser_download_url": "https://github.com/x/a.jar"}]}""");
-        assertEquals("2.2", release.version());
-        assertNull(release.download());
     }
 
     @Test

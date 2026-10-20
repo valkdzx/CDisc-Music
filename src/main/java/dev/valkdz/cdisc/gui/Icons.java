@@ -16,19 +16,33 @@ public final class Icons {
         return PlayerPrefs.theme(player, Main.getInstance().cdiscConfig().getGuiTheme());
     }
 
-    public static boolean legacy(Player player) {
-        return theme(player) == GuiTheme.LEGACY;
+    public static ItemStack head(Player player, GuiHeads head, String legacy) {
+        GuiTheme theme = theme(player);
+        return HeadUtils.createHead(theme == GuiTheme.LEGACY ? legacy : head.texture(theme));
     }
 
-    public static ItemStack head(Player player, String dark, String legacy) {
-        return HeadUtils.createHead(legacy(player) ? legacy : dark);
+    // A head whose textures are not uploaded yet shows its legacy item in every theme.
+    public static ItemStack pick(Player player, GuiHeads head, ItemStack legacy) {
+        GuiTheme theme = theme(player);
+        String texture = theme == GuiTheme.LEGACY ? null : head.texture(theme);
+        return texture == null || texture.isEmpty() ? legacy : HeadUtils.createHead(texture);
     }
 
-    public static ItemStack pick(Player player, String dark, ItemStack legacy) {
-        return legacy(player) ? legacy : HeadUtils.createHead(dark);
+    public static ItemStack pick(Player player, GuiHeads head, Material legacy) {
+        return pick(player, head, new ItemStack(legacy));
     }
 
-    public static ItemStack pick(Player player, String dark, Material legacy) {
-        return legacy(player) ? new ItemStack(legacy) : HeadUtils.createHead(dark);
+    public static Material pane(Player player, Material pane) {
+        GuiTheme theme = theme(player);
+        if (theme == GuiTheme.DARK || theme == GuiTheme.LEGACY) return pane;
+        boolean orangeHeads = theme == GuiTheme.CANDLE;
+        if (pane == Material.BLACK_STAINED_GLASS_PANE) {
+            return orangeHeads ? Material.BLACK_STAINED_GLASS_PANE : Material.ORANGE_STAINED_GLASS_PANE;
+        }
+        if (pane == Material.GRAY_STAINED_GLASS_PANE) {
+            return orangeHeads ? Material.ORANGE_STAINED_GLASS_PANE : Material.BLACK_STAINED_GLASS_PANE;
+        }
+        if (pane == Material.LIGHT_GRAY_STAINED_GLASS_PANE) return Material.WHITE_STAINED_GLASS_PANE;
+        return pane;
     }
 }

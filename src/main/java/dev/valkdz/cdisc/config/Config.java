@@ -4,6 +4,7 @@ import dev.valkdz.cdisc.Main;
 import dev.valkdz.cdisc.voice.anchor.AnchorType;
 import org.bukkit.configuration.file.FileConfiguration;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
 
@@ -209,10 +210,6 @@ public final class Config {
         return cfg().getBoolean("update-checker.notify-ops", true);
     }
 
-    public boolean isAutoUpdateEnabled() {
-        return isUpdateCheckerEnabled() && cfg().getBoolean("update-checker.auto-update", true);
-    }
-
     public int getUpdateIntervalHours() {
         return Math.max(0, cfg().getInt("update-checker.interval-hours", 6));
     }
@@ -364,6 +361,14 @@ public final class Config {
         return cfg().getInt("volume", 80);
     }
 
+    public boolean isTrackVersionsEnabled() {
+        return cfg().getBoolean("track-versions", true);
+    }
+
+    public int getLibrarySize() {
+        return Math.max(0, cfg().getInt("library-size", 270));
+    }
+
     public boolean isLyricsEnabled() {
         return cfg().getBoolean("lyrics.enabled", true);
     }
@@ -467,7 +472,7 @@ public final class Config {
     }
 
     public GuiTheme getGuiTheme() {
-        return GuiTheme.parse(cfg().getString("gui-theme", "dark"), GuiTheme.DARK);
+        return GuiTheme.forServer(cfg().getString("gui-theme", "auto"), LocalDate.now());
     }
 
     public boolean isConfigDialogEnabled() {

@@ -468,6 +468,20 @@ public class TrackLoader {
         return new AudioPlayer();
     }
 
+    public List<dev.valkdz.cdisc.audio.source.youtube.YouTubeSearch.Result> searchYoutube(String query, int limit)
+            throws java.io.IOException, InterruptedException {
+        dev.valkdz.cdisc.audio.source.youtube.YouTubeSearch search = youtubeSearch;
+        if (search == null) return List.of();
+        return search.search(query, sabrResolver == null ? null : sabrResolver.visitorDataOrNull(), limit);
+    }
+
+    public AudioItem searchSoundCloud(String query) {
+        for (AudioSourceManager source : sources) {
+            if (source instanceof SoundCloudSourceManager soundCloud) return soundCloud.loadItem("scsearch:" + query);
+        }
+        return AudioItem.NONE;
+    }
+
     public boolean hasCustomApi() {
         return customApiResolver != null;
     }
@@ -615,6 +629,7 @@ public class TrackLoader {
     private void loadSmart(String resolved, AudioLoadResultHandler handler,
                            String preferredTitle, String preferredAuthor) {
 
+        if (interceptSpotifyCollection(resolved, handler)) return;
         if (interceptSpotify(resolved, handler)) return;
 
         if (!isYoutubeIdentifier(resolved)) {

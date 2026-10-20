@@ -26,10 +26,12 @@ public final class SearchResults {
 
         DISC,
 
-        DOWNLOAD
+        DOWNLOAD,
+
+        LIBRARY
     }
 
-    private record Pending(List<Entry> entries, long shownAt, Kind kind) {
+    private record Pending(List<Entry> entries, long shownAt, Kind kind, String version) {
         boolean expired() {
             return System.currentTimeMillis() - shownAt > EXPIRY_MS;
         }
@@ -54,17 +56,21 @@ public final class SearchResults {
         this.plugin = plugin;
     }
 
-    public void show(Player player, String query, List<Entry> entries) {
-        show(player, query, entries, Kind.DISC);
+    public void show(Player player, String query, List<Entry> entries, String version) {
+        show(player, query, entries, Kind.DISC, version);
     }
 
     public void show(CommandSender sender, String query, List<Entry> entries, Kind kind) {
+        show(sender, query, entries, kind, null);
+    }
+
+    public void show(CommandSender sender, String query, List<Entry> entries, Kind kind, String version) {
         if (entries.isEmpty()) return;
 
         pending.values().removeIf(Pending::expired);
 
         pending.put(keyOf(sender),
-                new Pending(List.copyOf(entries), System.currentTimeMillis(), kind));
+                new Pending(List.copyOf(entries), System.currentTimeMillis(), kind, version));
 
         sender.sendMessage("§8§m                                        ");
         sender.sendMessage("§e" + message(sender, "search.header",
@@ -89,12 +95,20 @@ public final class SearchResults {
     }
 
     private static String hoverKey(Kind kind) {
-        return kind == Kind.DOWNLOAD ? "search.hover_download" : "search.hover";
+        return switch (kind) {
+            case DOWNLOAD -> "search.hover_download";
+            case LIBRARY -> "search.hover_library";
+            case DISC -> "search.hover";
+        };
     }
 
     private static String hintKey(CommandSender sender, Kind kind) {
         if (!(sender instanceof Player)) return "search.hint_console";
-        return kind == Kind.DOWNLOAD ? "search.hint_download" : "search.hint";
+        return switch (kind) {
+            case DOWNLOAD -> "search.hint_download";
+            case LIBRARY -> "search.hint_library";
+            case DISC -> "search.hint";
+        };
     }
 
     private String entry(CommandSender sender, Entry entry, int number) {
@@ -116,7 +130,7 @@ public final class SearchResults {
                 .get(sender instanceof Player player ? player : null, path, args);
     }
 
-    public record Pick(AudioTrack track, String address, Kind kind) {
+    public record Pick(AudioTrack track, String address, Kind kind, String version) {
     }
 
     public Pick claim(CommandSender sender, int number) {
@@ -130,7 +144,7 @@ public final class SearchResults {
 
         pending.remove(key);
         Entry chosen = waiting.entries().get(number - 1);
-        return new Pick(chosen.track(), chosen.address(), waiting.kind());
+        return new Pick(chosen.track(), chosen.address(), waiting.kind(), waiting.version());
     }
 
     private static String trim(String text, int max) {

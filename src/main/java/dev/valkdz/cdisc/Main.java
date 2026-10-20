@@ -9,6 +9,7 @@ import dev.valkdz.cdisc.feature.broadcast.BroadcastGui;
 import dev.valkdz.cdisc.feature.broadcast.BroadcastManager;
 import dev.valkdz.cdisc.feature.broadcast.MicrophoneItemListener;
 import dev.valkdz.cdisc.feature.horn.HornPlayer;
+import dev.valkdz.cdisc.feature.karaoke.TrackVersions;
 import dev.valkdz.cdisc.feature.local.LocalDownloader;
 import dev.valkdz.cdisc.feature.local.LocalMusicLibrary;
 import dev.valkdz.cdisc.feature.local.TrackDownloader;
@@ -36,6 +37,9 @@ import dev.valkdz.cdisc.gui.PairGuiManager;
 import dev.valkdz.cdisc.gui.PlayerActions;
 import dev.valkdz.cdisc.gui.PlayerGuiListener;
 import dev.valkdz.cdisc.gui.PlayerGuiManager;
+import dev.valkdz.cdisc.feature.library.TrackLibrary;
+import dev.valkdz.cdisc.gui.LibraryGuiListener;
+import dev.valkdz.cdisc.gui.LibraryGuiManager;
 import dev.valkdz.cdisc.gui.PlaylistGuiListener;
 import dev.valkdz.cdisc.gui.PlaylistGuiManager;
 import dev.valkdz.cdisc.gui.QueueGuiListener;
@@ -97,6 +101,8 @@ public final class Main extends JavaPlugin {
     private PairGuiManager pairGuiManager;
     private SpeakerParticles speakerParticles;
     private PlaylistGuiManager playlistGuiManager;
+    private TrackLibrary trackLibrary;
+    private LibraryGuiManager libraryGuiManager;
     private LocalConfigGuiManager localConfigGuiManager;
     private SearchResults searchResults;
     private LocalMusicLibrary localMusic;
@@ -107,6 +113,7 @@ public final class Main extends JavaPlugin {
     private RegionGuard regionGuard;
     private PoTokenService poTokenService;
     private LyricsService lyricsService;
+    private TrackVersions trackVersions;
     private LyricsDisplay lyricsDisplay;
     private LiveChat liveChat;
     private CarriedLyrics carriedLyrics;
@@ -152,6 +159,9 @@ public final class Main extends JavaPlugin {
 
         poTokenService = new PoTokenService(this);
         poTokenService.start();
+
+        trackVersions = new TrackVersions(this);
+        listen(trackVersions);
 
         lyricsService = new LyricsService(this);
         liveChat = new LiveChat(this);
@@ -200,6 +210,10 @@ public final class Main extends JavaPlugin {
 
         playlistGuiManager = new PlaylistGuiManager(this);
         listen(new PlaylistGuiListener(this));
+
+        trackLibrary = new TrackLibrary(this);
+        libraryGuiManager = new LibraryGuiManager(this);
+        listen(new LibraryGuiListener(this));
 
         localConfigGuiManager = new LocalConfigGuiManager(this);
         listen(new LocalConfigGuiListener(this));
@@ -282,6 +296,8 @@ public final class Main extends JavaPlugin {
         ifSet(trackProgressDisplay, d -> { d.stop(); d.clearAll(); });
         ifSet(playerGuiManager, PlayerGuiManager::stop);
         ifSet(playlistGuiManager, PlaylistGuiManager::stop);
+        ifSet(libraryGuiManager, LibraryGuiManager::stop);
+        ifSet(trackLibrary, TrackLibrary::shutdown);
         ifSet(speakerParticles, SpeakerParticles::stop);
         ifSet(portableJukeboxManager, PortableJukeboxManager::stop);
         ifSet(hornPlayer, HornPlayer::stop);
@@ -291,11 +307,12 @@ public final class Main extends JavaPlugin {
         ifSet(carriedLyrics, l -> { l.stop(); l.clearAll(); });
         ifSet(lyricsDisplay, l -> { l.stop(); l.clearAll(); });
         ifSet(lyricsService, LyricsService::shutdown);
+        ifSet(trackVersions, TrackVersions::shutdown);
         ifSet(liveChat, LiveChat::shutdown);
         ifSet(poTokenService, PoTokenService::stop);
         ifSet(audioPlayerManager, PlaybackManager::shutdown);
         ifSet(jukeboxListener, JukeboxListener::shutdown);
-        ifSet(updateChecker, UpdateChecker::shutdown);
+        ifSet(updateChecker, UpdateChecker::stop);
     }
 
     private void listen(Listener... listeners) {
@@ -350,6 +367,8 @@ public final class Main extends JavaPlugin {
     public SpeakerGroupManager getSpeakerGroupManager() { return speakerGroupManager; }
     public PairGuiManager getPairGuiManager() { return pairGuiManager; }
     public PlaylistGuiManager getPlaylistGuiManager() { return playlistGuiManager; }
+    public TrackLibrary getTrackLibrary() { return trackLibrary; }
+    public LibraryGuiManager getLibraryGuiManager() { return libraryGuiManager; }
     public LocalConfigGuiManager getLocalConfigGuiManager() { return localConfigGuiManager; }
     public SearchResults getSearchResults() { return searchResults; }
     public LocalMusicLibrary getLocalMusic() { return localMusic; }
@@ -357,6 +376,7 @@ public final class Main extends JavaPlugin {
     public TrackDownloader getTrackDownloader() { return trackDownloader; }
     public PoTokenService getPoTokenService() { return poTokenService; }
     public LyricsService getLyricsService() { return lyricsService; }
+    public TrackVersions getTrackVersions() { return trackVersions; }
     public LyricsDisplay getLyricsDisplay() { return lyricsDisplay; }
     public LiveChat getLiveChat() { return liveChat; }
 

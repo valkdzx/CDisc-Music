@@ -39,6 +39,8 @@ actions:
     download: op
     # /cdisc create broadcast:Name, a disc that puts voices through the jukebox
     broadcast: true
+    # /cdisc library and the star on the player screen. Writing a disc from it also takes create
+    library: true
 
   ### The player screen, and /cdisc player
   player:
@@ -68,6 +70,8 @@ actions:
     messages: true
     # /cdisc player info and status, and /cdisc sneak, which picks what crouching does
     info: true
+    # The version button: original, uncensored, instrumental
+    versions: true
 
   ### The queue behind the jukebox
   queue:
@@ -109,8 +113,9 @@ actions:
   admin:
     reload: op
     doctor: op
-    # Uploads the server log to mclo.gs for a GitHub issue and replies with a public link;
-    # keys are hidden first. cdisc.admin does not grant it: only this rule or the node itself.
+    # Uploads CDisc's warnings and errors from the server log to mclo.gs for a GitHub issue
+    # and replies with a public link; keys are hidden first.
+    # cdisc.admin does not grant it: only this rule or the node itself.
     # log-upload: false in config.yml turns the command off altogether.
     logs: op
     # /cdisc admin local-files-config: the name, volume, permission and lyrics of one

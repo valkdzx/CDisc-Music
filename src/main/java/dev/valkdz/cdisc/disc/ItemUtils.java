@@ -27,6 +27,7 @@ public class ItemUtils {
     public static final NamespacedKey HINT_AT_KEY = new NamespacedKey(Main.getInstance(), "cdisc_hint_at");
     public static final NamespacedKey PLAN_KEY = new NamespacedKey(Main.getInstance(), "cdisc_plan");
     public static final NamespacedKey LOCKED_KEY = new NamespacedKey(Main.getInstance(), "cdisc_locked");
+    public static final NamespacedKey VERSION_KEY = new NamespacedKey(Main.getInstance(), "cdisc_version");
 
     public static boolean isDisc(ItemStack item) {
         return item != null && item.getType().toString().startsWith("MUSIC_DISC_");
@@ -85,6 +86,12 @@ public class ItemUtils {
 
     public static void saveTrackToDisc(Player player, ItemStack item, String query, String fallbackQuery,
                                        String title, String author, String musicFetch, Hint hint) {
+        saveTrackToDisc(player, item, query, fallbackQuery, title, author, musicFetch, hint, null);
+    }
+
+    public static void saveTrackToDisc(Player player, ItemStack item, String query, String fallbackQuery,
+                                       String title, String author, String musicFetch, Hint hint,
+                                       String version) {
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return;
 
@@ -104,10 +111,23 @@ public class ItemUtils {
             pdc.remove(MUSIC_FETCH_KEY);
         }
 
-        meta.setLore(discLore(player, title, author, isDisc(item) ? hint : null));
+        List<String> lore = discLore(player, title, author, isDisc(item) ? hint : null);
+        if (version != null) {
+            pdc.set(VERSION_KEY, PersistentDataType.STRING, version);
+            MessageManager messages = Main.getInstance().getMessageManager();
+            lore.add(messages.get(player, "disc.lore.version", messages.get(player, "gui.versions." + version)));
+        } else {
+            pdc.remove(VERSION_KEY);
+        }
+        meta.setLore(lore);
         meta.addItemFlags(ItemFlag.HIDE_POTION_EFFECTS);
         if (isDisc(item)) songLine(meta, item, false);
         item.setItemMeta(meta);
+    }
+
+    public static void hideSongLine(ItemMeta meta, ItemStack item) {
+        meta.addItemFlags(ItemFlag.HIDE_POTION_EFFECTS);
+        if (isDisc(item)) songLine(meta, item, false);
     }
 
     private static volatile boolean songLineReported;
@@ -160,7 +180,7 @@ public class ItemUtils {
     }
 
     public record DiscData(String query, String fallback, String title, String author, String fetch,
-                           Hint hint) {}
+                           Hint hint, String version) {}
 
     private static void writeHint(PersistentDataContainer pdc, Hint hint) {
         if (hint == null) {
@@ -221,8 +241,30 @@ public class ItemUtils {
                 pdc.get(TITLE_KEY, PersistentDataType.STRING),
                 pdc.get(AUTHOR_KEY, PersistentDataType.STRING),
                 pdc.get(MUSIC_FETCH_KEY, PersistentDataType.STRING),
-                readHint(pdc)
+                readHint(pdc),
+                pdc.get(VERSION_KEY, PersistentDataType.STRING)
         );
+    }
+
+    // The version line is the one written right after discLore's own lines; lock() appends below it.
+    public static boolean dropVersion(ItemStack item) {
+        ItemMeta meta = item == null ? null : item.getItemMeta();
+        if (meta == null) return false;
+        PersistentDataContainer pdc = meta.getPersistentDataContainer();
+        if (!pdc.has(VERSION_KEY, PersistentDataType.STRING)) return false;
+        pdc.remove(VERSION_KEY);
+
+        String author = pdc.get(AUTHOR_KEY, PersistentDataType.STRING);
+        Hint hint = isDisc(item) ? readHint(pdc) : null;
+        int line = (author == null || author.isBlank() ? 1 : 2)
+                + (hint != null && (hint.live() || hint.lengthMs() > 0) ? 1 : 0);
+        List<String> lore = meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
+        if (line < lore.size()) {
+            lore.remove(line);
+            meta.setLore(lore);
+        }
+        item.setItemMeta(meta);
+        return true;
     }
 
     public static String getMusicFetch(ItemStack item) {
@@ -240,6 +282,7 @@ public class ItemUtils {
         meta.getPersistentDataContainer().remove(TITLE_KEY);
         meta.getPersistentDataContainer().remove(AUTHOR_KEY);
         meta.getPersistentDataContainer().remove(MUSIC_FETCH_KEY);
+        meta.getPersistentDataContainer().remove(VERSION_KEY);
         writeHint(meta.getPersistentDataContainer(), null);
         meta.setLore(null);
         meta.removeItemFlags(ItemFlag.HIDE_POTION_EFFECTS);

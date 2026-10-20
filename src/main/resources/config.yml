@@ -41,6 +41,21 @@ volume: 80
 # Each jukebox can also switch it off from Advanced in the player screen.
 crossfade: 5
 
+### Song versions
+# The moment a disc goes in, the jukebox looks on SoundCloud and YouTube for an instrumental of its
+# song and, when words are muted or replaced in it, an uncensored cut; the song never waits for that.
+# Once it has played a second, it and the candidates are streamed into memory and compared, nothing
+# is written to disk. The version button on the player screen switches cuts from the same moment;
+# while someone has that screen open, the other cuts wait buffered so the switch is immediate.
+track-versions: true
+
+### Library
+# Every player keeps a library of the tracks they starred on the player screen or added with
+# /cdisc library add, and writes any of them onto a disc from /cdisc library or
+# /cdisc library create. This is how many tracks one library holds; 0 turns libraries off.
+# They are kept in plugins/CDisc/library, one file per player.
+library-size: 270
+
 ### Broadcast
 # /cdisc create broadcast:Name makes a disc that plays no music: in a jukebox it goes live, and
 # the host (whoever made the disc) or an operator adds up to 6 microphones from its screen.
@@ -207,9 +222,11 @@ sneak-mode: toggle
 
 ### Player screen theme
 # The icons of the player screen and the screens it opens, for players who never picked one.
-# dark (grey heads) | legacy (the coloured heads and vanilla items from before 2.2.1).
+# auto (dark, and pumpkin from 20 October to 3 November) | dark (grey heads)
+# | pumpkin (black heads, orange icons) | candle (orange heads, black icons) | lantern (black heads, glowing white icons)
+# | legacy (the coloured heads and vanilla items from before 2.2.1).
 # Each player switches their own from Advanced in the player screen.
-gui-theme: dark
+gui-theme: auto
 
 ### Settings window
 # /cdisc admin config: config.yml, sources.yml, permissions.yml and tokens.yml as a dialog,
@@ -229,7 +246,8 @@ api:
   disc-material: MUSIC_DISC_13
 
 ### Log upload
-# /cdisc admin logs: uploads the server log to mclo.gs with a public link, for a GitHub issue.
+# /cdisc admin logs: uploads CDisc's warnings and errors from the server log, with the doctor
+# report, to mclo.gs with a public link, for a GitHub issue. The rest of the log is never sent.
 # false turns the command off for everyone, operators and the console included.
 log-upload: true
 
@@ -241,10 +259,6 @@ update-checker:
   notify-ops: true
   # 0 checks once at startup only, which misses a release published while running.
   interval-hours: 6
-  # Downloads a newer release into plugins/CDisc/update, unless its Modrinth page leaves out
-  # this server's Minecraft version. GitHub releases list none and are always taken.
-  # When the server stops, the old CDisc jar is deleted and the new one takes its place.
-  auto-update: true
 
 ### Anonymous statistics (bStats)
 # Server-level facts only: player count, server and Java version, feature counters.

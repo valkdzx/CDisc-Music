@@ -12,7 +12,6 @@ import org.bukkit.permissions.PermissionDefault;
 import java.io.File;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.EnumMap;
 import java.util.HashMap;
@@ -123,7 +122,8 @@ public final class PermissionsConfig {
     static Map<String, List<Action>> legacyNodes() {
         Map<String, List<Action>> legacy = new LinkedHashMap<>();
 
-        legacy.put("cdisc.create", List.of(Action.DISC_CREATE, Action.DISC_CONVERT, Action.DISC_BROADCAST));
+        legacy.put("cdisc.create", List.of(Action.DISC_CREATE, Action.DISC_CONVERT, Action.DISC_BROADCAST,
+                Action.DISC_LIBRARY));
         legacy.put("cdisc.create.playlist", List.of(Action.DISC_PLAYLIST));
         legacy.put("cdisc.clear", List.of(Action.DISC_CLEAR));
         legacy.put("cdisc.download", List.of(Action.DISC_DOWNLOAD));
@@ -137,7 +137,7 @@ public final class PermissionsConfig {
                 Action.PLAYER_PREVIOUS, Action.PLAYER_SEEK, Action.PLAYER_REPEAT,
                 Action.PLAYER_SHUFFLE, Action.PLAYER_VOLUME, Action.PLAYER_LOCAL_VOLUME,
                 Action.PLAYER_BEACON, Action.PLAYER_CHANNELS,
-                Action.PLAYER_INFO, Action.QUEUE_OPEN, Action.QUEUE_ADD, Action.QUEUE_REMOVE,
+                Action.PLAYER_INFO, Action.PLAYER_VERSIONS, Action.QUEUE_OPEN, Action.QUEUE_ADD, Action.QUEUE_REMOVE,
                 Action.QUEUE_PLAY, Action.QUEUE_POLICY, Action.QUEUE_CROSSFADE, Action.LYRICS_TOGGLE,
                 Action.LYRICS_PRESET, Action.LYRICS_SCOREBOARD));
 
@@ -206,28 +206,40 @@ public final class PermissionsConfig {
         return false;
     }
 
+    // Read by hand: a link URI refuses (a space, an underscore) still plays through a source that
+    // matches it by pattern, and "tt:" hands the link that follows it to the loader unchanged.
     public static String hostOf(String query) {
-        String trimmed = query == null ? "" : query.trim();
-        if (!trimmed.regionMatches(true, 0, "http://", 0, 7)
-                && !trimmed.regionMatches(true, 0, "https://", 0, 8)) {
-            return null;
+        String link = query == null ? "" : query.trim();
+        if (link.length() > 3 && link.charAt(2) == ':' && Character.isLetter(link.charAt(0))
+                && Character.isLetter(link.charAt(1))) {
+            link = link.substring(3).trim();
+        }
+        int scheme = link.regionMatches(true, 0, "http://", 0, 7) ? 7
+                : link.regionMatches(true, 0, "https://", 0, 8) ? 8 : -1;
+        if (scheme < 0) return null;
+
+        String host = link.substring(scheme);
+        int end = 0;
+        while (end < host.length() && "/?#\\".indexOf(host.charAt(end)) < 0) end++;
+        host = host.substring(0, end);
+        host = host.substring(host.lastIndexOf('@') + 1);
+        if (host.startsWith("[")) {
+            int close = host.indexOf(']');
+            host = close < 0 ? host : host.substring(0, close + 1);
+        } else if (host.indexOf(':') >= 0) {
+            host = host.substring(0, host.indexOf(':'));
         }
 
-        try {
-            String host = URI.create(trimmed).getHost();
-            if (host == null) return null;
-            host = host.toLowerCase(Locale.ROOT);
-            return host.startsWith("www.") ? host.substring(4) : host;
-        } catch (IllegalArgumentException e) {
-
-            return null;
-        }
+        host = host.toLowerCase(Locale.ROOT);
+        while (host.endsWith(".")) host = host.substring(0, host.length() - 1);
+        return host.startsWith("www.") ? host.substring(4) : host;
     }
 
     private static boolean matches(String host, String rule) {
         String clean = rule == null ? "" : rule.trim().toLowerCase(Locale.ROOT);
         if (clean.isEmpty()) return false;
         if (clean.startsWith("www.")) clean = clean.substring(4);
-        return host.equals(clean) || host.endsWith("." + clean);
+        while (clean.endsWith(".")) clean = clean.substring(0, clean.length() - 1);
+        return !clean.isEmpty() && (host.equals(clean) || host.endsWith("." + clean));
     }
 }

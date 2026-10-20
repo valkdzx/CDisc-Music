@@ -2,6 +2,7 @@ package dev.valkdz.cdisc.gui;
 
 import dev.valkdz.cdisc.Main;
 import dev.valkdz.cdisc.config.PlayerPrefs;
+import dev.valkdz.cdisc.feature.karaoke.TrackVersions;
 import dev.valkdz.cdisc.feature.lyrics.LyricsMode;
 import dev.valkdz.cdisc.feature.lyrics.LyricsPrefs;
 import dev.valkdz.cdisc.feature.speaker.SpeakerSettings;
@@ -10,6 +11,7 @@ import dev.valkdz.cdisc.jukebox.PlaybackManager;
 import dev.valkdz.cdisc.jukebox.queue.DiscQueue;
 import dev.valkdz.cdisc.jukebox.queue.RepeatMode;
 import dev.valkdz.cdisc.util.Chat;
+import dev.valkdz.cdisc.util.Tasks;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 
@@ -175,6 +177,30 @@ public final class PlayerActions {
         PlayerPrefs.setTrackMessages(player, on);
         Chat.actionBar(player, "§a" + message(player,
                 on ? "gui.track_messages.enabled" : "gui.track_messages.disabled"));
+    }
+
+    public void cycleVersion(Player player, Block block, boolean forward) {
+        TrackVersions versions = plugin.getTrackVersions();
+        if (versions == null || !versions.isEnabled()) return;
+
+        TrackVersions.Switch result = versions.cycle(block, forward, switched -> {
+            TrackVersions.View view = versions.view(block);
+            plugin.getPlayerGuiManager().refreshViewers(block);
+            if (view == null || !player.isOnline()) return;
+            String text = switched ? "§a" + message(player, "gui.versions.now", versionName(player, view.active()))
+                    : "§c" + message(player, "gui.versions.failed");
+            Tasks.onEntity(plugin, player, () -> Chat.actionBar(player, text));
+        });
+        switch (result) {
+            case STARTED -> plugin.getPlayerGuiManager().refreshViewers(block);
+            case NOT_READY -> Chat.actionBar(player, "§7" + message(player, "gui.versions.searching"));
+            case NOTHING_ELSE -> Chat.actionBar(player, "§7" + message(player, "gui.versions.none"));
+            case BUSY -> { }
+        }
+    }
+
+    public String versionName(Player player, TrackVersions.Kind kind) {
+        return message(player, "gui.versions." + kind.name().toLowerCase(java.util.Locale.ROOT));
     }
 
     public void cycleLyrics(Player player, Block block, boolean forward) {

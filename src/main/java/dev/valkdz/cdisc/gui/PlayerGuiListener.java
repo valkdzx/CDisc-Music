@@ -54,6 +54,10 @@ public class PlayerGuiListener implements Listener {
             onAdvancedClick(e, player, block);
             return;
         }
+        if (holder.getView() == PlayerGuiHolder.View.THEMES) {
+            onThemesClick(e, player, block);
+            return;
+        }
 
         Action needed = actionFor(e.getSlot(), playing, e.isShiftClick());
         if (needed != null && !plugin.getPermissions().allows(player, needed)) return;
@@ -68,6 +72,7 @@ public class PlayerGuiListener implements Listener {
                 case PlayerGuiManager.SLOT_SHUFFLE -> apm.toggleShuffle(block);
                 case PlayerGuiManager.SLOT_QUEUE -> actions.openQueue(player, block);
                 case PlayerGuiManager.SLOT_ADVANCED -> plugin.getPlayerGuiManager().openAdvanced(player, block);
+                case PlayerGuiManager.SLOT_STAR -> plugin.getLibraryGuiManager().toggleStar(player, block);
                 case PlayerGuiManager.SLOT_EXIT -> player.closeInventory();
                 default -> {
                     return;
@@ -122,6 +127,11 @@ public class PlayerGuiListener implements Listener {
                 }
                 actions.cycleLyrics(player, block, !e.isRightClick());
             }
+            case PlayerGuiManager.SLOT_VERSION -> {
+                stateChanged = false;
+                actions.cycleVersion(player, block, !e.isRightClick());
+            }
+            case PlayerGuiManager.SLOT_STAR -> plugin.getLibraryGuiManager().toggleStar(player, block);
             case PlayerGuiManager.SLOT_EXIT -> player.closeInventory();
             default -> stateChanged = false;
         }
@@ -144,11 +154,7 @@ public class PlayerGuiListener implements Listener {
             return;
         }
         if (slot == PlayerGuiManager.ADV_THEME) {
-            GuiTheme next = Icons.theme(player).next();
-            PlayerPrefs.setTheme(player, next);
-            player.sendMessage(plugin.getMessageManager().get(player, "gui.theme.set",
-                    plugin.getMessageManager().get(player, "gui.theme." + next.key())));
-            plugin.getPlayerGuiManager().refresh(player, block);
+            plugin.getPlayerGuiManager().openThemes(player, block);
             return;
         }
 
@@ -202,6 +208,31 @@ public class PlayerGuiListener implements Listener {
         }
     }
 
+    private void onThemesClick(InventoryClickEvent e, Player player, Block block) {
+        int slot = e.getSlot();
+        if (slot == PlayerGuiManager.SLOT_EXIT) {
+            player.closeInventory();
+            return;
+        }
+        if (slot == PlayerGuiManager.ADV_BACK) {
+            plugin.getPlayerGuiManager().openAdvanced(player, block);
+            return;
+        }
+
+        GuiTheme[] themes = GuiTheme.values();
+        int index = slot - PlayerGuiManager.THEME_FIRST;
+        if (slot == PlayerGuiManager.THEME_AUTO) {
+            PlayerPrefs.followServerTheme(player);
+        } else if (index >= 0 && index < themes.length) {
+            PlayerPrefs.setTheme(player, themes[index]);
+        } else {
+            return;
+        }
+        player.sendMessage(plugin.getMessageManager().get(player, "gui.theme.set",
+                plugin.getPlayerGuiManager().chosenThemeName(player)));
+        plugin.getPlayerGuiManager().refresh(player, block);
+    }
+
     private void onLocalClick(InventoryClickEvent e, Player player, Block block) {
         PlayerActions actions = plugin.getPlayerActions();
         int slot = e.getSlot();
@@ -216,6 +247,7 @@ public class PlayerGuiListener implements Listener {
                     e.isShiftClick() ? Action.LYRICS_PRESET : Action.LYRICS_TOGGLE;
             case PlayerGuiManager.LOCAL_TRACK_MESSAGES -> Action.PLAYER_MESSAGES;
             case PlayerGuiManager.LOCAL_VOLUME -> Action.PLAYER_LOCAL_VOLUME;
+            case PlayerGuiManager.SLOT_STAR -> Action.DISC_LIBRARY;
             default -> null;
         };
         if (needed == null || !plugin.getPermissions().allows(player, needed)) return;
@@ -230,6 +262,7 @@ public class PlayerGuiListener implements Listener {
                 actions.cycleLyrics(player, block, !e.isRightClick());
             }
             case PlayerGuiManager.LOCAL_TRACK_MESSAGES -> actions.toggleTrackMessages(player);
+            case PlayerGuiManager.SLOT_STAR -> plugin.getLibraryGuiManager().toggleStar(player, block);
             case PlayerGuiManager.LOCAL_VOLUME -> {
                 if (!plugin.getPlayerGuiManager().carries(player, block)) return;
                 if (e.isShiftClick()) {
@@ -258,6 +291,8 @@ public class PlayerGuiListener implements Listener {
             case PlayerGuiManager.SLOT_SHUFFLE -> Action.PLAYER_SHUFFLE;
             case PlayerGuiManager.SLOT_LYRICS ->
                     shiftClick ? Action.LYRICS_PRESET : Action.LYRICS_TOGGLE;
+            case PlayerGuiManager.SLOT_VERSION -> Action.PLAYER_VERSIONS;
+            case PlayerGuiManager.SLOT_STAR -> Action.DISC_LIBRARY;
 
             // Exit closes the screen, and the advanced button is judged by the buttons it holds.
             default -> null;

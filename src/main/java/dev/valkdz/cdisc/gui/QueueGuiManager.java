@@ -209,7 +209,7 @@ public class QueueGuiManager {
         Inventory inv = Bukkit.createInventory(holder, CONFIRM_SIZE, title);
         holder.setInventory(inv);
 
-        ItemStack filler = filler();
+        ItemStack filler = filler(player);
         for (int i = 0; i < CONFIRM_SIZE; i++) inv.setItem(i, filler);
 
         inv.setItem(CONFIRM_SLOT_YES, namedItem(Material.LIME_WOOL,
@@ -241,7 +241,7 @@ public class QueueGuiManager {
     }
 
     private void render(Player player, Inventory inventory, Block block, DiscQueue queue) {
-        ItemStack filler = filler();
+        ItemStack filler = filler(player);
         for (int slot : FILLER_SLOTS) {
             inventory.setItem(slot, filler);
         }
@@ -264,7 +264,7 @@ public class QueueGuiManager {
     }
 
     private ItemStack pairItem(Player player, Block block) {
-        if (!plugin.cdiscConfig().isSpeakerGroupEnabled()) return filler();
+        if (!plugin.cdiscConfig().isSpeakerGroupEnabled()) return filler(player);
 
         SpeakerGroup group = plugin.getSpeakerGroupManager().groupAt(block);
         ItemStack item = Icons.pick(player, GuiHeads.PAIR, Material.JUKEBOX);
@@ -357,8 +357,8 @@ public class QueueGuiManager {
         return item;
     }
 
-    private ItemStack filler() {
-        return placeholder(Material.BLACK_STAINED_GLASS_PANE, " ");
+    private ItemStack filler(Player player) {
+        return placeholder(Icons.pane(player, Material.BLACK_STAINED_GLASS_PANE), " ");
     }
 
     private ItemStack placeholder(Material material, String name) {

@@ -10,6 +10,7 @@ public enum Action {
     DISC_CONVERT("disc.convert", "true"),
     DISC_DOWNLOAD("disc.download", "op"),
     DISC_BROADCAST("disc.broadcast", "true"),
+    DISC_LIBRARY("disc.library", "true"),
 
     PLAYER_GUI("player.gui", "true"),
     PLAYER_PLAY("player.play", "true"),
@@ -26,6 +27,7 @@ public enum Action {
     PLAYER_CHANNELS("player.channels", "true"),
     PLAYER_MESSAGES("player.messages", "true"),
     PLAYER_INFO("player.info", "true"),
+    PLAYER_VERSIONS("player.versions", "true"),
 
     QUEUE_OPEN("queue.open", "true"),
     QUEUE_ADD("queue.add", "true"),

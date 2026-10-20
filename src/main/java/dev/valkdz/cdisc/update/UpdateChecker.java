@@ -28,8 +28,7 @@ public class UpdateChecker implements Listener {
     private static final String PROJECT_ID = "uQjcky5I";
     private static final String VERSIONS_API =
             "https://api.modrinth.com/v2/project/" + PROJECT_ID + "/version";
-    private static final String VERSION_PAGE =
-            "https://modrinth.com/plugin/cdisc-music/version/";
+    private static final String PROJECT_PAGE = "https://modrinth.com/plugin/cdisc-music";
     private static final String GITHUB_LATEST =
             "https://api.github.com/repos/valkdzx/CDisc-Music/releases/latest";
 
@@ -40,15 +39,10 @@ public class UpdateChecker implements Listener {
 
     private final Main plugin;
     private final HttpClient http;
-    private final PluginUpdater updater;
 
     private volatile String latestVersion;
 
-    private volatile String latestPage;
-
     private volatile String announcedVersion;
-
-    private volatile String stagedVersion;
 
     private volatile boolean modrinthMissing;
 
@@ -60,7 +54,6 @@ public class UpdateChecker implements Listener {
                 .connectTimeout(Duration.ofSeconds(5))
                 .followRedirects(HttpClient.Redirect.NORMAL)
                 .build();
-        this.updater = new PluginUpdater(plugin, http);
     }
 
     public boolean isUpdateAvailable() {
@@ -72,7 +65,7 @@ public class UpdateChecker implements Listener {
     }
 
     public String getDownloadUrl() {
-        return latestVersion == null ? null : latestPage;
+        return latestVersion == null ? null : PROJECT_PAGE;
     }
 
     public void check() {
@@ -97,15 +90,9 @@ public class UpdateChecker implements Listener {
         }
     }
 
-    public void shutdown() {
-        stop();
-        updater.onDisable(plugin.cdiscConfig().isAutoUpdateEnabled());
-    }
-
     private void runCheck() {
         String current = plugin.getDescription().getVersion();
         String serverVersion = serverMinecraftVersion();
-        stagedVersion = updater.stagedVersion();
 
         Release newest = newer(fromModrinth(), fromGitHub());
         if (newest == null) return;
@@ -121,39 +108,17 @@ public class UpdateChecker implements Listener {
             return;
         }
 
-        boolean compatible = newest.supports(serverVersion);
-        boolean autoUpdate = plugin.cdiscConfig().isAutoUpdateEnabled();
-        if (autoUpdate && compatible && newest.download() != null
-                && !newest.version().equals(stagedVersion)) {
-            try {
-                updater.stage(newest.version(), newest.download());
-                stagedVersion = newest.version();
-            } catch (Exception e) {
-                plugin.getLogger().warning("Auto-update: downloading " + newest.version()
-                        + " failed, will try again on the next check: " + e);
-            }
-        }
-
-        latestPage = newest.page();
         latestVersion = newest.version();
-        boolean staged = newest.version().equals(stagedVersion);
-        String announcement = newest.version() + (staged ? "+staged" : "");
-        if (announcement.equals(announcedVersion)) return;
-        announcedVersion = announcement;
+        if (newest.version().equals(announcedVersion)) return;
+        announcedVersion = newest.version();
 
         plugin.getLogger().warning("A new version is available: " + newest.version()
                 + " (running " + current + ", server " + serverVersion + ")");
-        if (staged) {
-            plugin.getLogger().warning("Downloaded " + newest.download().fileName()
-                    + ", it replaces this version when the server stops. Changes: " + newest.page());
-        } else {
-            plugin.getLogger().warning("Download: " + newest.page());
-        }
-        if (!compatible) {
+        plugin.getLogger().warning("Download: " + PROJECT_PAGE);
+        if (!newest.supports(serverVersion)) {
             plugin.getLogger().warning("Note: " + newest.version()
                     + " does not list Minecraft " + serverVersion
-                    + " among its tested versions — check the release page before updating."
-                    + (autoUpdate ? " It was not downloaded automatically." : ""));
+                    + " among its tested versions — check the release page before updating.");
         }
 
         Tasks.global(plugin, () -> {
@@ -181,19 +146,14 @@ public class UpdateChecker implements Listener {
         String version = latestVersion;
         if (version == null) return;
 
-        String url = latestPage;
-        boolean staged = version.equals(stagedVersion);
-        String line = plugin.getMessageManager().get(player,
-                staged ? "update.downloaded" : "update.available",
+        String line = plugin.getMessageManager().get(player, "update.available",
                 version, plugin.getDescription().getVersion());
-        String hover = plugin.getMessageManager().get(player,
-                staged ? "update.downloaded_hover" : "update.hover");
+        String hover = plugin.getMessageManager().get(player, "update.hover");
 
-        Chat.send(player, Chat.link(line, url, hover));
+        Chat.send(player, Chat.link(line, PROJECT_PAGE, hover));
     }
 
-    record Release(String version, String where, String page,
-                           List<String> gameVersions, PluginUpdater.Download download) {
+    record Release(String version, String where, List<String> gameVersions) {
         boolean supports(String serverVersion) {
             if (gameVersions.isEmpty()) return true;
             for (String listed : gameVersions) {
@@ -275,8 +235,8 @@ public class UpdateChecker implements Listener {
             if (number == null || number.isBlank()) continue;
 
             if (best == null || compareVersions(number, best.version()) > 0) {
-                best = new Release(number, "Modrinth", VERSION_PAGE + number,
-                        textList(entry.get("game_versions")), primaryJar(entry));
+                best = new Release(number, "Modrinth",
+                        textList(entry.get("game_versions")));
             }
         }
 
@@ -329,22 +289,7 @@ public class UpdateChecker implements Listener {
         if (tag == null || tag.isBlank()) return null;
         String number = tag.startsWith("v") || tag.startsWith("V") ? tag.substring(1) : tag;
 
-        return new Release(number, "GitHub", root.get("html_url").text(), List.of(), releaseJar(root));
-    }
-
-    private static PluginUpdater.Download releaseJar(Json release) {
-        Json chosen = null;
-        for (Json asset : release.get("assets").values()) {
-            String name = asset.get("name").text();
-            if (name == null || !name.toLowerCase(Locale.ROOT).endsWith(".jar")) continue;
-            if (chosen == null || name.toLowerCase(Locale.ROOT).startsWith("cdisc")) chosen = asset;
-        }
-        if (chosen == null) return null;
-
-        String digest = chosen.get("digest").text();
-        if (digest == null || !digest.toLowerCase(Locale.ROOT).startsWith("sha256:")) return null;
-        return new PluginUpdater.Download(chosen.get("browser_download_url").text(),
-                chosen.get("name").text(), "SHA-256", digest.substring("sha256:".length()));
+        return new Release(number, "GitHub", List.of());
     }
 
     private static boolean runsOnBukkit(Json entry) {
@@ -355,18 +300,6 @@ public class UpdateChecker implements Listener {
             }
         }
         return false;
-    }
-
-    private static PluginUpdater.Download primaryJar(Json entry) {
-        Json chosen = null;
-        for (Json file : entry.get("files").values()) {
-            String name = file.get("filename").text();
-            if (name == null || !name.toLowerCase(Locale.ROOT).endsWith(".jar")) continue;
-            if (chosen == null || file.get("primary").asBoolean(false)) chosen = file;
-        }
-        if (chosen == null) return null;
-        return new PluginUpdater.Download(chosen.get("url").text(),
-                chosen.get("filename").text(), "SHA-512", chosen.get("hashes").get("sha512").text());
     }
 
     private static List<String> textList(Json array) {

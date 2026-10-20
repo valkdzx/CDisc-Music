@@ -13,6 +13,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
+import java.util.function.LongUnaryOperator;
 
 public class AudioSession {
     private volatile AudioPlayer player;
@@ -56,6 +57,15 @@ public class AudioSession {
     private final ArrayDeque<byte[]> outLead = new ArrayDeque<>();
     private int fadeFrames;
     private int fadeDone;
+
+    private record Swap(AudioPlayer next, String from, LongUnaryOperator map, long since,
+                        Runnable done, Runnable failed) {
+    }
+
+    private static final long SWAP_PATIENCE_MS = 20_000L;
+    private static final long SWAP_AHEAD_MS = 500L;
+    private static final int SWAP_FADE_FRAMES = 8;
+    private final AtomicReference<Swap> swap = new AtomicReference<>();
 
     public AudioSession(AudioPlayer player, VoiceSession voiceSession) {
         this(player, voiceSession, null, null);
@@ -111,6 +121,8 @@ public class AudioSession {
         if (player.isPaused()) {
             // A paused player reads no frame, so a seek made meanwhile can only land on resume.
             if (seekTarget >= 0) seekSince = System.currentTimeMillis();
+            Swap pending = swap.getAndSet(null);
+            if (pending != null) swapPaused(pending);
             player.provide();
             lead.clear();
             priming = true;
@@ -119,6 +131,9 @@ public class AudioSession {
         }
 
         watchEnd();
+
+        Swap pending = swap.get();
+        if (pending != null && outgoing == null) swapPlaying(pending);
 
         if (trackChanged()) {
             lead.clear();
@@ -173,6 +188,72 @@ public class AudioSession {
     private void landSeek(AudioFrame frame) {
         long target = seekTarget;
         if (target >= 0 && Math.abs(frame.getTimecode() - target) <= SEEK_LANDING_MS) seekTarget = -1L;
+    }
+
+    // Another cut of the same song: map takes a moment of the playing track to the same moment
+    // of the incoming one, which keeps buffering while the old one plays until it can take over there.
+    public void swapTo(AudioPlayer next, LongUnaryOperator map, Runnable done, Runnable failed) {
+        AudioTrack current = player.getPlayingTrack();
+        String from = current == null ? null : current.getInfo().identifier;
+        Swap previous = swap.getAndSet(new Swap(next, from, map, System.currentTimeMillis(), done, failed));
+        if (previous != null) previous.next().destroy();
+    }
+
+    private void swapPlaying(Swap pending) {
+        AudioPlayer next = pending.next();
+        AudioTrack incoming = next.getPlayingTrack();
+        AudioTrack current = player.getPlayingTrack();
+        boolean moved = current != null && !Objects.equals(current.getInfo().identifier, pending.from());
+        if (incoming == null || moved || System.currentTimeMillis() - pending.since() > SWAP_PATIENCE_MS) {
+            if (swap.compareAndSet(pending, null)) {
+                next.destroy();
+                pending.failed().run();
+            }
+            return;
+        }
+
+        long target = current == null ? -1L
+                : pending.map().applyAsLong(positionOf(current) - 20L * (lead.size() - 1));
+        AudioFrame frame;
+        while ((frame = next.provide()) != null) {
+            long at = frame.getTimecode();
+            if (target >= 0 && at > target + SWAP_AHEAD_MS) {
+                incoming.setPosition(target);
+                return;
+            }
+            if (target >= 0 && at + 20 <= target) continue;
+            if (!swap.compareAndSet(pending, null)) return;
+
+            outgoing = current == null ? null : player;
+            player = next;
+            outLead.addAll(lead);
+            lead.clear();
+            lead.addLast(frame.getData());
+            lastTrackId = incoming.getInfo().identifier;
+            fadeFrames = SWAP_FADE_FRAMES;
+            fadeDone = 0;
+            pending.done().run();
+            return;
+        }
+    }
+
+    private void swapPaused(Swap pending) {
+        AudioPlayer next = pending.next();
+        AudioTrack incoming = next.getPlayingTrack();
+        if (incoming == null) {
+            next.destroy();
+            pending.failed().run();
+            return;
+        }
+        AudioTrack current = player.getPlayingTrack();
+        if (current != null) incoming.setPosition(pending.map().applyAsLong(positionOf(current)));
+        next.setPaused(true);
+        AudioPlayer old = player;
+        player = next;
+        lastTrackId = incoming.getInfo().identifier;
+        old.stopTrack();
+        old.destroy();
+        pending.done().run();
     }
 
     public void watchEnd(long leadMs, Runnable callback) {
@@ -379,6 +460,8 @@ public class AudioSession {
             Thread.currentThread().interrupt();
         } finally {
             dropStaged();
+            Swap pending = swap.getAndSet(null);
+            if (pending != null) pending.next().destroy();
             endFade();
             player.stopTrack();
             player.destroy();

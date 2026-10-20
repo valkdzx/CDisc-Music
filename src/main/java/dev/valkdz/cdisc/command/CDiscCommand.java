@@ -4,10 +4,14 @@ import dev.valkdz.cdisc.Main;
 import dev.valkdz.cdisc.config.SneakMode;
 import dev.valkdz.cdisc.disc.ItemUtils;
 import dev.valkdz.cdisc.disc.PvDiscs;
+import dev.valkdz.cdisc.disc.SearchQuery;
+import dev.valkdz.cdisc.feature.karaoke.TrackVersions;
+import dev.valkdz.cdisc.feature.library.TrackLibrary;
 import dev.valkdz.cdisc.feature.horn.GoatHorns;
 import dev.valkdz.cdisc.feature.local.LocalMusicLibrary;
 import dev.valkdz.cdisc.feature.lyrics.LyricsMode;
 import dev.valkdz.cdisc.feature.lyrics.LyricsPrefs;
+import dev.valkdz.cdisc.gui.LibraryGuiManager;
 import dev.valkdz.cdisc.gui.dialog.Dialogs;
 import dev.valkdz.cdisc.permission.Action;
 import dev.valkdz.cdisc.permission.Perms;
@@ -19,6 +23,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -71,6 +76,7 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
 
         switch (group) {
             case "create" -> create(p, parts);
+            case "library" -> library(p, sub, parts);
             case "disc" -> disc(p, sub, parts);
             case "preset" -> presetSub.handle(p, parts);
             case "player" -> playerSub.handle(p, parts);
@@ -115,20 +121,126 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
         }
 
         String query = String.join(" ", Arrays.copyOfRange(parts, 1, parts.length));
+        SearchQuery parsed = SearchQuery.parse(query);
+        if (parsed.badFlag() != null) {
+            p.sendMessage("§c" + message(p, "cdisc.bad_flag", parsed.badFlag()));
+            return;
+        }
+        if (parsed.text().isEmpty()) {
+            p.sendMessage("§c" + message(p, "cdisc.create_usage"));
+            return;
+        }
+        if (parsed.version() != null) {
+            if (!versionsOn()) {
+                p.sendMessage("§c" + message(p, "cdisc.versions_off"));
+                return;
+            }
+            if (!allowed(p, Action.PLAYER_VERSIONS)) return;
+        }
         ItemStack item = recordableInHand(p);
         if (item == null) {
             p.sendMessage("§c" + message(p, holdMessage()));
             return;
         }
-        if (dev.valkdz.cdisc.feature.broadcast.BroadcastTrack.isAddress(query)) {
-            if (allowed(p, Action.DISC_BROADCAST)) plugin.getBroadcastManager().createDisc(p, item, query);
+        if (dev.valkdz.cdisc.feature.broadcast.BroadcastTrack.isAddress(parsed.text())) {
+            if (allowed(p, Action.DISC_BROADCAST)) plugin.getBroadcastManager().createDisc(p, item, parsed.text());
             return;
         }
-        if (!creationAllowed(p, query)) return;
+        if (!creationAllowed(p, parsed.text())) return;
 
         plugin.getPermissions().markCreated(p);
         p.sendMessage("§e" + message(p, "lavaplayer.track.loading"));
         plugin.getAudioPlayerManager().createDisc(p, item, query);
+    }
+
+    private void library(Player p, String sub, String[] parts) {
+        if (!allowed(p, Action.DISC_LIBRARY)) return;
+        TrackLibrary library = plugin.getTrackLibrary();
+        if (!library.isEnabled()) {
+            p.sendMessage("§c" + message(p, "library.disabled"));
+            return;
+        }
+        String rest = parts.length > 2 ? String.join(" ", Arrays.copyOfRange(parts, 2, parts.length)).trim() : "";
+        switch (sub) {
+            case "" -> plugin.getLibraryGuiManager().open(p);
+            case "add" -> {
+                SearchQuery parsed = SearchQuery.parse(rest);
+                if (parsed.badFlag() != null) {
+                    p.sendMessage("§c" + message(p, "cdisc.bad_flag", parsed.badFlag()));
+                    return;
+                }
+                if (parsed.text().isEmpty()) {
+                    p.sendMessage("§c" + message(p, "cdisc.library_usage"));
+                    return;
+                }
+                if (dev.valkdz.cdisc.feature.broadcast.BroadcastTrack.isAddress(parsed.text())) {
+                    p.sendMessage("§c" + message(p, "library.no_broadcast"));
+                    return;
+                }
+                if (!plugin.getPermissions().isHostAllowed(p, parsed.text())) {
+                    String host = dev.valkdz.cdisc.permission.PermissionsConfig.hostOf(parsed.text());
+                    p.sendMessage("§c" + message(p, "perms.host_blocked", host == null ? "?" : host));
+                    return;
+                }
+                p.sendMessage("§e" + message(p, "lavaplayer.track.loading"));
+                plugin.getAudioPlayerManager().addToLibrary(p, rest);
+            }
+            case "create" -> {
+                TrackLibrary.Track track = libraryTrack(p, rest);
+                if (track == null) return;
+                ItemStack disc = ItemUtils.getDiscInHand(p);
+                if (disc == null) {
+                    p.sendMessage("§c" + message(p, "cdisc.hold_disc"));
+                    return;
+                }
+                plugin.getLibraryGuiManager().write(p, track, disc);
+            }
+            case "remove" -> {
+                TrackLibrary.Track track = libraryTrack(p, rest);
+                if (track == null) return;
+                library.remove(p.getUniqueId(), track.query());
+                p.sendMessage("§a" + message(p, "library.removed", track.name()));
+                plugin.getLibraryGuiManager().refreshOpen(p.getUniqueId());
+            }
+            default -> p.sendMessage("§c" + message(p, "cdisc.library_usage"));
+        }
+    }
+
+    private TrackLibrary.Track libraryTrack(Player p, String name) {
+        if (name.isEmpty()) {
+            p.sendMessage("§c" + message(p, "cdisc.library_usage"));
+            return null;
+        }
+        TrackLibrary.Track track = LibraryGuiManager.named(plugin.getTrackLibrary().tracks(p.getUniqueId()), name);
+        if (track == null) p.sendMessage("§c" + message(p, "library.not_found", name));
+        return track;
+    }
+
+    private List<String> completeLibrary(String[] args, CommandSender sender) {
+        if (!(sender instanceof Player player) || !plugin.getTrackLibrary().isEnabled()) return Collections.emptyList();
+        if (args.length == 2) {
+            return Stream.of("add", entry("create", Action.DISC_CREATE, sender), "remove")
+                    .filter(java.util.Objects::nonNull)
+                    .filter(s -> s.startsWith(args[1].toLowerCase(Locale.ROOT)))
+                    .toList();
+        }
+        String sub = args[1].toLowerCase(Locale.ROOT);
+        if (!sub.equals("create") && !sub.equals("remove")) return Collections.emptyList();
+        String typed = String.join(" ", Arrays.copyOfRange(args, 2, args.length));
+        String lower = typed.toLowerCase(Locale.ROOT);
+        int lastWord = typed.lastIndexOf(' ') + 1;
+        return plugin.getTrackLibrary().tracks(player.getUniqueId()).stream()
+                .map(TrackLibrary.Track::name)
+                .filter(name -> name.toLowerCase(Locale.ROOT).startsWith(lower))
+                .map(name -> name.substring(lastWord))
+                .distinct()
+                .limit(COMPLETION_LIMIT)
+                .toList();
+    }
+
+    private boolean versionsOn() {
+        TrackVersions versions = plugin.getTrackVersions();
+        return versions != null && versions.isEnabled();
     }
 
     private ItemStack recordableInHand(Player p) {
@@ -268,9 +380,11 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
         dev.valkdz.cdisc.util.Tasks.async(plugin, () -> {
             List<String> reply;
             try {
-                reply = List.of(
-                        "§a" + message(sender, "cdisc.logs_uploaded", LogUpload.upload(plugin, doctor)),
-                        message(sender, "cdisc.logs_issue").replace('&', '§'));
+                String url = LogUpload.upload(plugin, doctor);
+                reply = url == null
+                        ? List.of("§e" + message(sender, "cdisc.logs_no_errors"))
+                        : List.of("§a" + message(sender, "cdisc.logs_uploaded", url),
+                                message(sender, "cdisc.logs_issue").replace('&', '§'));
             } catch (Exception e) {
                 if (e instanceof InterruptedException) Thread.currentThread().interrupt();
                 reply = List.of("§c" + message(sender, "cdisc.logs_failed", String.valueOf(e.getMessage())));
@@ -377,6 +491,12 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
             sender.sendMessage("§c" + message(sender, "cdisc.player_only", "/cdisc admin"));
             return;
         }
+        if (picked.kind() == dev.valkdz.cdisc.disc.SearchResults.Kind.LIBRARY) {
+            if (!allowed(player, Action.DISC_LIBRARY)) return;
+            player.sendMessage("§e" + plugin.getMessageManager().get(player, "lavaplayer.track.loading"));
+            plugin.getAudioPlayerManager().addPickedToLibrary(player, picked.track(), picked.address());
+            return;
+        }
         if (!allowed(player, Action.DISC_CREATE)) return;
 
         ItemStack item = recordableInHand(player);
@@ -388,7 +508,7 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
         plugin.getPermissions().markCreated(player);
         player.sendMessage("§e" + plugin.getMessageManager().get(player, "lavaplayer.track.loading"));
         plugin.getAudioPlayerManager()
-                .writePickedTrack(player, item, picked.track(), picked.address());
+                .writePickedTrack(player, item, picked.track(), picked.address(), picked.version());
     }
 
     private void convert(Player player) {
@@ -537,6 +657,7 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
 
             Stream<String> subs = Stream.of(
                     playerEntry("create", Action.DISC_CREATE, sender),
+                    plugin.getTrackLibrary().isEnabled() ? playerEntry("library", Action.DISC_LIBRARY, sender) : null,
                     playerEntry("disc", Action.DISC_CREATE, sender),
                     playerEntry("preset", Action.LYRICS_PRESET, sender),
                     playerEntry("player", Action.PLAYER_GUI, sender),
@@ -551,6 +672,10 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
             return subs.filter(s -> s.startsWith(args[0].toLowerCase(Locale.ROOT)))
                     .sorted()
                     .toList();
+        }
+
+        if (args[0].equalsIgnoreCase("library") && plugin.getPermissions().allows(sender, Action.DISC_LIBRARY)) {
+            return completeLibrary(args, sender);
         }
 
         if (args[0].equalsIgnoreCase("disc") && args.length == 2) {
@@ -620,9 +745,46 @@ public class CDiscCommand implements CommandExecutor, TabCompleter {
         }
         if (args[0].equalsIgnoreCase("create") && sender instanceof Player
                 && plugin.getPermissions().allows(sender, Action.DISC_CREATE)) {
-            return completeLocalFile(args, sender);
+            return completeCreate(args, sender);
         }
         return Collections.emptyList();
+    }
+
+    private List<String> completeCreate(String[] args, CommandSender sender) {
+        String typed = args[args.length - 1];
+        if (args.length < 3 || !(typed.isEmpty() || typed.startsWith("-"))) return completeLocalFile(args, sender);
+
+        List<String> options = new ArrayList<>();
+        String first = args[1].toLowerCase(Locale.ROOT);
+        if (!first.startsWith("http://") && !first.startsWith("https://") && !flagUsed(args, SearchQuery.RESULTS_FLAG)) {
+            int ceiling = plugin.cdiscConfig().getSearchMaxResults(
+                    dev.valkdz.cdisc.audio.source.TrackLoader.sourceIdOf(args[1]));
+            for (int count = 1; count <= Math.min(ceiling, SearchQuery.MAX_RESULTS); count++) {
+                options.add(SearchQuery.RESULTS_FLAG + count);
+            }
+        }
+        if (versionsOn() && plugin.getPermissions().allows(sender, Action.PLAYER_VERSIONS)
+                && !flagUsed(args, SearchQuery.VERSION_FLAG)) {
+            for (String version : List.of("original", "uncensored", "instrumental")) {
+                options.add(SearchQuery.VERSION_FLAG + version);
+            }
+        }
+
+        // Whole flags only: the client asks again after a keystroke, not after a Tab, so a bare "--version=" shows nothing.
+        String lower = typed.toLowerCase(Locale.ROOT);
+        List<String> shown = options.stream().filter(option -> option.startsWith(lower)).toList();
+        if (!typed.isEmpty()) return shown;
+
+        List<String> all = new ArrayList<>(completeLocalFile(args, sender));
+        all.addAll(shown);
+        return all;
+    }
+
+    private static boolean flagUsed(String[] args, String flag) {
+        for (int i = 1; i < args.length - 1; i++) {
+            if (args[i].toLowerCase(Locale.ROOT).startsWith(flag)) return true;
+        }
+        return false;
     }
 
     private List<String> completeConfigurableFile(String[] args) {

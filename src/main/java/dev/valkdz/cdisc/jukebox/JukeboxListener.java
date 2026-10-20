@@ -159,6 +159,7 @@ public class JukeboxListener implements Listener {
         if (!ItemUtils.isCdiscDisc(hand)) return;
 
         customDiscBlocks.add(BlockKey.of(block));
+        plugin.getAudioPlayerManager().prepareVersions(block, hand);
 
         // The record lands after this event, and the record-start packet the start used to
         // wait for never arrives if another plugin's handler swallows it first.
@@ -172,6 +173,7 @@ public class JukeboxListener implements Listener {
 
         Block block = jukebox.getBlock();
         customDiscBlocks.add(BlockKey.of(block));
+        plugin.getAudioPlayerManager().prepareVersions(block, e.getItem());
 
         // Started here like a disc put in by hand: the record-start packet only goes out
         // with a player in range, and another plugin may swallow it.
@@ -420,6 +422,17 @@ public class JukeboxListener implements Listener {
             }
         } catch (Exception e) {
             plugin.getLogger().warning("[CDisc] Failed to swap jukebox disc visual: " + e.getMessage());
+        }
+    }
+
+    public void rewriteRecord(Block block, ItemStack disc) {
+        try {
+            if (!(block.getState() instanceof Jukebox jukebox)) return;
+            jukebox.setRecord(disc.clone());
+            jukebox.update(true, false);
+            resumeSpinAnimation(block);
+        } catch (Exception e) {
+            plugin.getLogger().warning("[CDisc] Failed to rewrite the disc in a jukebox: " + e.getMessage());
         }
     }
 

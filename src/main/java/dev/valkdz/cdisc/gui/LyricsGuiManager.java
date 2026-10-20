@@ -138,7 +138,7 @@ public class LyricsGuiManager {
                 plugin.getMessageManager().get(player, "gui.lyrics_look.confirm_title"));
         holder.setInventory(inventory);
 
-        ItemStack filler = simple(Material.GRAY_STAINED_GLASS_PANE, " ", List.of());
+        ItemStack filler = simple(Icons.pane(player, Material.GRAY_STAINED_GLASS_PANE), " ", List.of());
         for (int slot = 0; slot < CONFIRM_SIZE; slot++) {
             inventory.setItem(slot, filler);
         }
@@ -242,7 +242,7 @@ public class LyricsGuiManager {
     private void fill(Player player, LyricsGuiHolder holder, Inventory inventory) {
         HologramStyle style = styleOf(holder);
 
-        ItemStack filler = simple(Material.GRAY_STAINED_GLASS_PANE, " ", List.of());
+        ItemStack filler = simple(Icons.pane(player, Material.GRAY_STAINED_GLASS_PANE), " ", List.of());
         for (int slot = 0; slot < SIZE; slot++) {
             inventory.setItem(slot, filler);
         }

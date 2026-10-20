@@ -20,7 +20,10 @@ import dev.valkdz.cdisc.disc.ItemUtils;
 import dev.valkdz.cdisc.disc.LoadDiagnosis;
 import dev.valkdz.cdisc.disc.SearchQuery;
 import dev.valkdz.cdisc.disc.SearchResults;
+import dev.valkdz.cdisc.feature.library.TrackLibrary;
 import dev.valkdz.cdisc.feature.horn.GoatHorns;
+import dev.valkdz.cdisc.feature.karaoke.BeatMatch;
+import dev.valkdz.cdisc.feature.karaoke.TrackVersions;
 import dev.valkdz.cdisc.feature.local.LocalMusicLibrary;
 import dev.valkdz.cdisc.feature.local.LocalTrackSettings;
 import dev.valkdz.cdisc.feature.lyrics.SyncedLyrics;
@@ -55,6 +58,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import java.util.function.LongUnaryOperator;
 
 public class PlaybackManager {
     private final Main plugin;
@@ -354,6 +358,21 @@ public class PlaybackManager {
         return trackLoader;
     }
 
+    // Stands in for the disc when a track goes into the player's library; compared by identity.
+    private static final ItemStack TO_LIBRARY = new ItemStack(Material.PAPER);
+
+    public void addToLibrary(Player player, String query) {
+        createDisc(player, TO_LIBRARY, query);
+    }
+
+    public void addPickedToLibrary(Player player, AudioTrack track, String address) {
+        writePickedTrack(player, TO_LIBRARY, track, address, null);
+    }
+
+    private static SearchResults.Kind kindFor(ItemStack item) {
+        return item == TO_LIBRARY ? SearchResults.Kind.LIBRARY : SearchResults.Kind.DISC;
+    }
+
     public void createDisc(Player player, ItemStack item, String query) {
         SearchQuery parsed = SearchQuery.parse(query);
 
@@ -374,11 +393,11 @@ public class PlaybackManager {
             int wanted = parsed.requestedResults() == SearchQuery.UNSET
                     ? plugin.cdiscConfig().getSearchDefaultResults()
                     : parsed.requestedResults();
-            search(player, item, parsed.text(), resolved, Math.min(wanted, ceiling));
+            search(player, item, parsed.text(), resolved, Math.min(wanted, ceiling), parsed.version());
             return;
         }
 
-        loadForDisc(player, item, parsed.text(), resolved);
+        loadForDisc(player, item, parsed.text(), resolved, parsed.version());
     }
 
     private void createLocalDisc(Player player, ItemStack item, SearchQuery parsed) {
@@ -395,7 +414,7 @@ public class PlaybackManager {
                 player.sendMessage("§c" + plugin.getMessageManager().get(player, "local.no_permission"));
                 return;
             }
-            writeLocalDisc(player, item, exact);
+            writeLocalDisc(player, item, exact, parsed.version());
             return;
         }
 
@@ -412,23 +431,23 @@ public class PlaybackManager {
             return;
         }
         if (hits.size() == 1) {
-            writeLocalDisc(player, item, hits.get(0));
+            writeLocalDisc(player, item, hits.get(0), parsed.version());
             return;
         }
-        showLocalResults(player, parsed.text(), hits);
+        showLocalResults(player, item, parsed.text(), hits, parsed.version());
     }
 
-    private void writeLocalDisc(Player player, ItemStack item, String relative) {
+    private void writeLocalDisc(Player player, ItemStack item, String relative, String version) {
         File file = plugin.getLocalMusic().fileFor(relative);
         if (file == null) {
 
             player.sendMessage("§c" + plugin.getMessageManager().get(player, "local.not_found"));
             return;
         }
-        loadForDisc(player, item, LocalMusicLibrary.PREFIX + relative, file.getAbsolutePath());
+        loadForDisc(player, item, LocalMusicLibrary.PREFIX + relative, file.getAbsolutePath(), version);
     }
 
-    private void showLocalResults(Player player, String query, List<String> relatives) {
+    private void showLocalResults(Player player, ItemStack item, String query, List<String> relatives, String version) {
         LocalMusicLibrary library = plugin.getLocalMusic();
         AudioTrack[] loaded = new AudioTrack[relatives.size()];
         AtomicInteger remaining = new AtomicInteger(relatives.size());
@@ -448,7 +467,7 @@ public class PlaybackManager {
                     player.sendMessage("§c" + plugin.getMessageManager()
                             .get(player, "lavaplayer.track.notfound"));
                 } else {
-                    plugin.getSearchResults().show(player, query, entries);
+                    plugin.getSearchResults().show(player, query, entries, kindFor(item), version);
                 }
             });
         };
@@ -486,15 +505,19 @@ public class PlaybackManager {
         }
     }
 
-    private void loadForDisc(Player player, ItemStack item, String query, String resolved) {
+    private void loadForDisc(Player player, ItemStack item, String query, String resolved, String version) {
         trackLoader.loadForDisc(resolved, new AudioLoadResultHandler() {
             @Override public void trackLoaded(AudioTrack track) {
-                writeToDisc(player, item, track, query, resolved);
+                writeToDisc(player, item, track, query, resolved, version);
             }
 
+            // The disc keeps the track's own address: an album link would play nothing back.
             @Override public void playlistLoaded(AudioPlaylist playlist) {
                 if (playlist.getTracks().isEmpty()) return;
-                trackLoaded(playlist.getTracks().get(0));
+                AudioTrack first = playlist.getSelectedTrack() != null
+                        ? playlist.getSelectedTrack() : playlist.getTracks().get(0);
+                String address = addressOf(first, query);
+                writeToDisc(player, item, first, address, address, version);
 
                 int rest = playlist.getTracks().size() - 1;
                 if (rest > 0) {
@@ -556,22 +579,23 @@ public class PlaybackManager {
         });
     }
 
-    private void search(Player player, ItemStack item, String query, String resolved, int limit) {
+    private void search(Player player, ItemStack item, String query, String resolved, int limit,
+                        String version) {
         CompletableFuture<List<CustomYoutubeApiResolver.Hit>> alsoAsked =
                 trackLoader.searchBackend(TrackLoader.searchTextOf(resolved), limit);
 
         trackLoader.loadItem(resolved, new AudioLoadResultHandler() {
             @Override public void trackLoaded(AudioTrack track) {
 
-                writeToDisc(player, item, track, addressOf(track, query), resolved);
+                writeToDisc(player, item, track, addressOf(track, query), resolved, version);
             }
 
             @Override public void playlistLoaded(AudioPlaylist playlist) {
-                offerBoth(player, item, query, limit, playlist.getTracks(), alsoAsked, this);
+                offerBoth(player, item, query, limit, playlist.getTracks(), alsoAsked, version, this);
             }
 
             @Override public void noMatches() {
-                offerBoth(player, item, query, limit, List.of(), alsoAsked, this);
+                offerBoth(player, item, query, limit, List.of(), alsoAsked, version, this);
             }
 
             @Override public void loadFailed(LoadException e) {
@@ -585,7 +609,7 @@ public class PlaybackManager {
     private void offerBoth(Player player, ItemStack item, String query, int limit,
                            List<AudioTrack> local,
                            CompletableFuture<List<CustomYoutubeApiResolver.Hit>> alsoAsked,
-                           AudioLoadResultHandler handler) {
+                           String version, AudioLoadResultHandler handler) {
 
         Offer offer = offerable(player, item, local, limit);
 
@@ -628,7 +652,7 @@ public class PlaybackManager {
         }
 
         Tasks.entity(plugin, player, () ->
-                plugin.getSearchResults().show(player, query, shown));
+                plugin.getSearchResults().show(player, query, shown, kindFor(item), version));
     }
 
     private record Offer(List<AudioTrack> tracks, String refusal) {
@@ -662,12 +686,13 @@ public class PlaybackManager {
                 player.sendMessage("§c" + plugin.getMessageManager().get(player, key, limit)));
     }
 
-    public void writePickedTrack(Player player, ItemStack item, AudioTrack track, String address) {
+    public void writePickedTrack(Player player, ItemStack item, AudioTrack track, String address,
+                                 String version) {
         if (track == null) {
-            loadForDisc(player, item, address, address);
+            loadForDisc(player, item, address, address, version);
             return;
         }
-        writeToDisc(player, item, track, address, address);
+        writeToDisc(player, item, track, address, address, version);
     }
 
     private String addressOf(AudioTrack track, String query) {
@@ -686,7 +711,7 @@ public class PlaybackManager {
     }
 
     private void writeToDisc(Player player, ItemStack item, AudioTrack track,
-                             String query, String resolved) {
+                             String query, String resolved, String version) {
 
         if (GoatHorns.isHorn(item)) {
             String refusal = GoatHorns.refusal(plugin, player, track.getInfo());
@@ -747,12 +772,12 @@ public class PlaybackManager {
         }
         String authorN = Normalizer.normalize(author, Normalizer.Form.NFC);
         String titleN = Normalizer.normalize(title, Normalizer.Form.NFC);
-        storeLater(player, item, track, query, null, titleN, authorN, null, resolved);
+        storeLater(player, item, track, query, null, titleN, authorN, null, resolved, version);
     }
 
     private void storeLater(Player player, ItemStack item, AudioTrack track, String query,
                             String fallback, String title, String author, String fetch,
-                            String resolved) {
+                            String resolved, String version) {
         String videoId = dev.valkdz.cdisc.audio.source.youtube.SabrResolver.videoIdOf(resolved);
         if (videoId == null) {
             videoId = dev.valkdz.cdisc.audio.source.youtube.SabrResolver.videoIdOf(track.getInfo().identifier);
@@ -767,12 +792,20 @@ public class PlaybackManager {
                         player.sendMessage("§e" + plugin.getMessageManager()
                                 .get(player, "lavaplayer.track." + notice));
                     }
-                    stored(player, item, track, query, fallback, title, author, fetch, hint);
+                    stored(player, item, track, query, fallback, title, author, fetch, hint, version);
                 }));
     }
 
     private void stored(Player player, ItemStack captured, AudioTrack track, String query, String fallback,
-                        String title, String author, String fetch, ItemUtils.Hint hint) {
+                        String title, String author, String fetch, ItemUtils.Hint hint, String version) {
+        if (captured == TO_LIBRARY) {
+            boolean live = track.getInfo().isStream;
+            long length = hint != null && hint.lengthMs() > 0 ? hint.lengthMs() : track.getInfo().length;
+            TrackLibrary.Track entry = new TrackLibrary.Track(query, fallback, title, author, fetch,
+                    live || length == Long.MAX_VALUE ? 0 : Math.max(0, length), live, System.currentTimeMillis());
+            plugin.getLibraryGuiManager().announce(player, plugin.getTrackLibrary().add(player.getUniqueId(), entry), entry);
+            return;
+        }
         ItemStack item = writable(player, captured);
         if (item == null) {
             String hold = plugin.cdiscConfig().isGoatHornEnabled() ? "horn.hold" : "cdisc.hold_disc";
@@ -785,7 +818,8 @@ public class PlaybackManager {
         Bukkit.getPluginManager().callEvent(event);
         if (event.isCancelled()) return;
 
-        ItemUtils.saveTrackToDisc(player, item, query, fallback, title, author, fetch, hint);
+        ItemUtils.saveTrackToDisc(player, item, query, fallback, title, author, fetch, hint,
+                GoatHorns.isHorn(item) ? null : version);
         long length = track.getInfo().length;
         if (!GoatHorns.isHorn(item)) {
             player.sendMessage("§a" + plugin.getMessageManager()
@@ -879,6 +913,11 @@ public class PlaybackManager {
 
         AudioLoadResultHandler handler = new AudioLoadResultHandler() {
             @Override public void trackLoaded(AudioTrack track) {
+                if (TrackLoader.isPreviewOnly(track)) {
+                    previewOnly(track);
+                    fallBack(ref, gen, fallbackQuery, discTitle, discAuthor);
+                    return;
+                }
 
                 if (startAtMs > 0 && track.isSeekable() && startAtMs < track.getDuration()) {
                     track.setPosition(startAtMs);
@@ -909,7 +948,55 @@ public class PlaybackManager {
             }
         };
 
+        // Before the load, so a track that loads at once still finds the version its disc asks for.
+        prepareVersions(block, resolved, discTitle, discAuthor);
         trackLoader.load(resolved, musicFetch, discTitle, discAuthor, handler);
+    }
+
+    public void prepareVersions(Block block, ItemStack disc) {
+        ItemUtils.DiscData data = ItemUtils.readDiscData(disc);
+        if (data == null || data.query() == null) return;
+        LocalTrackSettings.Shown shown = plugin.getLocalMusic().shown(data.query(), data.title(), data.author());
+        TrackVersions versions = plugin.getTrackVersions();
+        if (versions != null) {
+            versions.prepare(block, trackLoader.resolveQuery(data.query()), shown.title(), shown.author(), data.version());
+        }
+    }
+
+    private void prepareVersions(Block block, String resolved, String title, String author) {
+        TrackVersions versions = plugin.getTrackVersions();
+        if (versions != null) versions.prepare(block, resolved, title, author, wantedVersion(block, resolved));
+    }
+
+    // Every disc that plays is the current slot of its jukebox's queue by now.
+    private String wantedVersion(Block block, String resolved) {
+        DiscQueue queue = queues.get(block);
+        ItemUtils.DiscData data = queue == null ? null : ItemUtils.readDiscData(queue.getCurrent());
+        if (data == null || data.version() == null) return null;
+        return java.util.Objects.equals(trackLoader.resolveQuery(data.query()), resolved) ? data.version() : null;
+    }
+
+    // The disc in the queue and its copy in the jukebox change together, or the next restore
+    // would find them different and queue the jukebox's copy a second time.
+    public void forgetWantedVersion(Block block) {
+        DiscQueue queue = queues.get(block);
+        ItemStack current = queue == null ? null : queue.getCurrent();
+        if (current != null && ItemUtils.dropVersion(current)) queue.setSlot(queue.getCurrentIndex(), current);
+        if (block.getState() instanceof org.bukkit.block.Jukebox jukebox && jukebox.hasRecord()) {
+            ItemStack record = jukebox.getRecord();
+            if (ItemUtils.dropVersion(record)) plugin.getJukeboxListener().rewriteRecord(block, record);
+        }
+    }
+
+    public void tellListeners(Block block, java.util.function.Function<Player, String> message) {
+        Location origin = audibleOrigin(block);
+        double reach = effectiveDistance(block);
+        for (Player listener : Bukkit.getOnlinePlayers()) {
+            if (!dev.valkdz.cdisc.config.PlayerPrefs.showsTrackMessages(listener)) continue;
+            if (!listener.getWorld().equals(origin.getWorld())) continue;
+            if (listener.getLocation().distanceSquared(origin) > reach * reach) continue;
+            Tasks.onEntity(plugin, listener, () -> listener.sendMessage(message.apply(listener)));
+        }
     }
 
     private AudioEventAdapter trackEvents(BlockRef ref, int gen, AudioSession session, String resolved) {
@@ -1011,6 +1098,9 @@ public class PlaybackManager {
         ItemUtils.DiscData data = ItemUtils.readDiscData(disc);
         trackLoader.remember(data);
         if (data == null) return;
+        // A disc that asks for another version starts on its own: the fade-in does not pass its wish on.
+        TrackVersions versions = plugin.getTrackVersions();
+        if (data.version() != null && versions != null && versions.isEnabled()) return;
         String resolved = trackLoader.resolveQuery(data.query());
         if (resolved == null) return;
 
@@ -1026,7 +1116,8 @@ public class PlaybackManager {
         trackLoader.load(resolved, data.fetch(), title, author, new AudioLoadResultHandler() {
             @Override public void trackLoaded(AudioTrack track) {
                 Block here = here(ref, block);
-                if (generation.getOrDefault(here, 0) != gen || !getSessions(here).contains(session)) {
+                if (generation.getOrDefault(here, 0) != gen || !getSessions(here).contains(session)
+                        || TrackLoader.isPreviewOnly(track)) {
                     incoming.destroy();
                     return;
                 }
@@ -1098,6 +1189,11 @@ public class PlaybackManager {
         Bukkit.getPluginManager().callEvent(new TrackStartEvent(block, shownTitle, shownAuthor,
                 track.getInfo().uri, track.getInfo().isStream ? -1L : track.getDuration(),
                 track.getInfo().isStream, source, cause));
+    }
+
+    private void previewOnly(AudioTrack track) {
+        plugin.getLogger().warning("SoundCloud now serves only a 30-second preview of \""
+                + track.getInfo().title + "\" (" + track.getInfo().uri + "), so it is skipped");
     }
 
     // Load callbacks arrive on a loader thread, and both halves spawn and remove
@@ -1415,9 +1511,15 @@ public class PlaybackManager {
             Tasks.region(plugin, block, () -> advanceOrStop(block, gen));
             return;
         }
+        prepareVersions(block, resolved, title, author);
         trackLoader.load(resolved, fetch, title, author, new AudioLoadResultHandler() {
             @Override public void trackLoaded(AudioTrack track) {
                 if (generation.getOrDefault(here(ref, block), 0) != gen) return;
+                if (TrackLoader.isPreviewOnly(track)) {
+                    previewOnly(track);
+                    noMatches();
+                    return;
+                }
                 player.playTrack(track);
                 player.setVolume(volumeFor(track));
                 broadcaster.broadcast(here(ref, block), audibleOrigin(here(ref, block)), track, title, author,
@@ -1551,6 +1653,7 @@ public class PlaybackManager {
         moveEntry(blockRefs, from, to);
         BlockRef ref = blockRefs.get(to);
         if (ref != null) ref.block = to;
+        if (plugin.getTrackVersions() != null) plugin.getTrackVersions().relocate(from, to);
     }
 
     private static <V> void moveEntry(Map<Block, V> map, Block from, Block to) {
@@ -1634,15 +1737,18 @@ public class PlaybackManager {
         AudioSession session = firstSession(block);
         AudioTrack track = session == null ? null : session.getPlayer().getPlayingTrack();
         if (track == null || !track.isSeekable()) return;
-        seekTo(block, session.positionOf(track) + deltaMs);
+        seekTo(block, getPosition(block) + deltaMs);
     }
 
+    // Positions here are on the original's clock; another version of the song plays shifted.
     public void seekTo(Block block, long positionMs) {
         AudioSession session = firstSession(block);
         AudioTrack track = session == null ? null : session.getPlayer().getPlayingTrack();
         if (track == null || !track.isSeekable()) return;
+        BeatMatch.Result clock = clockOf(block, track);
+        long target = clock == null ? positionMs : clock.toCandidate(positionMs);
         long duration = track.getDuration();
-        long clamped = Math.max(0, duration > 0 && duration != Long.MAX_VALUE ? Math.min(positionMs, duration) : positionMs);
+        long clamped = Math.max(0, duration > 0 && duration != Long.MAX_VALUE ? Math.min(target, duration) : target);
         session.seeking(track, clamped);
         track.setPosition(clamped);
     }
@@ -1650,7 +1756,70 @@ public class PlaybackManager {
     public long getPosition(Block block) {
         AudioSession session = firstSession(block);
         AudioTrack track = session == null ? null : session.getPlayer().getPlayingTrack();
-        return track != null ? session.positionOf(track) : -1;
+        if (track == null) return -1;
+        BeatMatch.Result clock = clockOf(block, track);
+        long position = session.positionOf(track);
+        return clock == null ? position : Math.max(0, clock.toOriginal(position));
+    }
+
+    private BeatMatch.Result clockOf(Block block, AudioTrack track) {
+        TrackVersions versions = plugin.getTrackVersions();
+        return versions == null ? null : versions.clockOf(block, track);
+    }
+
+    private AudioTrackInfo shownInfo(Block block, AudioTrack track, BeatMatch.Result clock) {
+        AudioTrackInfo original = clock == null ? null : plugin.getTrackVersions().originalInfo(block);
+        return original != null ? original : track.getInfo();
+    }
+
+    public boolean swapVersion(Block block, AudioTrack track, LongUnaryOperator map, Runnable done, Runnable failed) {
+        return swapVersion(block, track, null, map, done, failed);
+    }
+
+    // ready: a player already buffering the other cut near this moment, which can take over at once.
+    public boolean swapVersion(Block block, AudioPlayer ready, LongUnaryOperator map, Runnable done, Runnable failed) {
+        return swapVersion(block, null, ready, map, done, failed);
+    }
+
+    private boolean swapVersion(Block block, AudioTrack track, AudioPlayer ready, LongUnaryOperator map,
+                                Runnable done, Runnable failed) {
+        AudioSession session = firstSession(block);
+        BlockRef ref = blockRefs.get(block);
+        if (session == null || ref == null) return false;
+        AudioTrack current = session.getPlayer().getPlayingTrack();
+        if (current != null && current.getInfo().isStream) return false;
+
+        int gen = getGeneration(block);
+        if (ready == null && current != null) track.setPosition(map.applyAsLong(session.positionOf(current)));
+        AudioPlayer incoming = ready != null ? ready : trackLoader.createPlayer();
+        incoming.setVolume(session.getPlayer().getVolume());
+        AudioEventAdapter events = trackEvents(ref, gen, session, "");
+        incoming.addListener(new AudioEventAdapter() {
+            @Override
+            public void onTrackEnd(AudioPlayer p, AudioTrack t, AudioTrackEndReason r) {
+                if (r == AudioTrackEndReason.LOAD_FAILED) {
+                    if (session.getPlayer() == p && plugin.getTrackVersions() != null) {
+                        Tasks.region(plugin, ref.get(), () -> plugin.getTrackVersions().versionFailed(ref.get(), t));
+                    }
+                    return;
+                }
+                events.onTrackEnd(p, t, r);
+            }
+
+            @Override
+            public void onTrackException(AudioPlayer p, AudioTrack t, LoadException e) {
+                Bukkit.getLogger().warning("[CDisc] Another version of the song failed to play (" + t.getInfo().uri
+                        + "): " + (e.getMessage() == null ? "" : e.getMessage().split("\n", 2)[0]));
+            }
+
+            @Override
+            public void onTrackStuck(AudioPlayer p, AudioTrack t, long thresholdMs) {
+                events.onTrackStuck(p, t, thresholdMs);
+            }
+        });
+        if (ready == null) incoming.playTrack(track);
+        session.swapTo(incoming, map, done, failed);
+        return true;
     }
 
     private AudioSession firstSession(Block block) {
@@ -1660,7 +1829,8 @@ public class PlaybackManager {
 
     public long getDuration(Block block) {
         AudioTrack track = getPlayingTrack(block);
-        return track != null ? track.getDuration() : -1;
+        if (track == null) return -1;
+        return shownInfo(block, track, clockOf(block, track)).length;
     }
 
     private AudioTrack getPlayingTrack(Block block) {
@@ -1693,21 +1863,24 @@ public class PlaybackManager {
         AudioTrack track = player.getPlayingTrack();
         if (track == null) return null;
 
+        BeatMatch.Result clock = clockOf(block, track);
+        AudioTrackInfo shown = shownInfo(block, track, clock);
         String rawAuthor = session.getDiscAuthor() != null ? session.getDiscAuthor()
-                : (track.getInfo().author != null ? track.getInfo().author : "Unknown");
+                : (shown.author != null ? shown.author : "Unknown");
         String rawTitle = session.getDiscTitle() != null ? session.getDiscTitle()
-                : (track.getInfo().title != null ? track.getInfo().title : "No name");
+                : (shown.title != null ? shown.title : "No name");
+        long position = session.positionOf(track);
 
         return new PlaybackInfo(
                 session.nfcTitle(rawTitle),
                 session.nfcAuthor(rawAuthor),
-                session.positionOf(track),
-                track.getDuration(),
+                clock == null ? position : Math.max(0, clock.toOriginal(position)),
+                shown.length,
                 player.isPaused(),
                 getRepeatMode(block),
-                track.getInfo().isStream,
+                shown.isStream,
                 plugin.getLocalMusic().lyricsOf(track),
-                track.getInfo().uri
+                shown.uri
         );
     }
 

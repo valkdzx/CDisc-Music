@@ -98,7 +98,7 @@ public final class PairGuiManager {
                 plugin.getMessageManager().get(player, "gui.pair.manage_title", group.name()));
         holder.setInventory(inventory);
 
-        ItemStack filler = filler();
+        ItemStack filler = filler(player);
         for (int i = 0; i < SIZE; i++) inventory.setItem(i, filler);
 
         inventory.setItem(SLOT_MANAGE_BACK, backItem(player));
@@ -135,7 +135,7 @@ public final class PairGuiManager {
                 plugin.getMessageManager().get(player, "gui.pair.picker_title"));
         holder.setInventory(inventory);
 
-        ItemStack filler = filler();
+        ItemStack filler = filler(player);
         for (int i = 0; i < SIZE; i++) inventory.setItem(i, filler);
         inventory.setItem(SLOT_BACK, backItem(player));
 
@@ -173,7 +173,7 @@ public final class PairGuiManager {
                         displayName(player, settings, roleKey)));
         holder.setInventory(inventory);
 
-        ItemStack filler = filler();
+        ItemStack filler = filler(player);
         for (int i = 0; i < SETTINGS_SIZE; i++) inventory.setItem(i, filler);
 
         inventory.setItem(SLOT_SETTINGS_BACK, backItem(player));
@@ -406,8 +406,8 @@ public final class PairGuiManager {
         return placeholder(Icons.pick(player, GuiHeads.BACK, Material.ARROW), plugin.getMessageManager().get(player, "gui.pair.back"));
     }
 
-    private ItemStack filler() {
-        return placeholder(Material.BLACK_STAINED_GLASS_PANE, " ");
+    private ItemStack filler(Player player) {
+        return placeholder(Icons.pane(player, Material.BLACK_STAINED_GLASS_PANE), " ");
     }
 
     private ItemStack placeholder(Material material, String name) {
