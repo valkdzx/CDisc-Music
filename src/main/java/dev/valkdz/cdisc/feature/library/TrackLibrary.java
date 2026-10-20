@@ -25,8 +25,9 @@ public final class TrackLibrary {
     public static final String FOLDER = "library";
 
     // query: the address a disc of this track holds, which is also what tells two tracks apart.
+    // disc: the record it was starred from, so the screen shows that one; null when added by link.
     public record Track(String query, String fallback, String title, String author, String fetch,
-                        long lengthMs, boolean live, long addedAt) {
+                        long lengthMs, boolean live, long addedAt, String disc) {
 
         public ItemUtils.Hint hint() {
             return lengthMs > 0 || live ? new ItemUtils.Hint(null, lengthMs, live, null, 0, null) : null;
@@ -154,7 +155,7 @@ public final class TrackLibrary {
                 if (query == null || query.isBlank()) continue;
                 tracks.add(new Track(query, entry.get("fallback").text(), entry.get("title").asText("No name"),
                         entry.get("author").text(), entry.get("fetch").text(), entry.get("length").asLong(0),
-                        entry.get("live").asBoolean(false), entry.get("added").asLong(0)));
+                        entry.get("live").asBoolean(false), entry.get("added").asLong(0), entry.get("disc").text()));
             }
         } catch (IOException | RuntimeException e) {
             plugin.getLogger().log(Level.WARNING, "The library of " + player + " could not be read", e);
@@ -172,6 +173,7 @@ public final class TrackLibrary {
             if (track.fallback() != null) entry.put("fallback", track.fallback());
             if (track.author() != null) entry.put("author", track.author());
             if (track.fetch() != null) entry.put("fetch", track.fetch());
+            if (track.disc() != null) entry.put("disc", track.disc());
             list.add(entry);
         }
         String text = root.toPrettyString();

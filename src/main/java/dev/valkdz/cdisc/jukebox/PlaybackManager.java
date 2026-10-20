@@ -802,7 +802,7 @@ public class PlaybackManager {
             boolean live = track.getInfo().isStream;
             long length = hint != null && hint.lengthMs() > 0 ? hint.lengthMs() : track.getInfo().length;
             TrackLibrary.Track entry = new TrackLibrary.Track(query, fallback, title, author, fetch,
-                    live || length == Long.MAX_VALUE ? 0 : Math.max(0, length), live, System.currentTimeMillis());
+                    live || length == Long.MAX_VALUE ? 0 : Math.max(0, length), live, System.currentTimeMillis(), null);
             plugin.getLibraryGuiManager().announce(player, plugin.getTrackLibrary().add(player.getUniqueId(), entry), entry);
             return;
         }

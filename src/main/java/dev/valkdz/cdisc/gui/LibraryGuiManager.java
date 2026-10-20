@@ -200,7 +200,7 @@ public final class LibraryGuiManager {
         long length = live ? 0 : info != null ? info.duration() : data.hint() != null ? data.hint().lengthMs() : 0;
         return new TrackLibrary.Track(data.query(), data.fallback(),
                 data.title() == null ? "No name" : data.title(), data.author(), data.fetch(),
-                Math.max(0, length), live, System.currentTimeMillis());
+                Math.max(0, length), live, System.currentTimeMillis(), current.getType().name());
     }
 
     public ItemStack starItem(Player player, Block block) {
@@ -243,7 +243,7 @@ public final class LibraryGuiManager {
     }
 
     private ItemStack trackItem(Player player, TrackLibrary.Track track, boolean selected) {
-        ItemStack item = new ItemStack(DISCS.get(Math.floorMod(track.query().hashCode(), DISCS.size())));
+        ItemStack item = new ItemStack(discOf(track));
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return item;
         meta.setDisplayName((selected ? "§a▶ " : "§f") + trim(Normalizer.normalize(track.title(), Normalizer.Form.NFC), 40));
@@ -306,6 +306,11 @@ public final class LibraryGuiManager {
         if (shine == null) return;
         meta.addEnchant(shine, 1, true);
         meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+    }
+
+    static Material discOf(TrackLibrary.Track track) {
+        Material own = track.disc() == null ? null : Material.matchMaterial(track.disc());
+        return own != null && DISCS.contains(own) ? own : DISCS.get(Math.floorMod(track.query().hashCode(), DISCS.size()));
     }
 
     private static List<Material> discs() {

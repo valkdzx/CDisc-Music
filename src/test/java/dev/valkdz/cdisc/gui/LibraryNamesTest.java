@@ -31,7 +31,19 @@ class LibraryNamesTest {
         assertNull(LibraryGuiManager.named(tracks, "Кино"));
     }
 
+    @Test
+    void aStarredTrackShowsTheRecordItCameFrom() {
+        assertEquals(org.bukkit.Material.MUSIC_DISC_CAT, LibraryGuiManager.discOf(onDisc("MUSIC_DISC_CAT")));
+        for (String other : new String[]{null, "STONE", "MUSIC_DISC_FROM_A_LATER_VERSION"}) {
+            assertEquals(true, LibraryGuiManager.discOf(onDisc(other)).name().startsWith("MUSIC_DISC_"), other);
+        }
+    }
+
+    private static TrackLibrary.Track onDisc(String disc) {
+        return new TrackLibrary.Track("https://example.com/cat", null, "cat", "C418", null, 185_000, false, 0, disc);
+    }
+
     private static TrackLibrary.Track track(String title, String author) {
-        return new TrackLibrary.Track("https://example.com/" + title, null, title, author, null, 200_000, false, 0);
+        return new TrackLibrary.Track("https://example.com/" + title, null, title, author, null, 200_000, false, 0, null);
     }
 }
