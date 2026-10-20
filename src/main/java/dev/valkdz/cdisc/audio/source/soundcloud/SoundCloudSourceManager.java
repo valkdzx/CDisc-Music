@@ -167,12 +167,13 @@ public final class SoundCloudSourceManager implements AudioSourceManager {
         for (Json transcoding : transcodings) {
             if (transcoding.path("url").asText(null) == null) continue;
             String protocol = transcoding.path("format").path("protocol").asText("");
-            String mime = transcoding.path("format").path("mime_type").asText("");
+            String mime = transcoding.path("format").path("mime_type").asText("").split(";", 2)[0].trim();
+            // audio/mpegurl is an adaptive master playlist, and its stream endpoint answers 404.
             int rank;
-            if ("progressive".equals(protocol) && mime.startsWith("audio/mpeg")) rank = 0;
-            else if ("hls".equals(protocol) && mime.startsWith("audio/mpeg")) rank = 1;
-            else if ("hls".equals(protocol) && mime.startsWith("audio/ogg")) rank = 2;
-            else if ("hls".equals(protocol) && mime.startsWith("audio/mp4")) rank = 3;
+            if ("progressive".equals(protocol) && mime.equals("audio/mpeg")) rank = 0;
+            else if ("hls".equals(protocol) && mime.equals("audio/mpeg")) rank = 1;
+            else if ("hls".equals(protocol) && mime.equals("audio/ogg")) rank = 2;
+            else if ("hls".equals(protocol) && mime.equals("audio/mp4")) rank = 3;
             else continue;
             if (transcoding.path("snipped").asBoolean(false)) rank += 10;
             if (rank < bestRank) {
